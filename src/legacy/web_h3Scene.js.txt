@@ -1,0 +1,39 @@
+import { app } from "../../scripts/app.js";
+
+app.registerExtension({
+    name: "WextraX.H3Scene.LastFrameToggle",
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== "h3Scene") return;
+
+        const onNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            const ret = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+            const node = this;
+
+            const findInputIdx = (name) => node.inputs ? node.inputs.findIndex((i) => i.name === name) : -1;
+
+            // Start with the last_frame socket hidden; only the boolean
+            // widget below decides whether it's actually needed.
+            const lfIdx = findInputIdx("last_frame");
+            if (lfIdx !== -1) node.removeInput(lfIdx);
+
+            const lfWidget = node.widgets ? node.widgets.find((w) => w.name === "use_last_frame") : null;
+            if (lfWidget) {
+                const origCallback = lfWidget.callback;
+                lfWidget.callback = function (value, ...rest) {
+                    const r = origCallback ? origCallback.apply(this, [value, ...rest]) : undefined;
+                    const idx = findInputIdx("last_frame");
+                    if (value && idx === -1) {
+                        node.addInput("last_frame", "IMAGE");
+                    } else if (!value && idx !== -1) {
+                        node.removeInput(idx);
+                    }
+                    node.setDirtyCanvas(true, true);
+                    return r;
+                };
+            }
+
+            return ret;
+        };
+    },
+});

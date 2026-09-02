@@ -13,6 +13,7 @@ class Tag:
     FUNCTION = "process"
     CATEGORY = "WextraX"
     OUTPUT_NODE = True
+    DESCRIPTION = "Picks one tag from a list of strings by index; the second output lists the whole tag list for the console."
 
     def process(self, tag_list, index):
         content = "Console Log"

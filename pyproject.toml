@@ -1,0 +1,13 @@
+[project]
+name = "wextrax"
+description = "WextraX — MiniMax-H3 multi-scene loop for ComfyUI: Prompt Composer (beats with sound + image), Scene, Collect, Loop Range, Conditioning, Scene Conditioning, Handoff Tail. Scene-by-scene hand-off (video + audio), resume from any clip."
+version = "0.2.0"
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/sickbraintwo/WextraX"
+
+[tool.comfy]
+PublisherId = "sickbraintwo"
+DisplayName = "WextraX"

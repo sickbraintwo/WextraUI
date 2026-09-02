@@ -1,0 +1,141 @@
+import { app } from "../../scripts/app.js";
+
+const CONVERTED_TYPE = "converted-widget";
+
+function hideWidget(widget) {
+    widget.type = CONVERTED_TYPE;
+    widget.computeSize = () => [0, -4];
+    // Multiline STRING widgets are backed by a real <textarea> DOM element,
+    // not just canvas-drawn — computeSize alone doesn't hide that element.
+    if (widget.element) {
+        widget.element.style.display = "none";
+    }
+}
+
+function defaultScene(name) {
+    return { name: name || "SCENE", prompt: "", duration: 8.0, seed: 0, use_last_frame: false };
+}
+
+app.registerExtension({
+    name: "WextraX.H3SceneListBuilder.Table",
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== "h3SceneListBuilder") return;
+
+        const onNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            const ret = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+            const node = this;
+
+            const jsonWidget = node.widgets.find((w) => w.name === "scenes_json");
+            if (!jsonWidget) return ret;
+
+            let rows;
+            try {
+                rows = JSON.parse(jsonWidget.value);
+                if (!Array.isArray(rows) || rows.length === 0) throw new Error("empty");
+            } catch (e) {
+                rows = [defaultScene("SCENE0")];
+            }
+
+            hideWidget(jsonWidget);
+
+            const container = document.createElement("div");
+            Object.assign(container.style, {
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+                fontSize: "11px",
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "2px 4px",
+            });
+
+            const COLS = "64px 1fr 50px 60px 30px 20px";
+
+            function sync() {
+                jsonWidget.value = JSON.stringify(rows);
+                render();
+                node.setDirtyCanvas(true, true);
+            }
+
+            function render() {
+                container.innerHTML = "";
+
+                const header = document.createElement("div");
+                Object.assign(header.style, { display: "grid", gridTemplateColumns: COLS, gap: "3px", opacity: "0.6" });
+                header.innerHTML = "<span>Name</span><span>Prompt</span><span>Dur(s)</span><span>Seed</span><span>LF</span><span></span>";
+                container.appendChild(header);
+
+                rows.forEach((scene, i) => {
+                    const row = document.createElement("div");
+                    Object.assign(row.style, { display: "grid", gridTemplateColumns: COLS, gap: "3px", alignItems: "center" });
+
+                    const nameInput = document.createElement("input");
+                    nameInput.value = scene.name;
+                    nameInput.style.width = "100%";
+                    nameInput.addEventListener("change", (e) => { scene.name = e.target.value; sync(); });
+
+                    const promptInput = document.createElement("input");
+                    promptInput.value = scene.prompt;
+                    promptInput.placeholder = "paste the composed prompt for this scene...";
+                    promptInput.style.width = "100%";
+                    promptInput.addEventListener("change", (e) => { scene.prompt = e.target.value; sync(); });
+
+                    const durInput = document.createElement("input");
+                    durInput.type = "number";
+                    durInput.step = "0.1";
+                    durInput.value = scene.duration;
+                    durInput.style.width = "100%";
+                    durInput.addEventListener("change", (e) => { scene.duration = parseFloat(e.target.value) || 0; sync(); });
+
+                    const seedInput = document.createElement("input");
+                    seedInput.type = "number";
+                    seedInput.step = "1";
+                    seedInput.value = scene.seed;
+                    seedInput.style.width = "100%";
+                    seedInput.addEventListener("change", (e) => { scene.seed = parseInt(e.target.value, 10) || 0; sync(); });
+
+                    const lfInput = document.createElement("input");
+                    lfInput.type = "checkbox";
+                    lfInput.checked = !!scene.use_last_frame;
+                    lfInput.title = "Use previous scene's last frame as reference instead of a fixed reference image";
+                    lfInput.addEventListener("change", (e) => { scene.use_last_frame = e.target.checked; sync(); });
+
+                    const btn = document.createElement("button");
+                    const isLast = i === rows.length - 1;
+                    btn.textContent = isLast ? "+" : "−";
+                    btn.style.width = "100%";
+                    btn.addEventListener("click", () => {
+                        if (isLast) rows.push(defaultScene("SCENE" + rows.length));
+                        else rows.splice(i, 1);
+                        sync();
+                    });
+
+                    row.append(nameInput, promptInput, durInput, seedInput, lfInput, btn);
+                    container.appendChild(row);
+                });
+            }
+
+            render();
+
+            node.addDOMWidget("scenes_table", "custom", container, {
+                getValue: () => jsonWidget.value,
+                setValue: (v) => {
+                    try { rows = JSON.parse(v); } catch (e) { /* keep current rows */ }
+                    jsonWidget.value = v;
+                    render();
+                },
+                serialize: false,
+                hideOnZoom: false,
+            });
+
+            // keep the table right where scenes_json used to sit
+            const tableWidget = node.widgets[node.widgets.length - 1];
+            const jsonIdx = node.widgets.indexOf(jsonWidget);
+            node.widgets.splice(node.widgets.length - 1, 1);
+            node.widgets.splice(jsonIdx + 1, 0, tableWidget);
+
+            return ret;
+        };
+    },
+});

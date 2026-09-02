@@ -15,6 +15,7 @@ class LoraName:
     RETURN_TYPES = ("STRING",)
     FUNCTION = "extractLoraName"
     CATEGORY = "WextraX"
+    DESCRIPTION = "Extracts a clean LoRA name from a path: last path segment, without extension."
 
     def extractLoraName(self, loraName, split_char):
         # Suddivide la stringa in base al carattere specificato
