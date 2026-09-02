@@ -72,3 +72,5 @@ One hardware note worth keeping if this is rerun on a similar rig: the text enco
 ## Credits / licence
 
 WextraX (this repository) is released under the Apache License 2.0. MiniMax-H3 is used under its Community License (unlocked for the EU as of 22/08/2026, verified against the model's own licensing page rather than press coverage of it); Krea 2 is used under the Krea 2 Community License Agreement. Built by Sick (`sickbrain2`) with an AI agent (Claude Code) driving prompting, workflow patching and part of the render loop through Comfy MCP.
+
+**Replicating it.** The delivered workflow loads 12 stills — the two opening keyframes, the eyes-only keyframe of act IV, the skull and band character sheets, the hall and the two wave-phase storyboards. They are in `workflows/references/` with the exact file names the Load Image nodes expect: copy them into `ComfyUI/input`, load the JSON, press Run.
