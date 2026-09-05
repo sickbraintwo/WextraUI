@@ -11,3 +11,4 @@ Repository = "https://github.com/sickbraintwo/WextraUI"
 [tool.comfy]
 PublisherId = "sickbraintwo"
 DisplayName = "WextraUI"
+Icon = "https://raw.githubusercontent.com/sickbraintwo/WextraUI/main/images/wordmark.svg"
