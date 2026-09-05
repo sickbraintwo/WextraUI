@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.3 — 2026-09-05
+- Console banner in plain text: the coloured version used `ctypes`/`CONOUT$` on Windows and the Comfy Registry scanner flagged 0.3.2. No functional change.
+
 ## 0.3.2 — 2026-09-05
 - **Output order changed** (rewire, or run `tools/migrate_outputs.py` on your workflows): WDifference → `passthrough, tag, changes, count, key`; WScene Composer H3 → `prompt, duration, timing_table, frames`; WLoop Start H3 → `…, start_clip, start_audio, resuming`.
 - WRoute outputs are now `true` / `false` (were A / B).
