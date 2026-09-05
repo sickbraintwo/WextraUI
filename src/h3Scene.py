@@ -1,4 +1,4 @@
-"""MM H3 Scene — one scene of a multi-scene H3 piece, as ONE object.
+"""WScene H3 — one scene of a multi-scene H3 piece, as ONE object.
 
 Everything the loop needs to condition this scene travels in the H3_SCENE
 dict: prompt, duration, seed, where the clip STARTS, where it LANDS, an
@@ -91,7 +91,7 @@ class H3Scene:
     RETURN_TYPES = ("H3_SCENE",)
     RETURN_NAMES = ("scene",)
     FUNCTION = "build"
-    CATEGORY = "WextraX"
+    CATEGORY = "WextraUI"
     DESCRIPTION = "One H3 scene as a single object: prompt, duration, seed, start/end frames, mid-clip guide, references."
 
     def build(self, prompt, duration, seed, first_frame_from, guide_frame_at, handoff_frames=str(HANDOFF_DEFAULT),

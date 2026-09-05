@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
+import { ensureWxStyle, wxAddButton } from "./wxStyle.js";
 
-// Save Wimage (frontend 1.49+): parti dinamiche (+ / -) e anteprima live del nome.
+// WSave Image (frontend 1.49+): parti dinamiche (+ / -) e anteprima live del nome.
 // Backend (src/saveWimage.py): per ogni parte i = text{i}, type{i}, value{i} (widget di testo il cui
 // puntino accetta qualsiasi link: qui il suo slot viene messo a tipo "*").
 // Il numero di parti vive nel widget nascosto "parts" (cosi' si salva e si ricarica col workflow).
@@ -23,7 +24,7 @@ function fmt(v, kind) {
 }
 
 app.registerExtension({
-    name: "WextraX.SaveWimage",
+    name: "WextraUI.SaveWimage",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== "saveWimage") return;
 
@@ -41,11 +42,11 @@ app.registerExtension({
                 setHidden(preview, false);
                 preview.options = preview.options || {};
                 preview.options.read_only = true;
-                if (preview.element) { preview.element.readOnly = true; preview.element.style.opacity = "0.85"; preview.element.style.fontFamily = "monospace"; }
+                if (preview.element) { ensureWxStyle(); preview.element.readOnly = true; preview.element.classList.add("wx-preview"); preview.element.placeholder = "file name"; }
             }
             setHidden(W("parts"), true);
 
-            function count() { return Math.max(0, Math.min(MAX_PARTS, Number(val("parts", 1)) || 0)); }
+            function count() { return Math.max(0, Math.min(MAX_PARTS, Number(val("parts", 0)) || 0)); }
 
             // lo slot del widget value{i} accetta qualsiasi tipo; se il frontend lo ha tolto, lo ricrea
             function anySlot(i) {
@@ -106,8 +107,8 @@ app.registerExtension({
                 };
             }
 
-            node.addWidget("button", "+ Add part", null, () => setCount(count() + 1));
-            node.addWidget("button", "- Remove last part", null, () => setCount(count() - 1));
+            wxAddButton(node, "+ Add part", () => setCount(count() + 1));
+            wxAddButton(node, "− Remove last part", () => setCount(count() - 1));
 
             const origConn = node.onConnectionsChange;
             node.onConnectionsChange = function () {

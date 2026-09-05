@@ -1,6 +1,6 @@
-# MM H3 Scene
+# WScene H3
 
-**One scene as a single object**: the prompt, its duration, the seed, where the clip starts and lands, an optional mid-clip guide, the references. Chain the objects with *MM H3 Collect Scenes* and the loop renders them one after the other.
+**One scene as a single object**: the prompt, its duration, the seed, where the clip starts and lands, an optional mid-clip guide, the references. Chain the objects with *WScenes Collection H3* and the loop renders them one after the other.
 
 ## Widgets
 - **seed** — set `control_after_generate` to *fixed* for a reproducible film.

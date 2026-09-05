@@ -1,13 +1,13 @@
 [project]
-name = "wextrax"
-description = "WextraX — MiniMax-H3 multi-scene loop for ComfyUI: Prompt Composer (beats with sound + image), Scene, Collect, Loop Range, Conditioning, Scene Conditioning, Handoff Tail. Scene-by-scene hand-off (video + audio), resume from any clip."
-version = "0.2.0"
+name = "wextraui"
+description = "WextraUI — extra nodes for ComfyUI, from the Winteraction workbench: WSave Image (file name built from parts), WRoute (the if that picks an OUTPUT), WDifference (what changed since the last run, also as a file-name tag), WLoad Lora & Trigger (LoRA + trigger words into the prompt), and the WScene / WLoop family: MiniMax H3 multi-scene loop with video + audio hand-off."
+version = "0.3.2"
 license = { file = "LICENSE" }
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/sickbraintwo/WextraX"
+Repository = "https://github.com/sickbraintwo/WextraUI"
 
 [tool.comfy]
 PublisherId = "sickbraintwo"
-DisplayName = "WextraX"
+DisplayName = "WextraUI"

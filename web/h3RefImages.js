@@ -3,11 +3,11 @@ import { app } from "../../scripts/app.js";
 // ref_image_1..9 a cascata: parte visibile solo il primo; quando lo colleghi
 // compare il successivo, quando scolleghi spariscono le code vuote.
 const MAX_REFS = 9;
-const NODES = ["h3Scene", "h3Conditioning"];
+const NODES = ["h3Scene"];
 const NAME = (i) => "ref_image_" + i;
 
 app.registerExtension({
-    name: "WextraX.H3RefImages.Cascade",
+    name: "WextraUI.H3RefImages.Cascade",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (!NODES.includes(nodeData.name)) return;
 

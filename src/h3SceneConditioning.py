@@ -1,4 +1,4 @@
-"""MM H3 Scene Conditioning — the ONE node inside the loop.
+"""WLoop Scene Conditioning H3 — the ONE node inside the loop.
 
 Takes the scene list + the current scene index + what the loop carries
 (previous scene's last frame, hand-off tail clip and audio) and
@@ -56,7 +56,7 @@ class H3SceneConditioning:
             "optional": {
                 "audio_vae": ("VAE", {"tooltip": "Needed for the audio hand-off, guide_audio and ref_audio."}),
                 "previous_frame": ("IMAGE", {"tooltip": "Loop value1: last frame of the previous scene."}),
-                "previous_clip": ("IMAGE", {"tooltip": "Loop value2: hand-off tail of the previous scene (MM H3 Handoff Tail)."}),
+                "previous_clip": ("IMAGE", {"tooltip": "Loop value2: hand-off tail of the previous scene (WLoop End H3)."}),
                 "previous_audio": ("AUDIO", {"tooltip": "Loop value3: hand-off audio of the previous scene."}),
             },
         }
@@ -64,7 +64,7 @@ class H3SceneConditioning:
     RETURN_TYPES = ("CONDITIONING", "LATENT", "INT", "STRING", "INT", "FLOAT", "INT", "INT", "IMAGE", "STRING")
     RETURN_NAMES = ("positive", "LATENT", "seed", "prompt", "frames", "duration", "width", "height", "first_image", "info")
     FUNCTION = "condition"
-    CATEGORY = "WextraX"
+    CATEGORY = "WextraUI"
     DESCRIPTION = ("Builds the H3 conditioning for scene[scene_index]: first/last frame, guide, references and the "
                    "motion/audio hand-off from the previous scene, in one node.")
 

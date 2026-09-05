@@ -1,6 +1,6 @@
-# MM H3 Collect Scenes
+# WScenes Collection H3
 
-Lines up *MM H3 Scene* objects **in socket order** into the list the loop runs over. Socket `scene1` is scene 0, `scene2` is scene 1, and so on: that order is the film.
+Lines up *WScene H3* objects **in socket order** into the list the loop runs over. Socket `scene1` is scene 0, `scene2` is scene 1, and so on: that order is the film.
 
 ## Outputs
 - **scenes** — the list (feed it to *Loop Range*, *Scene Conditioning* and *Handoff Tail*).

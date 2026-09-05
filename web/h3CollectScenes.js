@@ -1,9 +1,10 @@
 import { app } from "../../scripts/app.js";
+import { wxAddButton } from "./wxStyle.js";
 
 const MAX_SCENES = 20;
 
 app.registerExtension({
-    name: "WextraX.H3CollectScenes.DynamicInputs",
+    name: "WextraUI.H3CollectScenes.DynamicInputs",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== "h3CollectScenes") return;
 
@@ -23,6 +24,8 @@ app.registerExtension({
             }
             const s1 = findInputIdx("scene1");
             if (s1 !== -1) node.inputs[s1].label = "Scene 1";
+            // The frontend sized the node for all 20 inputs before we removed 19: shrink to what is left.
+            const fit = () => { const w = node.size[0], h = node.computeSize()[1]; node.setSize([w, h]); node.setDirtyCanvas(true, true); };
 
             let sceneCount = 1;
 
@@ -37,22 +40,23 @@ app.registerExtension({
                 return r;
             };
 
-            node.addWidget("button", "+ Add scene", null, () => {
+            wxAddButton(node, "+ Add scene", () => {
                 if (sceneCount >= MAX_SCENES) return;
                 sceneCount += 1;
                 node.addInput("scene" + sceneCount, "H3_SCENE");
                 const idx = findInputIdx("scene" + sceneCount);
                 if (idx !== -1) node.inputs[idx].label = "Scene " + sceneCount;
-                node.setDirtyCanvas(true, true);
+                fit();
             });
 
-            node.addWidget("button", "− Remove last scene", null, () => {
+            wxAddButton(node, "− Remove last scene", () => {
                 if (sceneCount <= 1) return;
                 const idx = findInputIdx("scene" + sceneCount);
                 if (idx !== -1) node.removeInput(idx);
                 sceneCount -= 1;
-                node.setDirtyCanvas(true, true);
+                fit();
             });
+            setTimeout(fit, 0);
 
             return ret;
         };

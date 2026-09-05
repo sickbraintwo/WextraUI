@@ -3,7 +3,7 @@
 The last N frames of a clip (and their audio) are anchored at frame 0 of the
 next scene with a MiniMaxH3 keyframe (like Add Guide), so motion and sound
 continue instead of restarting from a frozen still. N is chosen PER SCENE on
-the MM H3 Scene node (handoff_frames): it says how much of the previous clip
+the WScene H3 node (handoff_frames): it says how much of the previous clip
 that scene inherits. Valid H3 clip lengths only (17k+5): 5, 22, 39, 56, ...
 22 = 0.92 s is the safe default (enough audio for the audio VAE, real motion
 context); longer = more music continuity across the join, at the price of a

@@ -1,6 +1,6 @@
-"""MM H3 Collect Scenes — the ordered list of H3_SCENE objects for the loop.
+"""WScenes Collection H3 — the ordered list of H3_SCENE objects for the loop.
 
-The loop body indexes this list with its scene index (MM H3 Scene
+The loop body indexes this list with its scene index (WScene H3
 Conditioning does that itself), so no per-field lists / indexAnything
 nodes are needed any more. `summary` is a human-readable table for a
 show-text node (and for the technical diary).
@@ -39,12 +39,12 @@ class H3CollectScenes:
     RETURN_TYPES = ("H3_SCENES", "INT", "STRING")
     RETURN_NAMES = ("scenes", "total_scenes", "summary")
     FUNCTION = "collect"
-    CATEGORY = "WextraX"
-    DESCRIPTION = "Collects MM H3 Scene objects, in socket order, into the list the loop runs over."
+    CATEGORY = "WextraUI"
+    DESCRIPTION = "Collects WScene H3 objects, in socket order, into the list the loop runs over."
 
     def collect(self, **kwargs):
         scenes = [kwargs[("scene%d" % i)] for i in range(1, MAX_SCENES + 1) if kwargs.get("scene%d" % i) is not None]
         if not scenes:
-            raise ValueError("No scenes connected: wire in at least one MM H3 Scene node.")
+            raise ValueError("No scenes connected: wire in at least one WScene H3 node.")
         summary = "\n".join(scene_line(i, s) for i, s in enumerate(scenes))
         return (scenes, len(scenes), summary)

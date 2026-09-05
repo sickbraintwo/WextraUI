@@ -1,3 +1,5 @@
+"""NOT REGISTERED since 04/09/2026 (all-in-one, out of the loop — never used): kept for build_h3_conditioning / PICTURE_ORDER,
+used by h3SceneConditioning (loop body)."""
 """MM H3 Conditioning (all-in-one) — first/last keyframes + a mid-video guide
 (image and/or audio) + reference images/audio, in ONE conditioning.
 
@@ -29,7 +31,7 @@ try:
     from comfy.ldm.minimax.model import FRAME_RESCALE
 except Exception as e:  # pragma: no cover
     raise ImportError(
-        "WextraX H3Conditioning: comfy_extras.nodes_minimax_h3 no longer exposes the helpers this node reuses "
+        "WextraUI H3Conditioning: comfy_extras.nodes_minimax_h3 no longer exposes the helpers this node reuses "
         f"({e}). Update src/h3Conditioning.py to the current ComfyUI implementation."
     )
 
@@ -178,7 +180,7 @@ class H3ConditioningAllInOne:
     RETURN_TYPES = ("CONDITIONING", "LATENT", "STRING")
     RETURN_NAMES = ("positive", "LATENT", "pictures")
     FUNCTION = "encode"
-    CATEGORY = "WextraX"
+    CATEGORY = "WextraUI"
     DESCRIPTION = ("MiniMax H3 conditioning with first/last keyframes, a mid-video guide (image/audio at guide_frame) "
                    "and reference images/audio, all in one. Unconnected sockets are simply not used.")
 

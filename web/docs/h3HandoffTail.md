@@ -1,4 +1,4 @@
-# MM H3 Handoff Tail (loop end)
+# WLoop End H3
 
 Closes one iteration of the loop: from the clip just rendered it cuts **the tail the NEXT scene asks for**.
 

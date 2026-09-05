@@ -1,10 +1,12 @@
-// WextraX — "?" help button on every WextraX node (canvas nodes and Vue nodes).
-// Click it: a popup shows web/docs/<node type>.md (served at /extensions/WextraX/docs/), falling back to the
-// node DESCRIPTION. Written from scratch for WextraX (Apache-2.0); the idea is the one KJNodes users know.
+// WextraUI — "?" help button on every WextraUI node (canvas nodes and Vue nodes).
+// Click it: a popup shows web/docs/<node type>.md (served at /extensions/WextraUI/docs/), falling back to the
+// node DESCRIPTION. Written from scratch for WextraUI (Apache-2.0); the idea is the one KJNodes users know.
 import { app } from "../../scripts/app.js";
 
-const CATEGORY = "WextraX";
-const DOCS = "/extensions/WextraX/docs/";
+const CATEGORY = "WextraUI";
+const WIDTHS = { saveWimage: 210, h3PromptComposer: 400, h3Scene: 220, h3CollectScenes: 220, h3LoopRange: 210, h3SceneConditioning: 270,
+                 h3HandoffTail: 200, wxRoute: 210, wxRouteIndex: 210, wxRunDiff: 210, wxLoraLoaderTrigger: 380, wxFrame: 210 };
+const DOCS = new URL("./docs/", import.meta.url).pathname;  // /extensions/<folder>/docs/, whatever the folder is called
 const ICON = 16, MARGIN = 6;
 const popups = new Map();   // node id -> popup element
 const mdCache = new Map();  // node type -> html
@@ -51,16 +53,16 @@ function ensureStyle() {
     const st = document.createElement("style"); st.id = "wx-help-style";
     st.textContent = `
       .wx-help-popup { position: fixed; z-index: 10000; width: 460px; max-width: 45vw; max-height: 70vh; overflow: auto;
-        background: #1e1e1e; color: #ddd; border: 1px solid #e59a1b; border-radius: 8px; padding: 12px 14px 12px 14px;
+        background: #1e1e1e; color: #ddd; border: 1px solid #1464b3; border-radius: 8px; padding: 12px 14px 12px 14px;
         font: 13px/1.45 sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
-      .wx-help-popup h2 { margin: 0 24px 8px 0; font-size: 15px; color: #f0b13a; }
-      .wx-help-popup h3 { margin: 12px 0 4px; font-size: 13px; color: #f0b13a; }
+      .wx-help-popup h2 { margin: 0 24px 8px 0; font-size: 15px; color: #1464b3; }
+      .wx-help-popup h3 { margin: 12px 0 4px; font-size: 11px; font-weight: 600; color: #1464b3; text-transform: uppercase; letter-spacing: .04em; }
       .wx-help-popup p { margin: 6px 0; } .wx-help-popup ul { margin: 4px 0 4px 18px; padding: 0; }
       .wx-help-popup li { margin: 3px 0; }
-      .wx-help-popup code { background: #333; padding: 0 4px; border-radius: 3px; font-size: 12px; color: #ffd27a; }
+      .wx-help-popup code { background: #333; padding: 0 4px; border-radius: 3px; font-size: 12px; color: #a8cdf5; }
       .wx-help-close { position: absolute; top: 6px; right: 10px; cursor: pointer; color: #aaa; font-size: 16px; }
       .wx-help-close:hover { color: #fff; }
-      .wx-help-btn { color: #f0b13a; font-weight: bold; font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0 5px;
+      .wx-help-btn { color: #1464b3; font-weight: bold; font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0 5px;
         line-height: 1; user-select: none; }
       .wx-help-btn:hover { color: #fff; }`;
     document.head.appendChild(st);
@@ -98,14 +100,14 @@ function injectVue(header) {
     const node = app.graph?.getNodeById?.(nodeEl.dataset.nodeId); if (!node || !node._wxHelp) return;
     const box = header.querySelector(":scope > div") || header;
     const btn = document.createElement("span");
-    btn.className = "wx-help-btn"; btn.textContent = "?"; btn.title = "WextraX help";
+    btn.className = "wx-help-btn"; btn.textContent = "?"; btn.title = "WextraUI help";
     btn.addEventListener("pointerdown", (e) => e.stopPropagation());
     btn.addEventListener("click", (e) => { e.stopPropagation(); togglePopup(node, e.clientX, e.clientY); });
     box.appendChild(btn);
 }
 
 app.registerExtension({
-    name: "WextraX.help",
+    name: "WextraUI.help",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.category !== CATEGORY) return;
         const desc = nodeData.description || "";
@@ -113,8 +115,14 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function () {
             const r = onCreated?.apply(this, arguments);
             this._wxHelp = desc || nodeData.display_name || nodeData.name;
+            // Default width per node (Sick's reference scene, 04/09/2026). Only for a NEW node: a workflow being
+            // loaded runs onConfigure right after this, and its saved size wins.
+            const w = WIDTHS[nodeData.name];
+            if (w) setTimeout(() => { if (!this._wxConfigured && this.graph) { this.setSize([w, this.computeSize()[1]]); this.setDirtyCanvas(true, true); } }, 0);
             return r;
         };
+        const onConfigured = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function () { this._wxConfigured = true; return onConfigured?.apply(this, arguments); };
         // legacy canvas rendering: "?" in the title bar, right side
         const drawFg = nodeType.prototype.onDrawForeground;
         nodeType.prototype.onDrawForeground = function (ctx) {
@@ -122,8 +130,8 @@ app.registerExtension({
             if (this.flags?.collapsed) return r;
             const x = this.size[0] - ICON - MARGIN, y = -LiteGraph.NODE_TITLE_HEIGHT / 2 - ICON / 2;
             ctx.save();
-            ctx.fillStyle = "#f0b13a"; ctx.beginPath(); ctx.arc(x + ICON / 2, y + ICON / 2, ICON / 2, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#1e1e1e"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "#1464b3"; ctx.beginPath(); ctx.arc(x + ICON / 2, y + ICON / 2, ICON / 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText("?", x + ICON / 2, y + ICON / 2 + 0.5);
             ctx.restore();
             return r;

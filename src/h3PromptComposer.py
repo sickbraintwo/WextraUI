@@ -47,14 +47,14 @@ class H3PromptComposer:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "FLOAT", "INT")
-    RETURN_NAMES = ("prompt", "timing_table", "duration", "frames")
+    RETURN_TYPES = ("STRING", "FLOAT", "STRING", "INT")
+    RETURN_NAMES = ("prompt", "duration", "timing_table", "frames")
     FUNCTION = "compose"
-    CATEGORY = "WextraX"
+    CATEGORY = "WextraUI"
     OUTPUT_NODE = True
     DESCRIPTION = ("Storyboard -> MiniMax H3 prompt with a time-code per beat: intro + beats (SOUND/IMAGE written together, "
-                   "locked or scaled to total_duration) + Sound + Avoid. Outputs the prompt, a readable timing table, "
-                   "the duration and the real frame count (H3 accepts 17k+5 frames at 24 fps).")
+                   "locked or scaled to total_duration) + Sound + Avoid. Outputs the prompt, the duration, a readable timing table "
+                   "and the real frame count (H3 accepts 17k+5 frames at 24 fps).")
 
     def compose(self, intro, beats_json, total_duration, sound, avoid):
         frames = seconds_to_h3_frames(total_duration)
@@ -63,18 +63,18 @@ class H3PromptComposer:
             beats = json.loads(beats_json)
         except json.JSONDecodeError as e:
             error = f"beats_json is not valid JSON: {e}"
-            raise ValueError("MM H3 Prompt Composer: " + error)
+            raise ValueError("WScene Composer H3: " + error)
 
         if not beats:
             error = "beats_json is empty: at least one beat is required."
-            raise ValueError("MM H3 Prompt Composer: " + error)
+            raise ValueError("WScene Composer H3: " + error)
 
         locked_indices = [i for i, b in enumerate(beats) if b.get("locked")]
         unlocked_indices = [i for i, b in enumerate(beats) if not b.get("locked")]
 
         if not unlocked_indices:
             error = "All beats are locked: at least one beat must stay unlocked to absorb the remaining duration."
-            raise ValueError("MM H3 Prompt Composer: " + error)
+            raise ValueError("WScene Composer H3: " + error)
 
         # The LAST unlocked beat is the flex beat: it absorbs whatever time is
         # left after locked beats (fixed) and the other unlocked beats (scaled
@@ -102,7 +102,7 @@ class H3PromptComposer:
                 f"{sum_locked + sum_scaled:.2f}s, more than the {total_duration:.2f}s total. "
                 f"Unlock more beats, raise total_duration, or shorten a locked beat."
             )
-            raise ValueError("MM H3 Prompt Composer: " + error)
+            raise ValueError("WScene Composer H3: " + error)
 
         prompt_parts = [intro.strip()]
         table_rows = []
@@ -132,4 +132,4 @@ class H3PromptComposer:
         )
         timing_table = header + "\n" + "\n".join(table_rows)
 
-        return (prompt, timing_table, total_duration, frames)
+        return (prompt, total_duration, timing_table, frames)

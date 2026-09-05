@@ -1,9 +1,9 @@
-# MM H3 Loop Range (start / count)
+# WLoop Start H3
 
 Decides **which scenes this Run renders** and what the first of them starts from.
 
 ## Widgets
-- **start_scene** — `0` = the whole chain from `first_keyframe`. `N` = skip scenes 0…N-1 and resume at scene N, from the clip that scene names (`previous_from = file` + `resume_from_video` on its *MM H3 Scene* node).
+- **start_scene** — `0` = the whole chain from `first_keyframe`. `N` = skip scenes 0…N-1 and resume at scene N, from the clip that scene names (`previous_from = file` + `resume_from_video` on its *WScene H3* node).
 - **scene_count** — how many scenes from `start_scene`; `0` = all the remaining ones, `1` = just that scene.
 
 ## Sockets

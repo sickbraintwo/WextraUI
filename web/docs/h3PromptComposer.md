@@ -1,4 +1,4 @@
-# MM H3 Scene Prompt Time Composer
+# WScene Composer H3
 
 Turns a storyboard into a **MiniMax H3 prompt with a time-code per beat**, so sound and picture are written together and land where you want them in the clip.
 

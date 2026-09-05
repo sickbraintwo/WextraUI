@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { WX, ensureWxStyle, wxChip, wxAddButton } from "./wxStyle.js";
 
 const CONVERTED_TYPE = "converted-widget";
 const BASE_REFERENCE_SECONDS = 10.0;
@@ -61,7 +62,7 @@ function makeTextareaAutoGrow(node, widget, collapseState) {
     // otherwise sits flush against the next canvas widget (the collapse
     // button under "avoid" was drawn 1-2 px over it).
     widget.computeSize = function (width) {
-        return [width, (collapseState.collapsed ? MIN_TEXTAREA_HEIGHT : measureTextareaHeight(el)) + TEXTAREA_GAP];
+        return [width, (collapseState.collapsed ? MIN_TEXTAREA_HEIGHT : measureTextareaHeight(el)) + TEXTAREA_GAP + (widget.name === "avoid" ? 10 : 0)];
     };
     el.addEventListener("input", recompute);
     // scrollHeight isn't reliable until the element is laid out and has its
@@ -111,7 +112,7 @@ function computeScaled(rows, totalDuration) {
 }
 
 app.registerExtension({
-    name: "WextraX.H3PromptComposer.BeatTable",
+    name: "WextraUI.H3PromptComposer.BeatTable",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== "h3PromptComposer") return;
 
@@ -141,7 +142,9 @@ app.registerExtension({
 
             hideWidget(jsonWidget);
 
+            ensureWxStyle();
             const container = document.createElement("div");
+            container.className = "wx";
             Object.assign(container.style, {
                 display: "flex",
                 flexDirection: "column",
@@ -152,7 +155,7 @@ app.registerExtension({
                 padding: "2px 4px",
             });
 
-            const COLS = "1fr 50px 18px 50px 22px";
+            const COLS = "1fr 48px 40px 46px 22px";
 
             function sync() {
                 jsonWidget.value = JSON.stringify(rows);
@@ -165,8 +168,8 @@ app.registerExtension({
                 const { scaled, flexIdx, error } = computeScaled(rows, totalWidget ? totalWidget.value : BASE_REFERENCE_SECONDS);
 
                 const header = document.createElement("div");
-                Object.assign(header.style, { display: "grid", gridTemplateColumns: COLS, gap: "3px", opacity: "0.6" });
-                header.innerHTML = "<span>Name</span><span>Base(10s)</span><span></span><span>→Scaled</span><span></span>";
+                Object.assign(header.style, { display: "grid", gridTemplateColumns: COLS, gap: "3px" });
+                header.innerHTML = '<span class="wx-label" style="margin:2px 0 0">Beat</span><span class="wx-label" style="margin:2px 0 0">Base</span><span></span><span class="wx-label" style="margin:2px 0 0">Real</span><span></span>';
                 container.appendChild(header);
 
                 const textareasToSize = [];
@@ -180,33 +183,31 @@ app.registerExtension({
 
                     const nameInput = document.createElement("input");
                     nameInput.value = beat.name;
-                    nameInput.style.width = "100%";
+                    nameInput.className = "wx-input"; nameInput.style.width = "100%";
                     nameInput.addEventListener("change", (e) => { beat.name = e.target.value; sync(); });
 
                     const durInput = document.createElement("input");
                     durInput.type = "number";
                     durInput.step = "0.1";
                     durInput.value = beat.base_duration;
-                    durInput.style.width = "100%";
+                    durInput.className = "wx-input"; durInput.style.width = "100%";
                     durInput.addEventListener("change", (e) => { beat.base_duration = parseFloat(e.target.value) || 0; sync(); });
 
-                    const lockInput = document.createElement("input");
-                    lockInput.type = "checkbox";
-                    lockInput.checked = !!beat.locked;
-                    lockInput.title = "Locked (fixed duration, doesn't scale)";
-                    lockInput.addEventListener("change", (e) => { beat.locked = e.target.checked; sync(); });
+                    const lockInput = wxChip("lock", !!beat.locked, () => { beat.locked = !beat.locked; sync(); });
+                    lockInput.title = beat.locked ? "Locked: keeps its seconds whatever the total" : "Scaled with total_duration — click to lock";
+                    lockInput.style.textAlign = "center";
 
                     const scaledSpan = document.createElement("span");
                     scaledSpan.textContent = scaled[i] != null ? scaled[i].toFixed(2) + "s" : "?";
                     scaledSpan.style.opacity = "0.85";
-                    if (i === flexIdx) scaledSpan.style.color = "#8ecdf0";
+                    if (i === flexIdx) scaledSpan.style.color = WX.light;
                     scaledSpan.title = i === flexIdx ? "flex: absorbs the remainder" : (beat.locked ? "locked" : "scaled with total_duration");
-                    if (error) scaledSpan.style.color = "#e08080";
+                    if (error) scaledSpan.classList.add("wx-err");
 
                     const btn = document.createElement("button");
                     const isLast = i === rows.length - 1;
                     btn.textContent = isLast ? "+" : "−";
-                    btn.style.width = "100%";
+                    btn.className = "wx-btn"; btn.style.width = "100%"; btn.style.padding = "1px 0";
                     btn.addEventListener("click", () => {
                         if (isLast) rows.push(defaultBeat("BEAT" + (rows.length + 1)));
                         else rows.splice(i, 1);
@@ -252,7 +253,7 @@ app.registerExtension({
 
                 if (error) {
                     const err = document.createElement("div");
-                    Object.assign(err.style, { color: "#e08080", fontSize: "10px" });
+                    err.className = "wx-err";
                     err.textContent = error;
                     container.appendChild(err);
                 }
@@ -261,7 +262,7 @@ app.registerExtension({
                 // snaps UP — show the real clip length the request maps to.
                 const frames = secondsToH3Frames(totalWidget ? totalWidget.value : BASE_REFERENCE_SECONDS);
                 const framesLine = document.createElement("div");
-                Object.assign(framesLine.style, { opacity: "0.6", fontSize: "10px", textAlign: "right" });
+                framesLine.className = "wx-hint"; framesLine.style.textAlign = "right";
                 framesLine.textContent = `H3: ${frames} frames @24fps = ${(frames / H3_FPS).toFixed(2)}s real`;
                 container.appendChild(framesLine);
 
@@ -355,7 +356,7 @@ app.registerExtension({
             // Toggle button: collapse all text areas (intro/sound/avoid + every
             // beat's text) down to one line to see the node's structure at a
             // glance, or expand them all back.
-            const collapseBtn = node.addWidget("button", "Collapse text areas", null, () => {
+            const collapseBtn = wxAddButton(node, "Collapse text areas", () => {
                 collapseState.collapsed = !collapseState.collapsed;
                 collapseBtn.name = collapseState.collapsed ? "Expand text areas" : "Collapse text areas";
                 resyncLayout();

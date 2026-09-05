@@ -1,4 +1,4 @@
-"""Save Wimage - salva le immagini componendo il nome da solo (FileName Builder + Save Image in un nodo).
+"""WSave Image - salva le immagini componendo il nome da solo (FileName Builder + Save Image in un nodo).
 Nome = <folder>/<subject><text1><value1><text2><value2>... + contatore _NNN a 'digits' cifre (default 3; 0 = nessuno,
 il file viene sovrascritto). Ogni parte = testo fisso + tipo (int/float/bool/string) + UN campo 'value' il cui puntino
 accetta qualsiasi link (INT/FLOAT/BOOLEAN/STRING); il valore, scritto o collegato, e' convertito secondo il tipo.
@@ -64,7 +64,7 @@ class SaveWimage:
             "folder": ("STRING", {"default": "", "tooltip": "Sottocartella di output (vuoto = radice)."}),
             "subject": ("STRING", {"default": "", "tooltip": "Nome del soggetto / dell'opera."}),
             "digits": ("INT", {"default": 3, "min": 0, "max": 8, "tooltip": "Cifre del contatore dopo il nome (0 = nessun contatore)."}),
-            "parts": ("INT", {"default": 1, "min": 0, "max": MAX_PARTS, "hidden": True, "tooltip": "Numero di parti attive (gestito dai tasti + / -)."}),
+            "parts": ("INT", {"default": 0, "min": 0, "max": MAX_PARTS, "hidden": True, "tooltip": "Numero di parti attive (gestito dai tasti + / -)."}),
         }
         opt = {}
         for i in range(1, MAX_PARTS + 1):
@@ -77,7 +77,7 @@ class SaveWimage:
     RETURN_NAMES = ("prefix", "name")
     FUNCTION = "save"
     OUTPUT_NODE = True
-    CATEGORY = "WextraX"
+    CATEGORY = "WextraUI"
     DESCRIPTION = "Saves PNGs composing the file name (folder/subject + parts) with a counter of chosen width and the usual ComfyUI metadata."
 
     @classmethod

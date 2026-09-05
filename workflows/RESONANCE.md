@@ -1,5 +1,7 @@
 # RESONANCE — technical diary
 
+**Watch it:** [RESONANCE on ArtStation](https://www.artstation.com/artwork/Y8BKm6)
+
 Submission for the **Comfy H3 Sync Sound Community Challenge** (RTX 5060 Ti categories: Best Technical/Workflow + "built with Comfy MCP" bonus). A ~77 s music video, video and audio generated together, shot by shot, entirely with **MiniMax-H3** in ComfyUI on a local RTX 3090, driven by a custom node pack, **WextraX**, and by an AI agent (Claude Code) that wrote the prompts, patched the workflow, judged the clips and ran part of the pipeline through the Comfy MCP server.
 
 ## What it is

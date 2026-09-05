@@ -1,4 +1,4 @@
-# MM H3 Scene Conditioning (loop body)
+# WLoop Scene Conditioning H3
 
 The **whole conditioning for `scenes[scene_index]` in one node** — text, canvas, first/last frame, guide, references and the motion/audio hand-off from the previous scene.
 

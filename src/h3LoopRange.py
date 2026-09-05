@@ -9,7 +9,7 @@ class H3LoopRange:
     start_scene = 0 -> run every scene, starting from the first keyframe.
     start_scene = N -> skip scenes 0..N-1 (already generated) and resume at
     scene N. Where scene N resumes FROM is written on the scene itself
-    (MM H3 Scene: previous_from = file + resume_from_video, handoff_frames);
+    (WScene H3: previous_from = file + resume_from_video, handoff_frames);
     a scene that says `loop` cannot be the first of a run (nothing was
     rendered before it), except scene 0, which starts from first_keyframe.
     A scene 0 with previous_from = file starts the whole piece from the
@@ -25,7 +25,7 @@ class H3LoopRange:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "scenes": ("H3_SCENES", {"tooltip": "The list from MM H3 Collect Scenes."}),
+                "scenes": ("H3_SCENES", {"tooltip": "The list from WScenes Collection H3."}),
                 "start_scene": ("INT", {
                     "default": 0, "min": 0, "max": 99,
                     "tooltip": "0 = run all scenes from first_keyframe. N = skip 0..N-1 and resume at scene N, "
@@ -42,10 +42,10 @@ class H3LoopRange:
             },
         }
 
-    RETURN_TYPES = ("INT", "INT", "IMAGE", "BOOLEAN", "IMAGE", "AUDIO")
-    RETURN_NAMES = ("run_count", "start_scene", "start_frame", "resuming", "start_clip", "start_audio")
+    RETURN_TYPES = ("INT", "INT", "IMAGE", "IMAGE", "AUDIO", "BOOLEAN")
+    RETURN_NAMES = ("run_count", "start_scene", "start_frame", "start_clip", "start_audio", "resuming")
     FUNCTION = "compute"
-    CATEGORY = "WextraX"
+    CATEGORY = "WextraUI"
     DESCRIPTION = ("Loop range + what the first scene of the run starts from: the keyframe (scene 0) or the tail of "
                    "the clip written on that scene (previous_from = file).")
 
@@ -65,17 +65,17 @@ class H3LoopRange:
 
         if s.get("previous_from", "loop") == "file":
             clip, audio = tail_from_file(s, start_scene, "H3 Loop Range")
-            return (run_count, start_scene, clip[-1:], True, clip, audio)
+            return (run_count, start_scene, clip[-1:], clip, audio, True)
 
         if start_scene == 0:
             frame = first_keyframe if first_keyframe is not None else torch.zeros((1, 64, 64, 3))
             # No previous clip: the "clip" anchor degrades to the keyframe itself
             # (a batch shorter than 5 frames anchors only its first image) and
             # the audio anchor is silence.
-            return (run_count, 0, frame, False, frame, silence(handoff_seconds(n)))
+            return (run_count, 0, frame, frame, silence(handoff_seconds(n)), False)
 
         raise ValueError(
             f"H3 Loop Range: start_scene={start_scene}, but scene {start_scene} has previous_from = loop and nothing "
-            f"is rendered before it in this run. On that MM H3 Scene set previous_from = file and resume_from_video = "
+            f"is rendered before it in this run. On that WScene H3 set previous_from = file and resume_from_video = "
             f"the clip of scene {start_scene - 1}, or start from 0."
         )
