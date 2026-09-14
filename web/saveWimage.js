@@ -2,6 +2,10 @@ import { app } from "../../scripts/app.js";
 import { ensureWxStyle, wxAddButton } from "./wxStyle.js";
 
 // WSave Image (frontend 1.49+): parti dinamiche (+ / -) e anteprima live del nome.
+// folder / subject / text{i} / value{i} collegati a un link: la preview legge il valore a monte quando il nodo sorgente
+// lo tiene in un widget (Primitive, String, Int...), altrimenti mostra {folder} / {subject} / {int}.
+// write_batch (interruttore sotto i tasti) aggiunge _B{batch}{index} in coda: i segnaposto li risolve il backend a run.
+// image_preview (ultimo): miniature nel nodo dopo il run, off di default.
 // Backend (src/saveWimage.py): per ogni parte i = text{i}, type{i}, value{i} (widget di testo il cui
 // puntino accetta qualsiasi link: qui il suo slot viene messo a tipo "*").
 // Il numero di parti vive nel widget nascosto "parts" (cosi' si salva e si ricarica col workflow).
@@ -36,6 +40,31 @@ app.registerExtension({
             const val = (name, d) => { const w = W(name); return w ? w.value : d; };
             const slot = (name) => (node.inputs || []).find((i) => i.name === name);
             const linked = (name) => { const s = slot(name); return !!(s && s.link != null); };
+            // valore a monte di un puntino collegato, se il nodo sorgente lo tiene in un widget (Primitive, String, Int...):
+            // altrimenti undefined e la preview mostra un segnaposto {nome}.
+            function upstream(name) {
+                try {
+                    const s = slot(name);
+                    if (!s || s.link == null || !node.graph) return undefined;
+                    const links = node.graph.links;
+                    const link = links instanceof Map ? links.get(s.link) : (node.graph.getLink ? node.graph.getLink(s.link) : links?.[s.link]);
+                    if (!link) return undefined;
+                    const src = node.graph.getNodeById(link.origin_id);
+                    if (!src || !src.widgets || !src.widgets.length) return undefined;
+                    const out = (src.outputs || [])[link.origin_slot];
+                    const w = src.widgets.find((w) => out?.widget?.name && w.name === out.widget.name)
+                        || src.widgets.find((w) => out?.name && w.name === out.name)
+                        || (src.widgets.length === 1 ? src.widgets[0] : undefined)
+                        || src.widgets.find((w) => w.name === "value");
+                    return w ? w.value : undefined;
+                } catch (e) { return undefined; }
+            }
+            // testo di un campo: widget, oppure il valore a monte se collegato, oppure {segnaposto}
+            function field(name, holder) {
+                if (!linked(name)) return String(val(name, "") || "");
+                const u = upstream(name);
+                return (u === undefined || u === null) ? "{" + holder + "}" : String(u);
+            }
 
             const preview = W("preview");
             if (preview) {
@@ -60,19 +89,31 @@ app.registerExtension({
                 if (s) s.type = "*";
             }
 
-            function refresh() {
-                let folder = String(val("folder", "") || "").trim().replace(/\\/g, "/");
+            function compose() {
+                let folder = field("folder", "folder").trim().replace(/\\/g, "/");
                 if (folder && !folder.endsWith("/")) folder += "/";
-                let name = String(val("subject", "") || "");
+                let name = field("subject", "subject");
                 const n = count();
                 for (let i = 1; i <= n; i++) {
                     const k = String(val("type" + i, "int"));
-                    const v = val("value" + i, "");
-                    name += String(val("text" + i, "") || "") + (linked("value" + i) ? "{" + k + "}" : fmt(v, k));
+                    let v;
+                    if (linked("value" + i)) { const u = upstream("value" + i); v = (u === undefined || u === null) ? "{" + k + "}" : fmt(u, k); }
+                    else v = fmt(val("value" + i, ""), k);
+                    name += field("text" + i, "text") + v;
                 }
-                if (preview) preview.value = folder + name;
+                if (val("write_batch", true)) name += "_B{batch}{index}";
+                return folder + name;
+            }
+            let lastComposed = null;
+            function refresh() {
+                lastComposed = compose();
+                if (preview) preview.value = lastComposed;
                 node.setDirtyCanvas(true, true);
             }
+            // Il callback dei widget non scatta sempre (testo a riga singola, Nodes 2.0, valori che cambiano a monte):
+            // a ogni ridisegno, e a intervalli, si ricompone il nome e si aggiorna solo se e' cambiato.
+            // Dopo un run la preview mostra il nome vero dal backend (onExecuted) finche' un campo non cambia.
+            function watch() { if (lastComposed !== null && compose() !== lastComposed) refresh(); }
 
             function layout() {
                 const n = count();
@@ -109,6 +150,19 @@ app.registerExtension({
 
             wxAddButton(node, "+ Add part", () => setCount(count() + 1));
             wxAddButton(node, "− Remove last part", () => setCount(count() - 1));
+            // write_batch sotto i tasti (e' l'ultimo input del backend: spostarlo in coda non cambia l'ordine dei valori salvati)
+            for (const nm of ["write_batch", "image_preview"]) {
+                const w = W(nm);
+                if (w) { const k = node.widgets.indexOf(w); if (k >= 0) { node.widgets.splice(k, 1); node.widgets.push(w); } }
+            }
+
+            const onDrawBg = node.onDrawBackground;
+            node.onDrawBackground = function () { const r = onDrawBg ? onDrawBg.apply(this, arguments) : undefined; watch(); return r; };
+            const onDrawFg = node.onDrawForeground;
+            node.onDrawForeground = function () { const r = onDrawFg ? onDrawFg.apply(this, arguments) : undefined; watch(); return r; };
+            const timer = setInterval(watch, 400);
+            const origRemoved = node.onRemoved;
+            node.onRemoved = function () { clearInterval(timer); return origRemoved ? origRemoved.apply(this, arguments) : undefined; };
 
             const origConn = node.onConnectionsChange;
             node.onConnectionsChange = function () {

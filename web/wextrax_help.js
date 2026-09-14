@@ -4,7 +4,7 @@
 import { app } from "../../scripts/app.js";
 
 const CATEGORY = "WextraUI";
-const WIDTHS = { saveWimage: 210, h3PromptComposer: 400, h3Scene: 220, h3CollectScenes: 220, h3LoopRange: 210, h3SceneConditioning: 270,
+const WIDTHS = { saveWimage: 210, h3PromptComposer: 400, h3SimplePrompt: 400, h3Scene: 220, h3CollectScenes: 220, h3LoopRange: 210, h3SceneConditioning: 270,
                  h3HandoffTail: 200, wxRoute: 210, wxRouteIndex: 210, wxRunDiff: 210, wxLoraLoaderTrigger: 380, wxFrame: 210 };
 const DOCS = new URL("./docs/", import.meta.url).pathname;  // /extensions/<folder>/docs/, whatever the folder is called
 const ICON = 16, MARGIN = 6;

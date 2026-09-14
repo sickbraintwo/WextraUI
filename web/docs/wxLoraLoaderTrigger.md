@@ -22,3 +22,7 @@ Under the widgets the node lists the **Civitai trigger words** and the **trainin
 
 ## Title
 The node is called *WLoad Lora & Trigger* until you **collapse** it for the first time: from then on the title is the LoRA's name and follows `lora_name` — a collapsed node shows only its title, so that is where the name matters. Rename it by hand and it keeps your title.
+
+**control after generate** under the LoRA name, like the seed: `fixed`, `increment`, `decrement`, `randomize`, `increment-wrap` — queue several runs and each one takes the next LoRA in the list (in the order the menu shows them). The **lora scope** menu under it says which LoRAs the walk goes through: `any` = the whole list, `folder` = the folder of the LoRA selected now (it follows the LoRA as it moves). The label shows where you are in that list (`lora scope · 3/12`): that is how many runs to queue.
+
+**Strength walk** under `strength_model`: `strength control` (`fixed` / `increment` / `decrement`), `strength step` (default 0.1) and `strength until` (default 1.0). After every queued run `strength_model` moves by one step towards `until` and stops there: 0.4, increment, until 1.0 = seven runs, and the label says so (`strength 0.4 → 1 · 7 run`). `strength_clip` is left alone. Set the LoRA to `increment` at the same time and you get one strength per LoRA, not a grid.

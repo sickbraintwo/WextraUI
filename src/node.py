@@ -1,5 +1,6 @@
 from .saveWimage import SaveWimage
 from .h3PromptComposer import H3PromptComposer
+from .h3SimplePrompt import H3SimplePrompt
 from .h3Scene import H3Scene
 from .h3CollectScenes import H3CollectScenes
 from .h3LoopRange import H3LoopRange
@@ -9,6 +10,7 @@ from .route import Route, RouteIndex
 from .runDiff import RunDiff
 from .loraLoader import LoraLoaderTrigger
 from .frame import Frame
+from .promptRows import PromptRows
 
 # Retired (kept in src/legacy/, not registered): h3ImageToVideo (switchable), h3HandoffGate, h3SceneListBuilder
 # — absorbed by H3SceneConditioning (26/08/2026); h3Conditioning (all-in-one, out of the loop) — never used, the loop
@@ -18,6 +20,7 @@ from .frame import Frame
 NODE_CLASS_MAPPINGS = {
     "saveWimage": SaveWimage,
     "h3PromptComposer": H3PromptComposer,
+    "h3SimplePrompt": H3SimplePrompt,
     "h3Scene": H3Scene,
     "h3CollectScenes": H3CollectScenes,
     "h3LoopRange": H3LoopRange,
@@ -28,11 +31,13 @@ NODE_CLASS_MAPPINGS = {
     "wxRunDiff": RunDiff,
     "wxLoraLoaderTrigger": LoraLoaderTrigger,
     "wxFrame": Frame,
+    "wxPromptRows": PromptRows,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "saveWimage": "WSave Image",
     "h3PromptComposer": "WScene Composer H3",
+    "h3SimplePrompt": "WSimple Prompt H3",
     "h3Scene": "WScene H3",
     "h3CollectScenes": "WScenes Collection H3",
     "h3LoopRange": "WLoop Start H3",
@@ -43,4 +48,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "wxRunDiff": "WDifference",
     "wxLoraLoaderTrigger": "WLoad Lora & Trigger",
     "wxFrame": "WFrame",
+    "wxPromptRows": "WPrompt Rows",
 }

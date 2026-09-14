@@ -9,10 +9,12 @@ Every Save node embeds two hidden things in the file — the **PROMPT** (the API
 - **key** — `auto` = the workflow is recognised by its structure (same nodes and types = same key), so each workflow keeps its own history. Or write a name to compare across variants of a project.
 - **log** — also append every run (timestamp + changes) to `output/_Wextra/rundiff/<key>.log`: a run diary for free.
 - **tag_max** — longest `tag` (default 60 characters); beyond it the tag ends with `+N` = N more changes.
+- **changes_max** — longest `changes` (default 240: a Windows file name holds 255 characters, the rest of the name needs room); beyond it the string is cut at a whole change and ends with `+N`.
+- **ignore** — nodes you do not want tracked, by id, separated by commas (`74, 12`); `74.seed` silences one widget of a node you otherwise track. They leave `changes`, `tag`, `count` and the `.log`. Add ids here as you see which nodes make noise.
 
 ## Sockets
 - `passthrough` (optional) — wire the thing you are about to save through here so the diff is computed at the right moment; it comes out unchanged.
-- `changes` — the text. Empty on the first run and when nothing changed. Wire it to *Show Anything*, into a file-name part of *WSave Image*, or into a Note.
+- `changes` — the changes, **short and file-name safe**: `<node id>.<widget>→<new value>`, one per `_`, none before `+Node` / `-Node` (`74.seed→6_12.strength→0.6+Upscale`). The widget name is cut at its first `_` (`strength_model` → `strength`) unless two changed widgets of that node would clash; rewiring shows as `→wire`; a model or LoRA file shows by bare name (`loras/Style/foo.safetensors` → `foo`). Empty on the first run and when nothing changed. Wire it into a file-name part of *WSave Image*; the readable version (titles, old → new, one line per change) is in the `.log`.
 - `tag` — the same changes as a **short, file-name-safe** string: `246.strength=0.4_57.seed=77_12.text~_+Upscale`. `<node id>.<widget>=<new value>` (turn on node ids in the ComfyUI settings to read them); the widget name is cut at its first `_` (`strength_model` → `strength`) unless two changed widgets of that node would collide; `~` = a text longer than 14 characters changed (a prompt); `<id>.wire-x` = input x re-plugged; `+Title` / `-Title` = node added / removed. `first` on the first run, `same` when nothing changed. **Add it as a *string* part in WSave Image**: the file name tells you a week later what that run changed.
 - `count`, `key`.
 

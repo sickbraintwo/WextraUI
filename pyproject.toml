@@ -1,7 +1,7 @@
 [project]
 name = "wextraui"
 description = "WextraUI — extra nodes for ComfyUI, from the Winteraction workbench: WSave Image (file name built from parts), WRoute (the if that picks an OUTPUT), WDifference (what changed since the last run, also as a file-name tag), WLoad Lora & Trigger (LoRA + trigger words into the prompt), and the WScene / WLoop family: MiniMax H3 multi-scene loop with video + audio hand-off."
-version = "0.3.3"
+version = "0.3.4"
 license = { file = "LICENSE" }
 dependencies = []
 

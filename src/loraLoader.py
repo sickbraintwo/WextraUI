@@ -12,7 +12,7 @@ class LoraLoaderTrigger:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The LoRA to load."}),
+                "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The LoRA to load.", "control_after_generate": "fixed"}),   # fixed / increment / decrement / randomize + filter, come il seed (Sick, 14/09)
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
                 "civitai": ("BOOLEAN", {"default": True, "label_on": "look up", "label_off": "file only",
@@ -39,7 +39,8 @@ class LoraLoaderTrigger:
     FUNCTION = "load"
     CATEGORY = "WextraUI"
     DESCRIPTION = ("Loads a LoRA and merges its trigger words into the prompt in the same node: Civitai words or "
-                   "training tags, chosen by clicking chips in the node. One node instead of loader + name + tags + concat.")
+                   "training tags, chosen by clicking chips in the node. One node instead of loader + name + tags + concat. "
+                   "Seed-style controls walk the LoRA list (any / folder) and the strength across queued runs.")
 
     def load(self, lora_name, strength_model=1.0, strength_clip=1.0, civitai=True, where="prefix",
              separator=", ", picked="", model=None, clip=None, prompt=None):

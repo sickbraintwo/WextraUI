@@ -20,7 +20,8 @@ No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** catego
 
 | Utilities | | H3 scene loop | |
 |---|---|---|---|
-| [WSave Image](#wsave-image) | file name built from parts | [WScene Composer H3](#wscene-composer-h3) | storyboard → time-coded prompt |
+| [WSave Image](#wsave-image) | file name built from parts | [WSimple Prompt H3](#wsimple-prompt-h3) | prompt without time-codes |
+| [WPrompt Rows](#wprompt-rows) | the prompt as rows you switch on and off | [WScene Composer H3](#wscene-composer-h3) | storyboard → time-coded prompt |
 | [WRoute](#wroute--wrouteindex) | the *if* that picks an output | [WScene H3](#wscene-h3) | one scene as one object |
 | [WRouteIndex](#wroute--wrouteindex) | same, by number | [WScenes Collection H3](#wscenes-collection-h3) | the scenes, in order |
 | [WDifference](#wdifference) | what changed since the last run | [WLoop Start H3](#wloop-start-h3) | which scenes this Run renders |
@@ -31,9 +32,13 @@ No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** catego
 
 ### WSave Image
 
-Saves PNGs with a file name **composed from parts** (folder, subject, any string or number from the graph, a counter of chosen width), the usual ComfyUI metadata embedded. The `preview` box shows the name before you run.
+Saves PNGs with a file name **composed from parts** (folder, subject, any string or number from the graph, a counter of chosen width), the usual ComfyUI metadata embedded. The `preview` box shows the name before you run, linked fields included. `images` is optional: unplugged, the node only composes the name for other savers (video, JSON). The `images` output passes the batch through, so the save sits inside the chain instead of at a dead end. The **write batch** switch appends `_B{batch}{index}`: how many images the run made and which one this is (`_B41`, `_B42`…); the same placeholders work in any text field.
 
 <img src="images/WSaveImage.png" width="300" alt="WSave Image">
+
+### WPrompt Rows
+
+The prompt as **rows**: each one a text area that grows with the text, an **on/off** chip, and a socket on the left for an external string (trigger words, another prompt) that the same chip switches. **+** adds a row, **−** removes one. The rows that are on come out joined by `, `, a space, a new line or nothing.
 
 ### WRoute · WRouteIndex
 
@@ -54,12 +59,12 @@ Tells you **what you changed since the previous run** of this workflow: seeds, p
 
 <details><summary>How it works</summary>
 
-It reads the hidden PROMPT that every Save node embeds in the file, keeps the previous run per workflow on disk and returns the differences: `~ Composer I-a (#74) · seed: 2 → 6`, rewiring, nodes added/removed. Optional `.log` = a run diary for free (`output/_Wextra/rundiff/`). Wire `changes` to a Show Anything; add `tag` (`246.strength=0.4_57.seed=77`, `first`, `same`; display-only widgets ignored) as a string part in WSave Image and the file name tells you what that run changed.
+It reads the hidden PROMPT that every Save node embeds in the file, keeps the previous run per workflow on disk and returns the differences: `~ Composer I-a (#74) · seed: 2 → 6`, rewiring, nodes added/removed. Optional `.log` = a run diary for free (`output/_Wextra/rundiff/`). `changes` (short, file-name safe: `74.seed→6_12.strength→0.6`) or `tag` (`246.strength=0.4_57.seed=77`, `first`, `same`; display-only widgets ignored) as a string part in WSave Image and the file name tells you what that run changed; the readable diff is in the `.log`.
 </details>
 
 ### WLoad Lora & Trigger
 
-Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. Trigger words come from Civitai (look-up) and from the training tags inside the file; click the chips, drag to reorder.
+Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. Trigger words come from Civitai (look-up) and from the training tags inside the file; click the chips, drag to reorder. Under the name, the seed-style **control after generate** (`increment` + `lora scope` = any / folder) walks a LoRA family across queued runs; under `strength_model`, a **strength walk** (control / step / until) moves the strength one step per run.
 
 <img src="images/WLoadLoraTrigger.png" width="330" alt="WLoad Lora & Trigger">
 
@@ -77,6 +82,10 @@ A film for MiniMax H3 Sync Sound as a **list of scenes rendered one after the ot
 
 Each **WScene H3** says how it joins the previous one: `handoff_frames` (last N frames + N/24 s of audio of the previous clip anchored at frame 0; valid H3 lengths 5/22/39/56…, 22 = 0.92 s default; longer = more music continuity across the join, more of the previous clip repeated), `previous_from` = `loop` (the clip rendered just before in the same run) or `file` + `resume_from_video` (scene-by-scene work: any clip as the previous one, scene 0 included, so a piece can start from the tail of any video). **WLoop End H3** sits at the end of the loop body and cuts the tail the *next* scene asks for; **WLoop Start H3** only chooses `start_scene` / `scene_count`. A run can therefore mix hand-off lengths per scene and resume anywhere.
 </details>
+
+### WSimple Prompt H3
+
+The H3 prompt **without time-codes**: what we see, what happens in order, then the things an H3 prompt must always carry — one camera idea (a still camera said in full), the sound born with the picture, what stays fixed, what moves, the final state, up to three things to avoid. The order of the sentences is the timeline.
 
 ### WScene Composer H3
 

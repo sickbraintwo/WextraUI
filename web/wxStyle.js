@@ -28,6 +28,8 @@ const CSS = `
   .wx-btn, .wx button { background: #333; border: 1px solid #555; color: #ddd; border-radius: 4px; padding: 1px 8px; font-size: 11px; cursor: pointer; }
   .wx-btn:hover, .wx button:hover { border-color: ${WX.accent}; }
   .wx-mono { font-family: ui-monospace, Consolas, monospace; color: ${WX.light}; }
+  .wx-rowbar { position: absolute; right: 6px; top: 3px; display: flex; gap: 3px; z-index: 2; }
+  .wx-rowbar .wx-chip { padding: 0 7px; font-size: 11px; line-height: 1.4; min-width: 22px; justify-content: center; }
   textarea.wx-preview { font-family: ui-monospace, Consolas, monospace !important; color: ${WX.light} !important;
     border: 1px dashed #666 !important; border-radius: 6px !important; background: #1a1a1a !important; }
 `;

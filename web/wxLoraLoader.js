@@ -48,6 +48,96 @@ app.registerExtension({
             const node = this;
             ensureStyle();
             const wLora = node.widgets.find((w) => w.name === "lora_name");
+            // Il control-after-generate del frontend aggiunge una casella di filtro (control_filter_list, regex) che legge
+            // per .value quando fa avanzare la lista. Qui la si toglie dalla vista e al suo posto c'e' un menu "lora scope":
+            // any = tutta la lista, folder = la cartella del LoRA scelto adesso (la segue). La scelta vive in
+            // node.properties.lora_scope (salvata col workflow senza toccare widgets_values).
+            const wFilter = node.widgets.find((w) => w.name === "control_filter_list");
+            if (wFilter) {
+                const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const folderOf = (v) => { const p = String(v ?? "").replace(/\//g, "\\"); const k = p.lastIndexOf("\\"); return k >= 0 ? p.slice(0, k + 1) : ""; };
+                node.properties = node.properties || {};
+                const scope = () => (node.properties.lora_scope === "folder" ? "folder" : "any");
+                const effective = () => scope() === "folder" ? "^" + esc(folderOf(wLora.value)) : "";
+                Object.defineProperty(wFilter, "value", { get: () => effective(), set: () => {}, configurable: true });
+                const at = node.widgets.indexOf(wFilter);
+                node.widgets.splice(at, 1);                       // via dalla vista, l'oggetto resta al frontend
+                const wScope = node.addWidget("combo", "lora_scope", scope(), (v) => { node.properties.lora_scope = v; relabel(); },
+                    { values: ["any", "folder"], serialize: false });
+                wScope.tooltip = "Which LoRAs increment / decrement / randomize walk through: any = the whole list, folder = the folder of the LoRA selected now.";
+                node.widgets.splice(node.widgets.indexOf(wScope), 1);
+                node.widgets.splice(at, 0, wScope);               // al posto della casella
+                // etichetta viva: posizione nella lista scelta (3/12) = quanti run accodare
+                const relabel = () => {
+                    wScope.value = scope();
+                    let vals = wLora.options?.values || [];
+                    const f = effective();
+                    if (f) { const rx = new RegExp(f, "i"); vals = vals.filter((v) => rx.test(v)); }
+                    const i = vals.indexOf(wLora.value);
+                    wScope.label = "lora scope" + (vals.length ? " · " + (i >= 0 ? i + 1 : "-") + "/" + vals.length : "");
+                };
+                relabel();
+                const tick = setInterval(relabel, 500);
+                const origRemoved2 = node.onRemoved;
+                node.onRemoved = function () { clearInterval(tick); return origRemoved2 ? origRemoved2.apply(this, arguments) : undefined; };
+                const origConfigure2 = node.onConfigure;
+                node.onConfigure = function () { const r = origConfigure2 ? origConfigure2.apply(this, arguments) : undefined; setTimeout(relabel, 0); return r; };
+            }
+            // Strength a scalare (Sick, 14/09): sotto strength_model tre widget nello stile del seed - control (fixed /
+            // increment / decrement), step, until. Dopo ogni run accodato (afterQueued, come il seed) strength_model
+            // avanza di step e si ferma a until. Solo strength_model: strength_clip resta separato. Tutto nel frontend,
+            // salvato in node.properties.strength_sweep (niente ingressi nuovi nel backend, niente migrazione).
+            const wStr = node.widgets.find((w) => w.name === "strength_model");
+            if (wStr) {
+                node.properties = node.properties || {};
+                const sw = Object.assign({ control: "fixed", step: 0.1, until: 1.0 }, node.properties.strength_sweep || {});
+                node.properties.strength_sweep = sw;
+                const r2 = (x) => Math.round(Number(x) * 100) / 100;
+                const at = node.widgets.indexOf(wStr) + 1;
+                const wCtl = node.addWidget("combo", "strength_control", sw.control, (v) => { sw.control = v; relabelSw(); },
+                    { values: ["fixed", "increment", "decrement"], serialize: false });
+                const wStep = node.addWidget("number", "strength_step", sw.step, (v) => { sw.step = r2(v) || 0.1; relabelSw(); },
+                    { min: 0.01, max: 10, step: 0.1, precision: 2, round: 0.01, serialize: false });
+                const wUntil = node.addWidget("number", "strength_until", sw.until, (v) => { sw.until = r2(v); relabelSw(); },
+                    { min: -100, max: 100, step: 0.1, precision: 2, round: 0.01, serialize: false });
+                wCtl.tooltip = "After every queued run strength_model moves by 'strength step' towards 'strength until', then stays there. strength_clip is not touched.";
+                wStep.tooltip = "How much strength_model changes at every run.";
+                wUntil.tooltip = "Where the walk stops.";
+                for (const w of [wUntil, wStep, wCtl]) { node.widgets.splice(node.widgets.indexOf(w), 1); node.widgets.splice(at, 0, w); }
+                // quanti run fino a until, partendo dal valore attuale
+                const runsLeft = () => {
+                    const cur = r2(wStr.value), stp = Math.abs(r2(sw.step)) || 0.1;
+                    if (sw.control === "increment" && sw.until > cur) return Math.ceil((sw.until - cur) / stp - 1e-9) + 1;
+                    if (sw.control === "decrement" && sw.until < cur) return Math.ceil((cur - sw.until) / stp - 1e-9) + 1;
+                    return 1;
+                };
+                const relabelSw = () => {
+                    wCtl.value = sw.control; wStep.value = sw.step; wUntil.value = sw.until;
+                    wCtl.label = sw.control === "fixed" ? "strength control"
+                        : "strength " + r2(wStr.value) + " \u2192 " + r2(sw.until) + " \u00b7 " + runsLeft() + " run";
+                    node.setDirtyCanvas(true, false);
+                };
+                wCtl.afterQueued = () => {
+                    if (sw.control === "fixed") return;
+                    const cur = r2(wStr.value), stp = Math.abs(r2(sw.step)) || 0.1;
+                    let next = cur;
+                    if (sw.control === "increment" && cur < sw.until) next = Math.min(sw.until, cur + stp);
+                    if (sw.control === "decrement" && cur > sw.until) next = Math.max(sw.until, cur - stp);
+                    next = r2(next);
+                    if (next !== cur) { wStr.value = next; wStr.callback?.(next); }
+                    relabelSw();
+                };
+                relabelSw();
+                const tickSw = setInterval(relabelSw, 500);
+                const origRemoved3 = node.onRemoved;
+                node.onRemoved = function () { clearInterval(tickSw); return origRemoved3 ? origRemoved3.apply(this, arguments) : undefined; };
+                const origConfigure3 = node.onConfigure;
+                node.onConfigure = function () {
+                    const r = origConfigure3 ? origConfigure3.apply(this, arguments) : undefined;
+                    setTimeout(() => { Object.assign(sw, node.properties?.strength_sweep || {}); node.properties.strength_sweep = sw; relabelSw(); }, 0);
+                    return r;
+                };
+            }
             const wCiv = node.widgets.find((w) => w.name === "civitai");
             const wPicked = node.widgets.find((w) => w.name === "picked");
             if (!wLora || !wPicked) return r;
