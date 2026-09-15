@@ -40,6 +40,8 @@ Saves PNGs with a file name **composed from parts** (folder, subject, any string
 
 The prompt as **rows**: each one a text area that grows with the text, an **on/off** chip, and a socket on the left for an external string (trigger words, another prompt) that the same chip switches. **+** adds a row, **−** removes one. The rows that are on come out joined by `, `, a space, a new line or nothing.
 
+<img src="images/WPromptRows.png" width="420" alt="WPrompt Rows">
+
 ### WRoute · WRouteIndex
 
 The **if the other way round**: one input, two outputs, a boolean decides which output carries the value. The branch not chosen **does not run at all**, Save nodes included. `WRouteIndex` does the same with a number and four outputs.
@@ -86,6 +88,8 @@ Each **WScene H3** says how it joins the previous one: `handoff_frames` (last N 
 ### WSimple Prompt H3
 
 The H3 prompt **without time-codes**: what we see, what happens in order, then the things an H3 prompt must always carry — one camera idea (a still camera said in full), the sound born with the picture, what stays fixed, what moves, the final state, up to three things to avoid. The order of the sentences is the timeline.
+
+<img src="images/WSimplePrompt_H3.png" width="420" alt="WSimple Prompt H3">
 
 ### WScene Composer H3
 
