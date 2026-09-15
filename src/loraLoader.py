@@ -13,15 +13,23 @@ class LoraLoaderTrigger:
         return {
             "required": {
                 "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The LoRA to load.", "control_after_generate": "fixed"}),   # fixed / increment / decrement / randomize + filter, come il seed (Sick, 14/09)
+            },
+            # Dal 0.3.6 tutto cio' che sta sotto il nome e' `optional` (stesso ordine di prima): i quattro comandi che il JS
+            # disegnava da solo (lora_scope, strength_control/step/until) sono ingressi veri, cosi' i widgets_values salvati
+            # combaciano con object_info e chi legge il wf per posizione (comfy-cli, MCP) accoppia i valori giusti.
+            # Il backend li ignora: la passeggiata (LoRA e strength) la fa il frontend tra un run accodato e l'altro.
+            "optional": {
+                "lora_scope": (["any", "folder"], {"default": "any", "tooltip": "Which LoRAs increment / decrement / randomize walk through across queued runs: any = the whole list, folder = the folder of the LoRA selected now. Lives in the node: the backend ignores it."}),
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+                "strength_control": (["fixed", "increment", "decrement"], {"default": "fixed", "tooltip": "Strength walk: after every queued run strength_model moves by strength_step towards strength_until, then stays there. Lives in the node: through the API set strength_model directly."}),
+                "strength_step": ("FLOAT", {"default": 0.1, "min": 0.01, "max": 10.0, "step": 0.1, "round": 0.01, "tooltip": "How much strength_model changes at every queued run (strength walk, lives in the node)."}),
+                "strength_until": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.1, "round": 0.01, "tooltip": "Where the strength walk stops (lives in the node)."}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
                 "civitai": ("BOOLEAN", {"default": True, "label_on": "look up", "label_off": "file only",
                                         "tooltip": "Ask Civitai (SHA-256 of the file, cached) for the official trigger words."}),
                 "where": (["prefix", "suffix"], {"default": "prefix",
                                                  "tooltip": "prefix = trigger words, then your prompt; suffix = your prompt, then the words."}),
                 "separator": ("STRING", {"default": ", ", "multiline": True, "tooltip": "Between the words, and between the words and your prompt. Multi-line: a newline is a valid separator."}),
-            },
-            "optional": {
                 "picked": ("STRING", {"default": "", "multiline": True, "tooltip": "Words chosen in the chip picker (JSON list, filled by the widget)."}),
                 "model": ("MODEL", {"tooltip": "Optional: without it the node only builds the prompt."}),
                 "clip": ("CLIP", {"tooltip": "Optional (models without CLIP, or model-only LoRAs)."}),
@@ -43,7 +51,8 @@ class LoraLoaderTrigger:
                    "Seed-style controls walk the LoRA list (any / folder) and the strength across queued runs.")
 
     def load(self, lora_name, strength_model=1.0, strength_clip=1.0, civitai=True, where="prefix",
-             separator=", ", picked="", model=None, clip=None, prompt=None):
+             separator=", ", picked="", model=None, clip=None, prompt=None,
+             lora_scope="any", strength_control="fixed", strength_step=0.1, strength_until=1.0):  # UI knobs: accepted, ignored
         path = folder_paths.get_full_path("loras", lora_name)
         name = lora_name.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)[0]
         md, _ = read_header(path)

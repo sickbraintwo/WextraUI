@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6 — 2026-09-15
+- **Saved workflows read right by position.** The boxes the scripts draw (WLoad Lora & Trigger: `lora scope`, `strength control` / `step` / `until`) are now inputs of the node, same place, same order, optional with a default: `object_info` lists them and the saved `widgets_values` match it one to one, so comfy-cli's UI-to-API translator and MCP `list_workflow_slots` pair every value with the right input (before: 40 slots flagged `pairing_suspect` on 20 loaders in one workflow). The backend ignores them: the walks stay in the node.
+- Buttons, pickers and tables (WSave Image `+`/`−`, WScene Composer H3 table and toggle, WFrame color pad, WScenes Collection H3 buttons, the loader's chip picker) take no slot in `widgets_values` any more (`wxCompactWidgets` in `web/wxStyle.js`); a workflow saved with the old holes loads unchanged. `tools/migrate_outputs.py` (stage 0.3.6) cleans the files on disk.
+- **`tools/migrate_outputs.py` rewritten, safe to run twice.** The previous version trusted a version marker and remapped the outputs of every WSave Image / WDifference / WScene Composer H3 / WLoop Start H3 it met, so a workflow saved with the current nodes (no marker yet) got its output slots and links scrambled. Now every node is judged as saved: old layout (by output names, or by a link whose target fits the old slot) is remapped, a current one is left alone, a scrambled one without links is rebuilt, and the loader's older widget layouts (7/8/9 values) are expanded to today's 12.
+- Nothing changes in the node's look or in the API you already call.
+
 ## 0.3.5 — 2026-09-15
 - **WDifference**: a workflow saved before `changes_max` existed loaded with the shifted value (`ignore`'s empty text) in that box, shown as 0, and the run was refused ("couldn't be converted to INT"); a load-time guard in `web/wxRunDiff.js` now resets an invalid `changes_max` to 240.
 - **WSave Image**: the saved files are always declared in `/history` as `images` (`filename`, `subfolder`, `type`), like the standard Save Image, whatever the **image preview** switch says; the switch now only decides the thumbnails inside the node. Scripts and agents can fetch the exact file through `/view` instead of guessing the counter.

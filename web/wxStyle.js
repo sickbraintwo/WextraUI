@@ -56,6 +56,7 @@ export function wxChip(text, on, onClick) {
 // widget.name, so it can be renamed later (the Composer's collapse/expand toggle does).
 export function wxAddButton(node, label, onClick) {
     const w = node.addWidget("wxbutton", label, null, () => {}, { serialize: false });
+    w.serialize = false;   // no slot in widgets_values (see wxCompactWidgets)
     let last = 0;
     w.draw = function (ctx, node, width, y, H) {
         const m = 12, x = m, wd = width - 2 * m;
@@ -79,4 +80,28 @@ export function wxAddButton(node, label, onClick) {
 export function wxButton(text, onClick, title) {
     const b = document.createElement("button"); b.className = "wx-btn"; b.textContent = text; if (title) b.title = title;
     b.onclick = onClick; return b;
+}
+
+// Widgets the scripts add (buttons, DOM pickers) carry no state of their own, so they must not take a slot in the
+// saved widgets_values: whoever reads the workflow by position (comfy-cli's UI-to-API translator, MCP
+// list_workflow_slots) pairs the values with the node's object_info inputs, and one extra slot shifts every later
+// value onto the wrong input. The frontend skips a widget with .serialize === false when it saves, but leaves a hole
+// (null) at its index, and restores by walking the serializable widgets in order. Here the array is compacted on save;
+// on load, a file saved with the holes (0.3.5 and before) is recognised by its length and re-read by full index.
+export function wxCompactWidgets(node) {
+    const full = () => node.widgets || [];
+    const kept = () => full().filter((w) => w.serialize !== false);
+    const onSer = node.onSerialize;
+    node.onSerialize = function (o) {
+        onSer?.apply(this, arguments);
+        if (o && Array.isArray(o.widgets_values)) o.widgets_values = kept().map((w) => (w.value === undefined ? null : w.value));
+    };
+    const onConf = node.onConfigure;
+    node.onConfigure = function (info) {
+        const wv = info?.widgets_values, W = full(), S = kept();
+        if (Array.isArray(wv) && S.length !== W.length && wv.length === W.length) {
+            W.forEach((w, i) => { if (w.serialize !== false && wv[i] !== null && wv[i] !== undefined) w.value = wv[i]; });
+        }
+        return onConf?.apply(this, arguments);
+    };
 }

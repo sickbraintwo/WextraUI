@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { wxAddButton } from "./wxStyle.js";
+import { wxAddButton, wxCompactWidgets } from "./wxStyle.js";
 
 const MAX_SCENES = 20;
 
@@ -56,6 +56,7 @@ app.registerExtension({
                 sceneCount -= 1;
                 fit();
             });
+            wxCompactWidgets(node);   // the two buttons take no slot in widgets_values
             setTimeout(fit, 0);
 
             return ret;

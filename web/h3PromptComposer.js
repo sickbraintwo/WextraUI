@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { WX, ensureWxStyle, wxChip, wxAddButton } from "./wxStyle.js";
+import { WX, ensureWxStyle, wxChip, wxAddButton, wxCompactWidgets } from "./wxStyle.js";
 
 const CONVERTED_TYPE = "converted-widget";
 const BASE_REFERENCE_SECONDS = 10.0;
@@ -295,6 +295,7 @@ app.registerExtension({
             // i.e. between "intro" and "total_duration", matching the intended
             // reading order of the node.
             const tableWidget = node.widgets[node.widgets.length - 1];
+            tableWidget.serialize = false;   // the table mirrors beats_json: no slot of its own in widgets_values
             const jsonIdx = node.widgets.indexOf(jsonWidget);
             node.widgets.splice(node.widgets.length - 1, 1);
             node.widgets.splice(jsonIdx + 1, 0, tableWidget);
@@ -361,6 +362,7 @@ app.registerExtension({
                 collapseBtn.name = collapseState.collapsed ? "Expand text areas" : "Collapse text areas";
                 resyncLayout();
             });
+            wxCompactWidgets(node);   // table and button take no slot: widgets_values = the inputs of object_info, in order
             // (Tried moving this button away from "avoid" to dodge a cosmetic
             // 1-2px overlap there — reverted: reordering widgets breaks older
             // saves. Not worth that risk for something this minor.)

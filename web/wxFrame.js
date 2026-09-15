@@ -1,6 +1,6 @@
 // WextraUI — WFrame: crop_width / crop_height only when crop_to = custom; a colour picker under pad_color.
 import { app } from "../../scripts/app.js";
-import { ensureWxStyle, wxLabel } from "./wxStyle.js";
+import { ensureWxStyle, wxLabel, wxCompactWidgets } from "./wxStyle.js";
 
 function setHidden(w, hidden) {
     if (!w) return;
@@ -52,10 +52,12 @@ app.registerExtension({
                 inp.value = norm(wColor.value);
                 inp.addEventListener("input", () => { wColor.value = inp.value; node.setDirtyCanvas(true, true); });
                 const picker = node.addDOMWidget("pad_picker", "custom", box, { serialize: false, hideOnZoom: false, getValue: () => wColor.value, setValue: () => {} });
+                picker.serialize = false;   // the picker mirrors the color box: no slot of its own in widgets_values
                 picker.computeSize = (w) => [w, 26];
                 const i = node.widgets.indexOf(picker), j = node.widgets.indexOf(wColor);
                 if (i > j + 1) { node.widgets.splice(i, 1); node.widgets.splice(j + 1, 0, picker); }
                 node._wxSyncPicker = () => { const v = norm(wColor.value); if (inp.value !== v) inp.value = v; };
+                wxCompactWidgets(node);
             }
 
             // the combo's callback does not always fire in the new frontend: watch on every redraw

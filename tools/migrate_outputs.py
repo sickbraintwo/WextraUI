@@ -1,73 +1,145 @@
-"""WextraUI — output order changed on some nodes. This rewrites a saved workflow so its links follow.
-Usage:  python tools/migrate_outputs.py <workflow.json> [...]   (a .bak copy is written next to each file)
-Stages, applied in order and only once (marker `wextraui_outputs` in the file):
-  0.3.2 — WDifference, WScene Composer H3, WLoop Start H3 reordered; WRoute outputs renamed true/false.
-  0.3.4 — WSave Image: new first output `images`; `prefix` / `name` move to slots 1 and 2.
-        WLoad Lora & Trigger: `lora_name` gained a control-after-generate widget (fixed / increment / ...): the saved
-        widgets_values get a "fixed" inserted right after the LoRA name, so the strengths stay where they were."""
+"""WextraUI — bring a saved workflow in line with the current nodes. Safe to run again: every fix looks at the node
+as saved and touches it only if it is in an old layout (a file saved with the current nodes comes out unchanged).
+Usage:  python tools/migrate_outputs.py <workflow.json> [...]   (a .bak copy is written next to each changed file)
+
+What it fixes:
+  outputs — WDifference, WScene Composer H3, WLoop Start H3 were reordered (0.3.2); WSave Image gained a first output
+        `images` (0.3.4); WRoute outputs are named true/false. Links follow the outputs to their new slot. Old layout is
+        recognised by the saved output names, or, when the frontend already renamed them, by a link whose target type
+        fits the old slot and not the new one. A node whose outputs match neither (a file the 0.3.5 script hit twice)
+        is rebuilt when it has no links, and reported when it has.
+  WLoad Lora & Trigger — widgets_values: 7 values (before the control-after-generate) or 8 (before `lora scope` and
+        the strength walk, 0.3.4) are expanded to the 12 of today; a true/false left in strength_model or strength_clip
+        by older layouts becomes 1.0.
+  holes — widgets the scripts add (buttons, pickers, tables) took a slot in widgets_values until 0.3.5: the nulls are
+        dropped (WSave Image, WScene Composer H3, WFrame, WScenes Collection H3), the loader's trailing picker value too.
+The file gets the marker `wextraui_outputs` = "0.3.6" (informational: the checks above do not rely on it)."""
 import json, sys, shutil
 
-STAGES = [  # (version, {node type: {old slot: new slot}}, {node type: [output names]}, {node type: [(new pin name, type)]})
-    ("0.3.2",
-     {"h3PromptComposer": {1: 2, 2: 1}, "h3LoopRange": {3: 5, 4: 3, 5: 4}, "wxRunDiff": {0: 2, 1: 3, 2: 0, 3: 4, 4: 1}},
-     {"h3PromptComposer": ["prompt", "duration", "timing_table", "frames"],
-      "h3LoopRange": ["run_count", "start_scene", "start_frame", "start_clip", "start_audio", "resuming"],
-      "wxRunDiff": ["passthrough", "tag", "changes", "count", "key"]},
-     {}),
-    ("0.3.4",
-     {"saveWimage": {0: 1, 1: 2}},
-     {"saveWimage": ["images", "prefix", "name"]},
-     {"saveWimage": [("images", "IMAGE")]}),
-]
-ORDER = [s[0] for s in STAGES]
+ANY = "*"
+# node type: new output names, new output types, {old slot: new slot} (slots not listed keep their index)
+NEW = {
+    "saveWimage": (["images", "prefix", "name"], ["IMAGE", "STRING", "STRING"], {0: 1, 1: 2}),
+    "wxRunDiff": (["passthrough", "tag", "changes", "count", "key"], [ANY, "STRING", "STRING", "INT", "STRING"], {0: 2, 1: 3, 2: 0, 3: 4, 4: 1}),
+    "h3PromptComposer": (["prompt", "duration", "timing_table", "frames"], ["STRING", "FLOAT", "STRING", "INT"], {1: 2, 2: 1}),
+    "h3LoopRange": (["run_count", "start_scene", "start_frame", "start_clip", "start_audio", "resuming"],
+                    ["INT", "INT", "IMAGE", "IMAGE", "AUDIO", "BOOLEAN"], {3: 5, 4: 3, 5: 4}),
+    "wxRoute": (["true", "false"], [ANY, ANY], {}),
+}
+HOLED = {"saveWimage", "wxLoraLoaderTrigger", "h3PromptComposer", "wxFrame", "h3CollectScenes"}
+CTRL = ("fixed", "increment", "decrement", "randomize", "increment-wrap")
 
 
-def apply(d, version, MAP, NAMES, ADD):
-    types = {n["id"]: n["type"] for n in d["nodes"]}
-    n_links = 0
-    for l in d.get("links", []):
-        m = MAP.get(types.get(l[1]))
-        if m and l[2] in m:
-            l[2] = m[l[2]]; n_links += 1
+def old_layout(names, types, m):
+    n_old = max(len(m) and max(m) + 1, len(names) - len(set(m.values()) - set(m)))
+    return [names[m.get(i, i)] for i in range(n_old)], [types[m.get(i, i)] for i in range(n_old)]
+
+
+def concrete(t):
+    return isinstance(t, str) and t not in ("", ANY)
+
+
+def classify(node, links_from, by_id, names, types, m):
+    """'old' / 'new' / 'rebuild' / 'manual' for one node's outputs."""
+    saved = [o.get("name") for o in node.get("outputs") or []]
+    onames, otypes = old_layout(names, types, m)
+    if saved == onames and onames != names:
+        return "old"
+    if not m and len(saved) == len(names) and saved != names:
+        return "old"                              # same slots, only the names changed (WRoute): rename, keep the links
+    if saved == names:
+        for l in links_from:                      # renamed by the frontend, but are the links still on the old slots?
+            s = l[2]
+            t = by_id.get(str(l[3]))
+            tin = (t.get("inputs") or [])[l[4]].get("type") if t and l[4] < len(t.get("inputs") or []) else None
+            for want in (tin, l[5]):
+                if concrete(want) and s < len(types) and concrete(types[s]) and want != types[s] \
+                        and s < len(otypes) and (want == otypes[s] or not concrete(otypes[s])):
+                    return "old"
+        return "new"
+    return "rebuild" if not links_from else "manual"
+
+
+def fix_outputs(d):
+    by_id = {str(n.get("id")): n for n in d["nodes"]}
+    links = d.get("links") or []
+    changed = []
     for n in d["nodes"]:
-        m = MAP.get(n["type"])
-        if not m or not n.get("outputs"): continue
+        spec = NEW.get(n.get("type"))
+        if not spec or not isinstance(n.get("outputs"), list):
+            continue
+        names, types, m = spec
+        mine = [l for l in links if str(l[1]) == str(n.get("id"))]
+        kind = classify(n, mine, by_id, names, types, m)
+        if kind == "new":                          # right slots; a wrong saved type (file hit twice) is put back in place
+            fixed = False
+            for o, tp in zip(n["outputs"], types):
+                if o.get("type") != tp:
+                    o["type"] = tp; fixed = True
+            if fixed: changed.append(f"{n.get('id')}:{n['type']}:retype")
+            continue
+        if kind == "manual":
+            print(f"  ! node {n.get('id')} ({n['type']}): outputs {[o.get('name') for o in n['outputs']]} match neither layout and carry links — check it by hand")
+            continue
         old = n["outputs"]
-        new = list(old) + [{"name": nm, "type": tp, "links": None} for nm, tp in ADD.get(n["type"], [])]
-        for o, nw in m.items():
-            if o < len(old): new[nw] = old[o]
-        vacated = set(m.keys()) - set(m.values())          # slots nobody moved into: the new pins live there
-        for i, (nm, tp) in zip(sorted(vacated), ADD.get(n["type"], [])):
-            new[i] = {"name": nm, "type": tp, "links": None}
-        for i, o in enumerate(new):
-            if i < len(NAMES[n["type"]]): o["name"] = NAMES[n["type"]][i]
+        new = [{"name": nm, "type": tp, "links": None} for nm, tp in zip(names, types)]
+        if kind == "old":
+            for i, o in enumerate(old):
+                j = m.get(i, i)
+                if j < len(new) and o.get("links"):
+                    new[j]["links"] = o["links"]
+            for l in mine:
+                if l[2] in m:
+                    l[2] = m[l[2]]
         n["outputs"] = new
-    if version == "0.3.4":  # WLoad Lora & Trigger: control-after-generate value inserted after lora_name
-        CTRL = ("fixed", "increment", "decrement", "randomize", "increment-wrap")
-        for n in d["nodes"]:
-            wv = n.get("widgets_values")
-            if n["type"] == "wxLoraLoaderTrigger" and isinstance(wv, list) and len(wv) >= 2 and wv[1] not in CTRL:
-                wv.insert(1, "fixed")
-    if version == "0.3.2":  # WRoute: output names only
-        for n in d["nodes"]:
-            if n["type"] == "wxRoute" and n.get("outputs"):
-                for o, nm in zip(n["outputs"], ("true", "false")): o["name"] = nm
-    return n_links
+        changed.append(f"{n.get('id')}:{n['type']}:{kind}")
+    return changed
+
+
+def fix_widgets(d):
+    changed = []
+    for n in d["nodes"]:
+        t, wv = n.get("type"), n.get("widgets_values")
+        if not isinstance(wv, list):
+            continue
+        before = list(wv)
+        if t == "wxLoraLoaderTrigger":
+            # layouts: A = [name, sm, sc, civ, where, sep, picked, (picker)] (before the control, 7-8 values);
+            # B = [name, ctl, sm, sc, civ, where, sep, picked, (picker)] (0.3.4 file, 8-9); C = today's 12 (+ picker / holes)
+            TAIL = [1.0, 1.0, True, "prefix", ", ", ""]           # sm, sc, civ, where, sep, picked
+            if len(wv) > 2 and wv[1] in CTRL and wv[2] in ("any", "folder"):          # C
+                wv[:] = [v for v in wv if v is not None]
+                del wv[12:]
+            elif len(wv) > 1 and wv[1] in CTRL:                                        # B
+                rest = (wv[2:8] + TAIL[len(wv) - 2:])[:6]
+                wv[:] = [wv[0], wv[1], "any", rest[0], "fixed", 0.1, 1.0] + rest[1:]
+            elif len(wv) >= 1:                                                         # A
+                rest = (wv[1:7] + TAIL[len(wv) - 1:])[:6]
+                wv[:] = [wv[0], "fixed", "any", rest[0], "fixed", 0.1, 1.0] + rest[1:]
+            for i, dflt in ((3, 1.0), (7, 1.0), (5, 0.1), (6, 1.0)):
+                if i < len(wv) and (isinstance(wv[i], bool) or not isinstance(wv[i], (int, float))):
+                    wv[i] = dflt
+            if len(wv) > 2 and wv[2] not in ("any", "folder"): wv[2] = "any"
+            if len(wv) > 4 and wv[4] not in ("fixed", "increment", "decrement"): wv[4] = "fixed"
+        elif t in HOLED:
+            wv[:] = [v for v in wv if v is not None]
+        if wv != before:
+            changed.append(f"{n.get('id')}:{t}")
+    return changed
 
 
 def migrate(path):
     d = json.load(open(path, encoding="utf-8"))
-    done = d.get("wextraui_outputs")
-    start = ORDER.index(done) + 1 if done in ORDER else 0
-    if start >= len(STAGES):
-        print("already migrated:", path); return
-    total = 0
-    for version, MAP, NAMES, ADD in STAGES[start:]:
-        total += apply(d, version, MAP, NAMES, ADD)
-        d["wextraui_outputs"] = version
+    if not isinstance(d.get("nodes"), list):
+        print("not a workflow:", path); return
+    out = fix_outputs(d)
+    wid = fix_widgets(d)
+    if not out and not wid and d.get("wextraui_outputs") == "0.3.6":
+        print("already in line:", path); return
+    d["wextraui_outputs"] = "0.3.6"
     shutil.copy(path, path + ".bak")
     json.dump(d, open(path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
-    print(f"migrated: {path}  ({total} links)")
+    print(f"updated: {path}  (outputs: {len(out)} node(s) {out}; widgets: {len(wid)} node(s) {wid})")
 
 
 if __name__ == "__main__":

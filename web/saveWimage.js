@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { ensureWxStyle, wxAddButton } from "./wxStyle.js";
+import { ensureWxStyle, wxAddButton, wxCompactWidgets } from "./wxStyle.js";
 
 // WSave Image (frontend 1.49+): parti dinamiche (+ / -) e anteprima live del nome.
 // folder / subject / text{i} / value{i} collegati a un link: la preview legge il valore a monte quando il nodo sorgente
@@ -155,6 +155,7 @@ app.registerExtension({
                 const w = W(nm);
                 if (w) { const k = node.widgets.indexOf(w); if (k >= 0) { node.widgets.splice(k, 1); node.widgets.push(w); } }
             }
+            wxCompactWidgets(node);   // the two buttons take no slot: widgets_values = the inputs of object_info, in order
 
             const onDrawBg = node.onDrawBackground;
             node.onDrawBackground = function () { const r = onDrawBg ? onDrawBg.apply(this, arguments) : undefined; watch(); return r; };

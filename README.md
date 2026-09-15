@@ -66,7 +66,7 @@ It reads the hidden PROMPT that every Save node embeds in the file, keeps the pr
 
 ### WLoad Lora & Trigger
 
-Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. Trigger words come from Civitai (look-up) and from the training tags inside the file; click the chips, drag to reorder. Under the name, the seed-style **control after generate** (`increment` + `lora scope` = any / folder) walks a LoRA family across queued runs; under `strength_model`, a **strength walk** (control / step / until) moves the strength one step per run.
+Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. Trigger words come from Civitai (look-up) and from the training tags inside the file; click the chips, drag to reorder. Under the name, the seed-style **control after generate** (`increment` + `lora scope` = any / folder) walks a LoRA family across queued runs; under `strength_model`, a **strength walk** (control / step / until) moves the strength one step per run. Both walks live in the node, but their boxes are real inputs (in `object_info`, optional), so a script reading the saved workflow sees the same values you see.
 
 <img src="images/WLoadLoraTrigger.png" width="330" alt="WLoad Lora & Trigger">
 
@@ -138,7 +138,7 @@ A ~77 s music video, video and audio generated together shot by shot with MiniMa
 
 ## Built for agents too
 
-Since 0.3.5 the nodes are made to be driven from outside as well as by hand, through the ComfyUI API and [Comfy MCP](https://comfy.org/mcp): every input is a named slot with a tooltip an agent can read from `object_info`; new inputs arrive optional with a default, so an API export made before them keeps running; `WSave Image` declares every file it writes in `/history` (`images`, like the standard Save Image), and `WDifference` puts the run's diary in the PNG metadata so the file name can stay short and predictable. In `WPrompt Rows` each row is its own slot (`text3`, `on3`), so an agent can touch one line of your prompt and leave the rest alone.
+Since 0.3.5 the nodes are made to be driven from outside as well as by hand, through the ComfyUI API and [Comfy MCP](https://comfy.org/mcp): every input is a named slot with a tooltip an agent can read from `object_info`; new inputs arrive optional with a default, so an API export made before them keeps running; `WSave Image` declares every file it writes in `/history` (`images`, like the standard Save Image), and `WDifference` puts the run's diary in the PNG metadata so the file name can stay short and predictable. In `WPrompt Rows` each row is its own slot (`text3`, `on3`), so an agent can touch one line of your prompt and leave the rest alone. Since 0.3.6 the saved `widgets_values` of every node match its `object_info` inputs one to one (buttons and pickers take no slot), so a positional reader of the workflow file, like comfy-cli's UI-to-API translator or MCP `list_workflow_slots`, pairs each value with the right input.
 
 ## Changes
 
