@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.7 — 2026-09-15
+- **Files stay inside ComfyUI's folders.** Every path a node builds from a user string goes through `src/wxPaths.py`: WScene H3 `resume_from_video` is resolved under `ComfyUI/output` or `ComfyUI/input` (an absolute path is accepted only inside them), WSave Image's `folder` cannot climb out of `output/` (`..`, drive letters and leading slashes are dropped, the real path is checked), WDifference's key is a file name, never a path. This is what the registry reviewer asked for on 0.3.2/0.3.3 (`ARBITRARY_FILE_READ`, `PATH_TRAVERSAL`); the behaviour you see does not change unless you were pointing outside those folders.
+- README: a **Security** section says what the pack touches (files under output/input, one network call to civitai.com only when the loader's `civitai` switch is on, no eval/exec/subprocess).
+
 ## 0.3.6 — 2026-09-15
 - **Saved workflows read right by position.** The boxes the scripts draw (WLoad Lora & Trigger: `lora scope`, `strength control` / `step` / `until`) are now inputs of the node, same place, same order, optional with a default: `object_info` lists them and the saved `widgets_values` match it one to one, so comfy-cli's UI-to-API translator and MCP `list_workflow_slots` pair every value with the right input (before: 40 slots flagged `pairing_suspect` on 20 loaders in one workflow). The backend ignores them: the walks stay in the node.
 - Buttons, pickers and tables (WSave Image `+`/`−`, WScene Composer H3 table and toggle, WFrame color pad, WScenes Collection H3 buttons, the loader's chip picker) take no slot in `widgets_values` any more (`wxCompactWidgets` in `web/wxStyle.js`); a workflow saved with the old holes loads unchanged. `tools/migrate_outputs.py` (stage 0.3.6) cleans the files on disk.

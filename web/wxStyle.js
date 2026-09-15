@@ -1,3 +1,4 @@
+import { app } from "../../scripts/app.js";
 // WextraUI — the one look shared by every node's HTML parts (labels, chips, inputs, buttons, hints).
 // Accent = the WextraUI blue; everything else sits quietly on the node's own grey.
 export const WX = {
@@ -102,6 +103,8 @@ export function wxFits(w, v) {
 }
 
 export function wxCompactWidgets(node) {
+    if (node.__wxCompact) return;                 // wrapped once, whoever calls first
+    node.__wxCompact = true;
     const full = () => node.widgets || [];
     const kept = () => full().filter((w) => w.serialize !== false);
     const onSer = node.onSerialize;
@@ -126,6 +129,33 @@ export function wxCompactWidgets(node) {
                 if (wxFits(w, v)) w.value = v;
             }
         }
+        wxCoerceWidgets(node);
         return r;
     };
 }
+
+/** After a load, every serializable widget holds a value of its own type: a numeric string becomes a number, "true"/"false"
+ *  a boolean, anything else that does not fit goes back to the default of object_info (a value from an old layout
+ *  that landed in the wrong box is never left there). */
+export function wxCoerceWidgets(node) {
+    const spec = node.constructor?.nodeData?.input || {};
+    const dflt = (name) => { for (const sec of ["required", "optional"]) { const sp = spec[sec]?.[name]; if (sp && sp[1] && sp[1].default !== undefined) return sp[1].default; if (sp && Array.isArray(sp[0]) && sp[0].length) return sp[0][0]; } return undefined; };
+    for (const w of node.widgets || []) {
+        if (w.serialize === false || wxFits(w, w.value)) continue;
+        const v = w.value;
+        if ((w.type === "number" || w.type === "slider") && typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v))) { w.value = Number(v); continue; }
+        if (w.type === "toggle" && (v === "true" || v === "false")) { w.value = v === "true"; continue; }
+        const d = dflt(w.name);
+        if (d !== undefined && wxFits(w, d)) w.value = d;
+    }
+}
+
+// Every node of the pack: by-name restore + type guard on load (see wxCompactWidgets); nodes that hide widgets call it
+// themselves at the right moment, the flag keeps it to one wrap.
+app.registerExtension({
+    name: "WextraUI.widgets",
+    nodeCreated(node) {
+        const mod = node.constructor?.nodeData?.python_module || "";
+        if (/wextraui/i.test(mod)) wxCompactWidgets(node);
+    },
+});

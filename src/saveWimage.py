@@ -25,6 +25,7 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 import folder_paths
+from .wxPaths import output_dir, clean_subfolder
 
 MAX_PARTS = 8
 MAX_PATH = 259  # Windows: percorso completo, terminatore escluso
@@ -63,7 +64,7 @@ def compose(folder, subject, parts, kw):
             name += kw.get(f"text{i}") or ""
             continue
         name += (kw.get(f"text{i}") or "") + to_str(value, kind)
-    folder = (folder or "").strip().replace("\\", "/").strip("/")
+    folder = clean_subfolder(folder)
     return folder, name
 
 
@@ -128,8 +129,8 @@ class SaveWimage:
         results = []
         for index, image in enumerate(images, start=1):
             ifolder, ibase = batch_tokens(folder, size, index), batch_tokens(base, size, index)
-            target = os.path.join(out_root, ifolder) if ifolder else out_root
-            os.makedirs(target, exist_ok=True)
+            target = output_dir(ifolder)                       # under ComfyUI/output, whatever the folder text says
+            ifolder = os.path.relpath(target, out_root).replace("\\", "/") if target != out_root else ""
             if index == 1:  # prefix/name = nome della prima immagine
                 prefix, base_out = (ifolder + "/" if ifolder else "") + ibase, ibase
             arr = (255.0 * image.cpu().numpy()).clip(0, 255).astype(np.uint8)
@@ -145,6 +146,7 @@ class SaveWimage:
             if len(ibase) > room > 0:
                 ibase = ibase[:room].rstrip("_ .")                     # nome troppo lungo: si taglia, non si fallisce
             fname = f"{ibase}_{next_counter(target, ibase):0{digits}d}.png" if digits > 0 else f"{ibase}.png"
+            fname = fname.replace("/", "_").replace("\\", "_")
             img.save(os.path.join(target, fname), pnginfo=meta, compress_level=4)
             results.append({"filename": fname, "subfolder": ifolder, "type": "output"})
         # images sempre dichiarate (come il SaveImage standard: /history le riporta per gli automatismi);

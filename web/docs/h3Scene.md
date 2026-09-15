@@ -8,7 +8,7 @@
 - **guide_frame_at** — seconds where `guide_frame` / `guide_audio` is anchored (negative = from the end).
 - **handoff_frames** — how much of the previous clip's tail is re-rendered at the join, anchored at frame 0: 5 = 0.2 s, **22 = 0.92 s** (default), 39 = 1.6 s … 124 = 5.2 s. Longer = more music continuity across the join, more of the previous clip repeated. Ignored on scene 0 unless it resumes from a file.
 - **previous_from** — `loop`: the scene rendered just before in this run · `file`: the clip in `resume_from_video` (work scene by scene, or start the chain from any clip).
-- **resume_from_video** — absolute path or relative to `ComfyUI/output`, e.g. `MM_H3_Loop/scene_4_S_1_00003-audio.mp4`.
+- **resume_from_video** — relative to `ComfyUI/output` (or `ComfyUI/input`; an absolute path only inside them), e.g. `MM_H3_Loop/scene_4_S_1_00003-audio.mp4`.
 
 ## Sockets
 - `prompt`, `duration` — from the Composer.

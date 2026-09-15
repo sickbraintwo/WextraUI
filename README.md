@@ -136,6 +136,13 @@ A ~77 s music video, video and audio generated together shot by shot with MiniMa
 - The workflow: [`workflows/MM_H3_Loop_RESONANCE.json`](workflows/MM_H3_Loop_RESONANCE.json)
 - Keyframes and references it loads (drop them in `ComfyUI/input`): [`workflows/references/`](workflows/references/)
 
+## Security
+
+What the pack touches, for whoever reviews it:
+- **Files:** only under `ComfyUI/output` and `ComfyUI/input` (`src/wxPaths.py` is the single gate: relative paths are resolved there, absolute paths are accepted only inside them, `..` is dropped). WSave Image writes under `output/`, WDifference keeps its diaries in `output/_Wextra/rundiff`, WLoad Lora & Trigger caches LoRA info in `output/_Wextra/lora` and reads LoRA files through `folder_paths` only.
+- **Network:** one call, `GET https://civitai.com/api/v1/model-versions/by-hash/<sha256>` from WLoad Lora & Trigger, only while its `civitai` switch is on, result cached; nothing is sent besides the hash. No other request, no download, no telemetry.
+- **Code:** no `eval`/`exec`, no `subprocess`, no runtime `pip`, nothing obfuscated. `comfy node validate` passes; `python tools/selftest.py` is the pre-push check.
+
 ## Built for agents too
 
 Since 0.3.5 the nodes are made to be driven from outside as well as by hand, through the ComfyUI API and [Comfy MCP](https://comfy.org/mcp): every input is a named slot with a tooltip an agent can read from `object_info`; new inputs arrive optional with a default, so an API export made before them keeps running; `WSave Image` declares every file it writes in `/history` (`images`, like the standard Save Image), and `WDifference` puts the run's diary in the PNG metadata so the file name can stay short and predictable. In `WPrompt Rows` each row is its own slot (`text3`, `on3`), so an agent can touch one line of your prompt and leave the rest alone. Since 0.3.6 the saved `widgets_values` of every node match its `object_info` inputs one to one (buttons and pickers take no slot), so a positional reader of the workflow file, like comfy-cli's UI-to-API translator or MCP `list_workflow_slots`, pairs each value with the right input. A workflow saved by an older WextraUI is brought in line by `python tools/migrate_outputs.py my.json` (safe to run twice); before a push, `python tools/selftest.py --comfy <comfy.exe> my.json` runs the same checks from outside the UI: registry lint, `object_info`, the file paired by position with every value type-checked, one small `/prompt` run per node. The rules every change follows are in `DEVELOPING.md`.

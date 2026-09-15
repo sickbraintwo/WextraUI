@@ -13,7 +13,7 @@ handoff_frames — how much of the previous clip this scene inherits (last N
              default), 39, 56 ... longer = more music continuity across the
              join, more of the previous clip repeated.
 previous_from — where that previous clip is: loop = the clip rendered just
-             before in the same run; file = resume_from_video (absolute, or
+             before in the same run; file = resume_from_video (under ComfyUI/output or input, or
              relative to ComfyUI/output) — scene-by-scene work, or any clip
              as the starting point of the piece (works on scene 0 too).
   first_frame    = the image connected to first_frame (a finished still in
@@ -66,7 +66,7 @@ class H3Scene:
                 }),
                 "resume_from_video": ("STRING", {
                     "default": "",
-                    "tooltip": "Used when previous_from = file: the previous clip, absolute path or relative to "
+                    "tooltip": "Used when previous_from = file: the previous clip, relative to "
                                "ComfyUI/output (e.g. MM_H3_Loop/scene_4_S_1_00003-audio.mp4).",
                 }),
             },

@@ -283,6 +283,7 @@ class RunDiff:
         prompt = prompt or {}
         titles = _titles(extra_pnginfo or {})
         k = _auto_key(prompt) if key.strip().lower() in ("", "auto") else "".join(c if c.isalnum() or c in "-_." else "_" for c in key.strip())
+        k = k.strip(".") or "auto"                       # a file name under output/_Wextra/rundiff, never a path
         os.makedirs(STORE, exist_ok=True)
         pj, pl = os.path.join(STORE, k + ".json"), os.path.join(STORE, k + ".log")
         old = {}

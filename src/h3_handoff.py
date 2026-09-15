@@ -11,7 +11,7 @@ longer "already seen" head in the new clip.
 
 Where the tail comes from is also per scene (previous_from):
   loop = the clip rendered just before, inside the same run;
-  file = the clip named in resume_from_video (absolute, or relative to
+  file = the clip named in resume_from_video (relative to ComfyUI/output or input, or absolute inside them;
          ComfyUI/output) — scene-by-scene work, or any clip as a starting point.
 """
 import os
@@ -30,20 +30,10 @@ def handoff_seconds(n_frames):
 
 
 def resolve_path(path):
-    """Absolute path as-is; otherwise relative to ComfyUI's output folder."""
-    path = (path or "").strip().strip('"').strip("'")
-    if not path:
-        return path
-    if os.path.isabs(path):
-        return path
-    try:
-        import folder_paths
-        candidate = os.path.join(folder_paths.get_output_directory(), path)
-        if os.path.isfile(candidate):
-            return candidate
-    except Exception:
-        pass
-    return path
+    """The clip a scene resumes from: relative to ComfyUI/output (or input), or absolute inside one of them.
+    Anything else is not a file for us (registry policy: no arbitrary file read)."""
+    from .wxPaths import resolve_read
+    return resolve_read(path) or ""
 
 
 def silence(seconds, rate=32000):
@@ -108,6 +98,7 @@ def tail_from_file(scene, index, who):
     path = resolve_path(raw)
     if not path or not os.path.isfile(path):
         raise ValueError(f"{who}: scene {index} has previous_from = file but resume_from_video is not a file: '{raw}' "
-                         "(absolute path, or relative to ComfyUI/output, e.g. MM_H3_Loop/scene_4_S_1_00003-audio.mp4).")
+                         "(relative to ComfyUI/output or ComfyUI/input, e.g. MM_H3_Loop/scene_4_S_1_00003-audio.mp4; "
+                         "an absolute path is accepted only inside those folders).")
     clip, audio = decode_tail(path, n, handoff_seconds(n), who)
     return clip, audio
