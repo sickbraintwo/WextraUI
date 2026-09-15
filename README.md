@@ -127,7 +127,7 @@ Closes one iteration of the loop: from the clip just rendered it cuts **the tail
 
 A ~77 s music video, video and audio generated together shot by shot with MiniMax H3, driven by these nodes and by an AI agent (Claude Code) working part of the loop through Comfy MCP: a world that exists only where sound touches it, five acts around one black riveted-iron skull. Nine `WScene H3` chained end to end, all seeds fixed for reproduction. Entry for the Comfy H3 Sync Sound Community Challenge, September 2026.
 
-- **Watch it**: [RESONANCE on ArtStation](https://www.artstation.com/artwork/Y8BKm6) · the page on the Lab: [w-interaction.com/WX1.html](https://w-interaction.com/WX1.html) (and [WU1.html](https://w-interaction.com/WU1.html) for these nodes)
+- **Watch it**: [RESONANCE on ArtStation](https://www.artstation.com/artwork/Y8BKm6) · the page on the Lab: [w-interaction.com/resonance.html](https://w-interaction.com/resonance.html) (and [wextraui.html](https://w-interaction.com/wextraui.html) for these nodes)
 - Technical diary (pipeline, seed table, what H3's prompting will and won't do, the agent/MCP session): [`workflows/RESONANCE.md`](workflows/RESONANCE.md)
 - The workflow: [`workflows/MM_H3_Loop_RESONANCE.json`](workflows/MM_H3_Loop_RESONANCE.json)
 - Keyframes and references it loads (drop them in `ComfyUI/input`): [`workflows/references/`](workflows/references/)
