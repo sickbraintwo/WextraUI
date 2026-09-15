@@ -10,9 +10,11 @@ What it fixes:
         is rebuilt when it has no links, and reported when it has.
   WLoad Lora & Trigger — widgets_values: 7 values (before the control-after-generate) or 8 (before `lora scope` and
         the strength walk, 0.3.4) are expanded to the 12 of today; a true/false left in strength_model or strength_clip
-        by older layouts becomes 1.0.
+        by older layouts becomes 1.0, a strength that slid into the control slot goes back to strength_model, and
+        widgets_values_named (the frontend's own copy by name) is rewritten to match.
   holes — widgets the scripts add (buttons, pickers, tables) took a slot in widgets_values until 0.3.5: the nulls are
-        dropped (WSave Image, WScene Composer H3, WFrame, WScenes Collection H3), the loader's trailing picker value too.
+        dropped (WSave Image, WScene Composer H3, WFrame, WScenes Collection H3), the loader's trailing picker value too;
+        the WFrame colour pad and the WScene Composer table saved a copy of the value they mirror, dropped as well.
 The file gets the marker `wextraui_outputs` = "0.3.6" (informational: the checks above do not rely on it)."""
 import json, sys, shutil
 
@@ -28,6 +30,22 @@ NEW = {
 }
 HOLED = {"saveWimage", "wxLoraLoaderTrigger", "h3PromptComposer", "wxFrame", "h3CollectScenes"}
 CTRL = ("fixed", "increment", "decrement", "randomize", "increment-wrap")
+
+
+LOADER_NAMES = ["lora_name", "fixed", "lora_scope", "strength_model", "strength_control", "strength_step", "strength_until",
+                "strength_clip", "civitai", "where", "separator", "picked"]   # `fixed` = the frontend's name for the control
+
+
+def _num_val(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _num(v):
+    try:
+        float(v)
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 def old_layout(names, types, m):
@@ -75,7 +93,8 @@ def fix_outputs(d):
             fixed = False
             for o, tp in zip(n["outputs"], types):
                 if o.get("type") != tp:
-                    o["type"] = tp; fixed = True
+                    o["type"] = tp
+                    fixed = True
             if fixed: changed.append(f"{n.get('id')}:{n['type']}:retype")
             continue
         if kind == "manual":
@@ -105,11 +124,19 @@ def fix_widgets(d):
         before = list(wv)
         if t == "wxLoraLoaderTrigger":
             # layouts: A = [name, sm, sc, civ, where, sep, picked, (picker)] (before the control, 7-8 values);
-            # B = [name, ctl, sm, sc, civ, where, sep, picked, (picker)] (0.3.4 file, 8-9); C = today's 12 (+ picker / holes)
+            # B = [name, ctl, sm, sc, civ, where, sep, picked, (picker)] (0.3.4 file, 8-9); C = today's 12 (+ picker / holes).
+            # C is told by `lora scope` and `strength control` in their slots: the control slot may hold rubbish
+            # (a file in layout A opened by 0.3.5 and saved put the strength there, and true/false in strength_model).
             TAIL = [1.0, 1.0, True, "prefix", ", ", ""]           # sm, sc, civ, where, sep, picked
-            if len(wv) > 2 and wv[1] in CTRL and wv[2] in ("any", "folder"):          # C
+            if len(wv) >= 12 and wv[2] in ("any", "folder") and wv[4] in ("fixed", "increment", "decrement"):   # C
                 wv[:] = [v for v in wv if v is not None]
                 del wv[12:]
+                if wv[1] not in CTRL:
+                    if _num_val(wv[1]) and not _num_val(wv[3]):
+                        wv[3] = wv[1]                                                   # the strength that slid into the control slot
+                    wv[1] = "fixed"
+                if isinstance(wv[7], str) and wv[7].startswith("[") and wv[11] == "":
+                    wv[11] = wv[7]                                                      # the picked list that slid into strength_clip
             elif len(wv) > 1 and wv[1] in CTRL:                                        # B
                 rest = (wv[2:8] + TAIL[len(wv) - 2:])[:6]
                 wv[:] = [wv[0], wv[1], "any", rest[0], "fixed", 0.1, 1.0] + rest[1:]
@@ -117,12 +144,29 @@ def fix_widgets(d):
                 rest = (wv[1:7] + TAIL[len(wv) - 1:])[:6]
                 wv[:] = [wv[0], "fixed", "any", rest[0], "fixed", 0.1, 1.0] + rest[1:]
             for i, dflt in ((3, 1.0), (7, 1.0), (5, 0.1), (6, 1.0)):
-                if i < len(wv) and (isinstance(wv[i], bool) or not isinstance(wv[i], (int, float))):
+                if i < len(wv) and not _num_val(wv[i]):
                     wv[i] = dflt
-            if len(wv) > 2 and wv[2] not in ("any", "folder"): wv[2] = "any"
-            if len(wv) > 4 and wv[4] not in ("fixed", "increment", "decrement"): wv[4] = "fixed"
+            if len(wv) > 2 and wv[2] not in ("any", "folder"):
+                wv[2] = "any"
+            if len(wv) > 4 and wv[4] not in ("fixed", "increment", "decrement"):
+                wv[4] = "fixed"
+            if len(wv) > 8 and not isinstance(wv[8], bool):
+                wv[8] = True
+            if len(wv) > 9 and wv[9] not in ("prefix", "suffix"):
+                wv[9] = "prefix"
+            if len(wv) > 10 and not isinstance(wv[10], str):
+                wv[10] = ", "
+            if len(wv) > 11 and not isinstance(wv[11], str):
+                wv[11] = ""
+            named = n.get("widgets_values_named")
+            if isinstance(named, dict) and len(wv) == 12:                             # the names must tell the same story
+                named.update(zip(LOADER_NAMES, wv))
         elif t in HOLED:
             wv[:] = [v for v in wv if v is not None]
+            if t == "wxFrame" and len(wv) > 14 and isinstance(wv[13], str):        # the colour pad saved a copy of pad_color
+                del wv[13]
+            if t == "h3PromptComposer" and len(wv) > 5 and isinstance(wv[2], str) and not _num(wv[2]):
+                del wv[2]                                                          # the beats table saved a copy of beats_json
         if wv != before:
             changed.append(f"{n.get('id')}:{t}")
     return changed
@@ -131,11 +175,13 @@ def fix_widgets(d):
 def migrate(path):
     d = json.load(open(path, encoding="utf-8"))
     if not isinstance(d.get("nodes"), list):
-        print("not a workflow:", path); return
+        print("not a workflow:", path)
+        return
     out = fix_outputs(d)
     wid = fix_widgets(d)
     if not out and not wid and d.get("wextraui_outputs") == "0.3.6":
-        print("already in line:", path); return
+        print("already in line:", path)
+        return
     d["wextraui_outputs"] = "0.3.6"
     shutil.copy(path, path + ".bak")
     json.dump(d, open(path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)

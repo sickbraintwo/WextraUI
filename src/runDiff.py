@@ -91,11 +91,16 @@ def diff_prompts(old, new, titles, skip_ids=(), records=None, skip_widgets=()):
             continue
         o, n = old.get(nid), new.get(nid)
         if o is None:
-            lines.append(f"+ {name(nid)} added"); rec.append(("add", nid, titles.get(nid, n.get("class_type", "?")), "", "")); continue
+            lines.append(f"+ {name(nid)} added")
+            rec.append(("add", nid, titles.get(nid, n.get("class_type", "?")), "", ""))
+            continue
         if n is None:
-            lines.append(f"- {name(nid)} removed"); rec.append(("del", nid, titles.get(nid, o.get("class_type", "?")), "", "")); continue
+            lines.append(f"- {name(nid)} removed")
+            rec.append(("del", nid, titles.get(nid, o.get("class_type", "?")), "", ""))
+            continue
         if o.get("class_type") != n.get("class_type"):
-            lines.append(f"~ {name(nid)}: type {o.get('class_type')} → {n.get('class_type')}"); continue
+            lines.append(f"~ {name(nid)}: type {o.get('class_type')} → {n.get('class_type')}")
+            continue
         oi, ni = o.get("inputs", {}), n.get("inputs", {})
         for k in sorted(set(oi) | set(ni)):
             a, b = oi.get(k), ni.get(k)

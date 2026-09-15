@@ -174,6 +174,11 @@ app.registerExtension({
             const origConfigure = node.onConfigure;
             node.onConfigure = function () {
                 const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
+                // a wf saved before 0.3.4 leaves the two buttons' nulls here: back to the defaults of object_info
+                for (const [nm, d] of [["write_batch", true], ["image_preview", false]]) {
+                    const w = node.widgets.find((x) => x.name === nm);
+                    if (w && typeof w.value !== "boolean") w.value = d;
+                }
                 setTimeout(layout, 0);
                 return r;
             };

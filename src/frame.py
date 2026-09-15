@@ -161,7 +161,8 @@ class Frame:
             if resize_to == "fit new size":   rw, rh = min(rw, fw), min(rh, fh)
             if resize_to == "cover new size": rw, rh = max(rw, fw), max(rh, fh)
             if (rw, rh) != (W, H):
-                img = _resize(img, rw, rh, method); mask = _resize_mask(mask, rw, rh)
+                img = _resize(img, rw, rh, method)
+                mask = _resize_mask(mask, rw, rh)
                 steps.append({"fit new size": "fit", "cover new size": "cover", "long side": "long", "short side": "short"}.get(resize_to, f"rs{rw}x{rh}"))
                 W, H = rw, rh
 

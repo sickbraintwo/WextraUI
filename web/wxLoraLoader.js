@@ -3,7 +3,7 @@
 // The picked words are stored in the (hidden) `picked` widget as a JSON list; the backend uses them when present.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { ensureWxStyle, wxCompactWidgets } from "./wxStyle.js";
+import { ensureWxStyle, wxCompactWidgets, wxFits } from "./wxStyle.js";
 
 const TYPE = "wxLoraLoaderTrigger";
 const MAX_TAGS = 80;
@@ -120,12 +120,36 @@ app.registerExtension({
                 const origRemoved3 = node.onRemoved;
                 node.onRemoved = function () { clearInterval(tickSw); return origRemoved3 ? origRemoved3.apply(this, arguments) : undefined; };
                 const origConfigure3 = node.onConfigure;
-                node.onConfigure = function () {
+                node.onConfigure = function (info) {
                     const r = origConfigure3 ? origConfigure3.apply(this, arguments) : undefined;
+                    // wf saved by an older loader and no widgets_values_named to go by: put the old values where they belong
+                    // A (before the control) = [name, sm, sc, civitai, where, sep, picked]; B (0.3.4) = [name, ctl, sm, sc, civitai, where, sep, picked]
+                    const wv = info?.widgets_values, named = info?.widgets_values_named;
+                    const CTRLS = ["fixed", "increment", "decrement", "randomize", "increment-wrap"];
+                    const todays = Array.isArray(wv) && wv.length >= 12 && ["any", "folder"].includes(wv[2]) && CTL.includes(wv[4]);
+                    if (Array.isArray(wv) && wv.length > 1 && !todays && !(named && typeof named === "object")) {
+                        const o = CTRLS.includes(wv[1]) ? 2 : 1;
+                        const old = { strength_model: wv[o], strength_clip: wv[o + 1], civitai: wv[o + 2], where: wv[o + 3], separator: wv[o + 4], picked: wv[o + 5] };
+                        const kind = { strength_model: "number", strength_clip: "number", civitai: "boolean", where: "combo", separator: "string", picked: "string" };
+                        for (const [nm, v] of Object.entries(old)) {
+                            const w = W(nm);
+                            const ok = w && v !== null && v !== undefined && (kind[nm] === "combo" ? (w.options?.values || []).includes(v) : typeof v === kind[nm]) && !(kind[nm] === "number" && !Number.isFinite(v));
+                            if (ok) w.value = v;
+                        }
+                        const wScope = W("lora_scope"); if (wScope) wScope.value = "any";
+                        wCtl.value = "fixed"; wStep.value = 0.1; wUntil.value = 1.0;
+                    }
                     // guardia: un wf salvato con un layout vecchio puo' lasciare qui valori del tipo sbagliato (es. true in strength_model)
                     const num = (w, d) => { if (w && (typeof w.value !== "number" || !Number.isFinite(w.value))) w.value = d; };
-                    num(wStr, 1.0); num(W("strength_clip"), 1.0); num(wStep, 0.1); num(wUntil, 1.0);
                     if (!CTL.includes(wCtl.value)) wCtl.value = "fixed";
+                    const wScope = W("lora_scope"); if (wScope && !["any", "folder"].includes(wScope.value)) wScope.value = "any";
+                    const wLoraCtl = node.widgets.find((w) => Array.isArray(w.options?.values) && w.options.values.includes("randomize"));
+                    if (wLoraCtl && !wLoraCtl.options.values.includes(wLoraCtl.value)) {
+                        // a file in the pre-control layout opened by 0.3.5 put strength_model in this slot: take it back
+                        if (typeof wLoraCtl.value === "number" && Number.isFinite(wLoraCtl.value) && wStr && (typeof wStr.value !== "number" || !Number.isFinite(wStr.value))) wStr.value = wLoraCtl.value;
+                        wLoraCtl.value = "fixed";
+                    }
+                    num(wStr, 1.0); num(W("strength_clip"), 1.0); num(wStep, 0.1); num(wUntil, 1.0);
                     setTimeout(relabelSw, 0);
                     return r;
                 };

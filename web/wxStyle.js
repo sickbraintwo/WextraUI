@@ -88,6 +88,19 @@ export function wxButton(text, onClick, title) {
 // value onto the wrong input. The frontend skips a widget with .serialize === false when it saves, but leaves a hole
 // (null) at its index, and restores by walking the serializable widgets in order. Here the array is compacted on save;
 // on load, a file saved with the holes (0.3.5 and before) is recognised by its length and re-read by full index.
+/** true when `v` is a value the widget can hold: a member for combos, a number / boolean / string for the others
+ *  (judged on the widget's type, never on the value it holds now, which may be rubbish from an old file). */
+export function wxFits(w, v) {
+    if (v === null || v === undefined || typeof v === "object") return false;
+    const opts = w.options?.values;
+    if (Array.isArray(opts)) return !opts.length || opts.includes(v);
+    if (w.type === "number" || w.type === "slider") return typeof v === "number" && Number.isFinite(v);
+    if (w.type === "toggle") return typeof v === "boolean";
+    if (w.type === "text" || w.type === "string" || w.type === "customtext" || w.type === "multiline") return typeof v === "string";
+    const now = typeof w.value;                       // a converted or custom widget: the value it holds is the only hint
+    return now === "undefined" || now === "object" || typeof v === now;
+}
+
 export function wxCompactWidgets(node) {
     const full = () => node.widgets || [];
     const kept = () => full().filter((w) => w.serialize !== false);
@@ -100,8 +113,19 @@ export function wxCompactWidgets(node) {
     node.onConfigure = function (info) {
         const wv = info?.widgets_values, W = full(), S = kept();
         if (Array.isArray(wv) && S.length !== W.length && wv.length === W.length) {
+            // file saved before the compaction: one slot per widget, buttons included
             W.forEach((w, i) => { if (w.serialize !== false && wv[i] !== null && wv[i] !== undefined) w.value = wv[i]; });
         }
-        return onConf?.apply(this, arguments);
+        const r = onConf?.apply(this, arguments);
+        // the frontend (>= 1.5x) also saves widgets_values_named: a name is worth more than a position when the layout
+        // of the node changed between the save and today (a value goes to the widget that had it, whatever its slot)
+        const named = info?.widgets_values_named;
+        if (named && typeof named === "object" && !Array.isArray(named)) {
+            for (const w of S) {
+                const v = named[w.name];
+                if (wxFits(w, v)) w.value = v;
+            }
+        }
+        return r;
     };
 }

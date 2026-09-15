@@ -22,7 +22,8 @@ def _say(text):
         try:
             import ctypes as _ct
             _k = _ct.windll.kernel32
-            _h = _k.GetStdHandle(-11); _m = _ct.c_uint32()
+            _h = _k.GetStdHandle(-11)
+            _m = _ct.c_uint32()
             if _k.GetConsoleMode(_h, _ct.byref(_m)):
                 _k.SetConsoleMode(_h, _m.value | 0x0004)      # ENABLE_VIRTUAL_TERMINAL_PROCESSING
             with open("CONOUT$", "w", encoding="utf-8") as _con:
