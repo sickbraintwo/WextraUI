@@ -12,6 +12,7 @@ Es. parte "_{batch}{index}" a valore vuoto -> image_S_0_41 (prima di quattro). L
 aggiunge da solo "_B{batch}{index}" in coda al nome (image_S_0_B41); vale solo quando ci sono immagini.
 prefix/name restituiscono il nome della prima immagine; senza immagini i segnaposto restano nel testo.
 image_preview (default off): mostra le miniature delle immagini salvate dentro il nodo, come il SaveImage di Comfy.
+In /history le immagini scritte sono SEMPRE dichiarate (ui.images = [{filename, subfolder, type}]), switch o no.
 Rete di sicurezza: se cartella + nome + contatore + .png supera i 259 caratteri di Windows, il nome viene tagliato
 (il contatore resta, i file restano distinti) invece di far fallire il salvataggio.
 'images' e' opzionale: senza immagini il nodo non scrive nulla e serve solo a comporre il nome (prefix/name)."""
@@ -146,4 +147,6 @@ class SaveWimage:
             fname = f"{ibase}_{next_counter(target, ibase):0{digits}d}.png" if digits > 0 else f"{ibase}.png"
             img.save(os.path.join(target, fname), pnginfo=meta, compress_level=4)
             results.append({"filename": fname, "subfolder": ifolder, "type": "output"})
-        return {"ui": {"images": results if image_preview else [], "preview": [prefix]}, "result": (images, prefix, base_out)}
+        # images sempre dichiarate (come il SaveImage standard: /history le riporta per gli automatismi);
+        # le miniature nel nodo le accende/spegne il frontend (saveWimage.js) secondo image_preview.
+        return {"ui": {"images": results, "preview": [prefix]}, "result": (images, prefix, base_out)}

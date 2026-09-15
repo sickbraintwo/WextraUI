@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5 — 2026-09-15
+- **WSave Image**: the saved files are always declared in `/history` as `images` (`filename`, `subfolder`, `type`), like the standard Save Image, whatever the **image preview** switch says; the switch now only decides the thumbnails inside the node. Scripts and agents can fetch the exact file through `/view` instead of guessing the counter.
+- **WDifference**: `changes_max` and `ignore` are optional inputs (same place, same order): API exports made before they existed run again. The diary of the run also goes into the PNG metadata (`WDifference` chunk: `key`, `tag`, `changes`, readable lines) of every image saved downstream, so the file name can stay short.
+
 ## 0.3.4 — 2026-09-14
 - New: **WPrompt Rows** — the prompt as rows: on/off chip per row (it also switches a linked external string), auto-growing text areas, + / − to add and remove rows, `join` = comma / space / newline / none.
 - New: **WSimple Prompt H3** — the H3 prompt without time-codes: scene, action in order, camera, sound, what stays fixed, what moves, final state, three `avoid` fields. One `prompt` output.

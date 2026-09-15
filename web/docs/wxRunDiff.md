@@ -10,6 +10,7 @@ Every Save node embeds two hidden things in the file — the **PROMPT** (the API
 - **log** — also append every run (timestamp + changes) to `output/_Wextra/rundiff/<key>.log`: a run diary for free.
 - **tag_max** — longest `tag` (default 60 characters); beyond it the tag ends with `+N` = N more changes.
 - **changes_max** — longest `changes` (default 240: a Windows file name holds 255 characters, the rest of the name needs room); beyond it the string is cut at a whole change and ends with `+N`.
+- The diary of the run also travels inside the PNG: every save downstream of this node (WSave Image, Save Image) gets a `WDifference` text chunk with `key`, `tag`, `changes` and the readable lines. Keep the file name short and predictable, read the changes from the metadata.
 - **ignore** — nodes you do not want tracked, by id, separated by commas (`74, 12`); `74.seed` silences one widget of a node you otherwise track. They leave `changes`, `tag`, `count` and the `.log`. Add ids here as you see which nodes make noise.
 
 ## Sockets

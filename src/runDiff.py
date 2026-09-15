@@ -248,13 +248,13 @@ class RunDiff:
                                     "tooltip": "Also append every run's changes, with a timestamp, to output/_Wextra/rundiff/<key>.log."}),
                 "tag_max": ("INT", {"default": 60, "min": 10, "max": 200,
                                     "tooltip": "Longest 'tag' (the file-name version of the changes). Beyond it: +N = N more changes."}),
+            },
+            "optional": {
                 "changes_max": ("INT", {"default": 240, "min": 20, "max": 255,
                                         "tooltip": "Longest 'changes' string: a Windows file name holds 255 characters, minus the rest of the name. Beyond it: +N = N more changes."}),
                 "ignore": ("STRING", {"default": "", "multiline": True,
                                       "tooltip": "Nodes not to track, by id, separated by commas: 74, 12. Or a single widget: 74.seed. "
                                                  "They leave changes, tag, count and the .log."}),
-            },
-            "optional": {
                 "passthrough": (ANY, {"tooltip": "Optional: wire the thing you are about to save through here, so the diff is computed "
                                                  "right before saving. It comes out unchanged."}),
             },
@@ -301,4 +301,9 @@ class RunDiff:
             with open(pl, "a", encoding="utf-8") as f:
                 f.write(f"## {stamp} · {len(lines)} change(s)" + (" · first run" if not old else "") + "\n")
                 f.write((text + "\n") if text else "")
-        return (passthrough, tag, cap(make_changes(records), changes_max) if old else "", len(lines), k)
+        changes = cap(make_changes(records), changes_max) if old else ""
+        if isinstance(extra_pnginfo, dict):
+            # diario di questo run nei metadati PNG (WSave Image scrive ogni chiave di extra_pnginfo): nome del file
+            # prevedibile, storia delle modifiche dentro l'immagine. Vale per i salvataggi a valle di questo nodo.
+            extra_pnginfo["WDifference"] = {"key": k, "tag": tag, "changes": changes, "lines": lines}
+        return (passthrough, tag, changes, len(lines), k)

@@ -15,4 +15,4 @@ The `preview` box follows every field while you type or rewire. A field driven b
 
 If folder + name + counter would exceed what Windows accepts (259 characters of full path), the name is cut and the counter keeps the files apart: the save never fails for a long name.
 
-**image preview** (last switch, off by default) shows the saved images inside the node after the run, like Comfy's Save Image; off keeps the node compact.
+**image preview** (last switch, off by default) shows the saved images inside the node after the run, like Comfy's Save Image; off keeps the node compact. Either way the files are declared in `/history` as `images` (`filename`, `subfolder`, `type`), like the standard Save Image, so scripts can fetch them through `/view`.

@@ -178,6 +178,9 @@ app.registerExtension({
             };
             const origExecuted = node.onExecuted;
             node.onExecuted = function (msg) {
+                // Il backend dichiara sempre le immagini (servono a /history e agli automatismi); le miniature nel nodo
+                // si spengono qui: il frontend le legge da app.nodeOutputs, che e' lo stesso oggetto di msg.
+                if (msg && msg.images && !val("image_preview", false)) { delete msg.images; node.images = undefined; node.imgs = undefined; }
                 const r = origExecuted ? origExecuted.apply(this, arguments) : undefined;
                 if (msg && msg.preview && preview) { preview.value = String(msg.preview[0]); node.setDirtyCanvas(true, true); }
                 return r;
