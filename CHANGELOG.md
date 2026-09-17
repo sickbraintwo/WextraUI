@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- WFloat: on a narrow node the label of `control` keeps to the runs left (the full text did not fit).
+
 ## 0.4.0 — 2026-09-17
 - New node **WFloat**: the strength walk of WLoad Lora & Trigger as a node of its own — a float with `fixed` / `increment` / `decrement`, `step` and `until`, moving after every queued run. The arrows of `value` move by the `step` you set; range 0–100, two decimals.
 

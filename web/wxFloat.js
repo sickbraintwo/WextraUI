@@ -30,7 +30,7 @@ app.registerExtension({
             const relabel = () => {
                 syncArrows();
                 wCtl.label = ctl() === "fixed" ? "control"
-                    : r2(wVal.value) + " → " + until() + " · " + runsLeft() + " run";
+                    : (node.size[0] >= 260 ? r2(wVal.value) + " → " + until() + " · " : "") + runsLeft() + " run";   // narrow node: only the runs fit
                 node.setDirtyCanvas(true, false);
             };
             for (const w of [wVal, wCtl, wStep, wUntil]) { const cb = w.callback; w.callback = function () { const rr = cb?.apply(this, arguments); relabel(); return rr; }; }

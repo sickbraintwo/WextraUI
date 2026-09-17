@@ -79,7 +79,9 @@ One node for the outpaint prep and every framing job. **`new_width` × `new_heig
 
 ### WFloat
 
-A float with the seed-style control of *WLoad Lora & Trigger*'s strength, on its own: `fixed`, or `increment` / `decrement` by `step` after every queued run until it reaches `until`. The label says where it is, where it goes and how many runs to queue (`0.2 → 1 · 9 run`). For any FLOAT input: a strength through Set/Get, a denoise, a CFG.
+A float with the seed-style control of *WLoad Lora & Trigger*'s strength, on its own: `fixed`, or `increment` / `decrement` by `step` after every queued run until it reaches `until`. The label says how many runs to queue (`17 run`; on a wider node also where it is and where it goes, `0.2 → 1 · 17 run`). For any FLOAT input: a strength through Set/Get, a denoise, a CFG.
+
+<img src="images/WFloat.png" width="260" alt="WFloat">
 
 ## H3 scene loop
 

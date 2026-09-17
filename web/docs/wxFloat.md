@@ -8,7 +8,7 @@ A float with a **seed-style control**: the strength walk of *WLoad Lora & Trigge
 - **step** — how much it moves per run (two decimals).
 - **until** — where the walk stops.
 
-With the walk on, the label of `control` reads `0.2 → 1 · 9 run`: where it is, where it goes, how many runs to queue to get there. Queue that many and each run gets the next value.
+With the walk on, the label of `control` reads `17 run`: how many runs to queue to get there (a wider node also shows `0.2 → 1`, where it is and where it goes). Queue that many and each run gets the next value.
 
 ## Good to know
 - The run you queue uses the value you see; the node moves **after** queuing, like the seed.
