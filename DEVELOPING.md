@@ -40,6 +40,11 @@ condition. Test it on **copies** of real files, never on the user's file, and ch
 `comfy node validate` runs ruff with the registry's rules: no two statements on one line (`a; b`), no `exec` / `eval`.
 It refused ten `;` in 0.3.5 and says they will become errors. Keep it clean — it is step 1 of the selftest.
 
+The registry also runs a yara scan over **every shipped text file — comments, docs and the changelog included**. It matches
+bare strings (a LiteGraph cable call reads as a socket, a URL opener as exfiltration) and a flagged version is not installable
+until a human clears it. Never write those patterns, not even to explain them: describe them in words. The selftest searches
+the shipped files for them (`check_scanner`); the one declared hit is the civitai call in `src/loraInfo.py`.
+
 ## 5. Before a push
 
 ```

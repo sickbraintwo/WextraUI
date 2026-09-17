@@ -52,6 +52,33 @@ def check_registry(comfy):
         codes = [l for l in out.splitlines() if l[:1].isalpha() and l[1:4].isdigit()]
         fail("comfy node validate: " + " | ".join(codes)[:600])
 
+# what the registry's yara scan reads as network code. It scans EVERY shipped text file, prose included: 0.3.8 was flagged
+# for naming the pattern in CHANGELOG.md. Known and declared: the one civitai call in src/loraInfo.py.
+SCANNER_WORDS = (".connect(", "urlopen(", "requests.get(", "requests.post(", "socket.socket", "http.client")
+SCANNER_KNOWN = {("src/loraInfo.py", "urlopen(")}
+
+
+def check_scanner():
+    ignored = [l.strip() for l in open(os.path.join(REPO, ".comfyignore"), encoding="utf-8")
+               if l.strip() and not l.startswith("#")]
+    hits = []
+    for root, dirs, names in os.walk(REPO):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for name in names:
+            rel = os.path.relpath(os.path.join(root, name), REPO).replace(os.sep, "/")
+            if any(rel.startswith(i) or (i.endswith("/") and "/" + i in "/" + rel) or
+                   (i.startswith("*") and rel.endswith(i[1:])) or rel == i for i in ignored):
+                continue
+            try:
+                text = open(os.path.join(root, name), encoding="utf-8").read()
+            except (UnicodeDecodeError, OSError):
+                continue
+            for n, line in enumerate(text.splitlines(), 1):
+                hits += [f"{rel}:{n} {w}" for w in SCANNER_WORDS if w in line and (rel, w) not in SCANNER_KNOWN]
+    print("   scanner words in shipped files:", "none beyond the declared civitai call" if not hits else "FOUND")
+    for h in hits:
+        fail("registry scanner would flag " + h + " (code, comment or prose: reword it)")
+
 
 # ---------- 2. schema ----------
 def widget_inputs(spec):
@@ -302,6 +329,7 @@ def main(argv):
         else:
             files.append(a)
     check_registry(comfy)
+    check_scanner()
     try:
         oi = get(url + "/object_info")
     except Exception as e:

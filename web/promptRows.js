@@ -137,7 +137,7 @@ app.registerExtension({
                 const src = link ? node.graph.getNodeById(link.origin_id) : null;
                 node.disconnectInput(slotIdx("text" + from));
                 const t = slotIdx("text" + to);
-                // LiteGraph's node-to-node cable, called from the prototype: the registry scanner reads a bare ".connect(" as a socket
+                // LiteGraph's node-to-node cable, called from the prototype: the registry scanner reads the bare method call as a network socket
                 if (src && t >= 0) LiteGraph.LGraphNode.prototype.connect.call(src, link.origin_slot, node, t);
             }
 

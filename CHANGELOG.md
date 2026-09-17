@@ -1,8 +1,11 @@
 # Changelog
 
+## 0.3.9 — 2026-09-17
+- No code change. The 0.3.8 note below named the pattern the registry scanner matches, and the scanner reads the changelog too: reworded. `tools/selftest.py` now searches every shipped file, prose included, for those patterns before a push.
+
 ## 0.3.8 — 2026-09-17
 - WLoad Lora & Trigger: the `/wextraui/lora_tags` route answers only for a LoRA that ComfyUI itself lists (`folder_paths.get_filename_list("loras")`); the name is looked up, never used as a path.
-- WPrompt Rows: the cable moved with a row is reconnected through `LGraphNode.prototype.connect` — same behaviour; the registry scanner read the bare `.connect(` as a network socket.
+- WPrompt Rows: the cable moved with a row is reconnected through LiteGraph's prototype method — same behaviour; the registry scanner read the plain method call as a network socket.
 
 ## 0.3.7 — 2026-09-15
 - **Files stay inside ComfyUI's folders.** Every path a node builds from a user string goes through `src/wxPaths.py`: WScene H3 `resume_from_video` is resolved under `ComfyUI/output` or `ComfyUI/input` (an absolute path is accepted only inside them), WSave Image's `folder` cannot climb out of `output/` (`..`, drive letters and leading slashes are dropped, the real path is checked), WDifference's key is a file name, never a path. This is what the registry reviewer asked for on 0.3.2/0.3.3 (`ARBITRARY_FILE_READ`, `PATH_TRAVERSAL`); the behaviour you see does not change unless you were pointing outside those folders.
