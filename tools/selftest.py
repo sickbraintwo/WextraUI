@@ -120,6 +120,23 @@ def try_comfy_cli():
         return None
 
 
+def check_cli_patch(W):
+    """In the comfy-mcp venv the translator runs with our two patches (tools/comfy_cli_patch.py): after a comfy-cli
+    update they may stop hooking without a word, and an agent goes back to broken graphs in silence."""
+    if W is None:
+        return
+    try:
+        import wx_comfy_cli_patch as p
+    except Exception:
+        print("   comfy-cli here runs without the WextraUI patch (fine outside the comfy-mcp venv)")
+        return
+    flags = (getattr(p, "WEXTRAUI_PATCHED", False), getattr(p, "WEXTRAUI_PATCH2", False))
+    if all(flags):
+        print("   comfy-cli patch: both hooks active")
+    else:
+        fail(f"comfy-cli patch not hooked: PATCHED={flags[0]} PATCH2={flags[1]} (see comfy-mcp/PATCH.md)")
+
+
 def check_file(path, oi, W):
     tmp = os.path.join(tempfile.gettempdir(), "wx_selftest_" + os.path.basename(path))
     shutil.copy(path, tmp)
@@ -292,6 +309,7 @@ def main(argv):
         return 1
     check_schema(oi)
     W = try_comfy_cli()
+    check_cli_patch(W)
     for f in files:
         check_file(f, oi, W)
     if run:

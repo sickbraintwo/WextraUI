@@ -52,3 +52,64 @@ try:
 except Exception as e:  # never break the interpreter because of a patch
     WEXTRAUI_PATCHED = False
     _log.debug("wextraui patch not applied: %s", e)
+
+
+# ---- patch 2 (2026-09-17, ZProject on Sick's order — see PATCH.md § Toppa n.2): two more gaps of the UI→API translator,
+# both measured on Sick's k2_t2i_int8 against the frontend's own "Save (API)" export ----
+try:
+    from comfy_cli import workflow_to_api as _wta2
+
+    _T = _wta2._Tracers
+    _orig_trace_get_set = _T.trace_get_set
+    _orig_trace_bypassed = _T.trace_bypassed
+
+    def _wx_set_var(node):
+        w = node.get("widgets_values") if isinstance(node, dict) else None
+        return w[0] if isinstance(w, list) and w and isinstance(w[0], str) and w[0] else None
+
+    def _wx_out_type(self, nid, slot):
+        node = self.node_by_id.get(str(nid))
+        outs = (node or {}).get("outputs") or []
+        try:
+            i = int(slot) if slot is not None else 0
+        except (TypeError, ValueError):
+            i = 0
+        return outs[i].get("type") if 0 <= i < len(outs) and isinstance(outs[i], dict) else None
+
+    def trace_get_set(self, src_id, src_slot):
+        # (A) a link that leaves a SetNode's pass-through OUTPUT: hop to the value the SetNode publishes
+        # (upstream only hops GetNode -> SetNode -> source, so such a consumer ends up with no input at all).
+        seen = set()
+        while True:
+            src_id, src_slot = _orig_trace_get_set(self, src_id, src_slot)
+            node = self.node_by_id.get(str(src_id))
+            var = _wx_set_var(node) if isinstance(node, dict) and node.get("type") == "SetNode" else None
+            key = str(src_id)
+            if var is None or var not in self.set_sources or key in seen:
+                return src_id, src_slot
+            seen.add(key)
+            src_id, src_slot = self.set_sources[var]
+
+    def trace_bypassed(self, src_id, src_slot):
+        # (B) a bypassed node whose output type has no input of a compatible type: the frontend leaves that output
+        # unplugged (the consumer keeps its widget default); upstream's rule 4 forwards "the first linked input
+        # regardless of type", which the executor then rejects (received_type mismatch) and drops the whole output.
+        want = _wx_out_type(self, src_id, src_slot)
+        rid, rslot = _orig_trace_bypassed(self, src_id, src_slot)
+        if want is None or str(rid) in self.bypassed or str(rid) not in self.node_by_id:
+            return rid, rslot
+        got = _wx_out_type(self, rid, rslot)
+        if got is None or _wta2._is_valid_connection(got, want):
+            return rid, rslot
+        _log.info("wextraui patch2: bypassed node %s output %s (%s) has no input of that type: left unplugged "
+                  "instead of %s:%s (%s)", src_id, src_slot, want, rid, rslot, got)
+        return src_id, src_slot  # still the bypassed node: the caller drops the link, the widget default applies
+
+    trace_get_set.__wrapped__ = _orig_trace_get_set
+    trace_bypassed.__wrapped__ = _orig_trace_bypassed
+    _T.trace_get_set = trace_get_set
+    _T.trace_bypassed = trace_bypassed
+    WEXTRAUI_PATCH2 = True
+except Exception as e:  # never break the interpreter because of a patch
+    WEXTRAUI_PATCH2 = False
+    _log.debug("wextraui patch2 not applied: %s", e)
