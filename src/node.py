@@ -11,6 +11,7 @@ from .runDiff import RunDiff
 from .loraLoader import LoraLoaderTrigger
 from .frame import Frame
 from .promptRows import PromptRows
+from .wfloat import WFloat
 
 # Retired (kept in src/legacy/, not registered): h3ImageToVideo (switchable), h3HandoffGate, h3SceneListBuilder
 # — absorbed by H3SceneConditioning (26/08/2026); h3Conditioning (all-in-one, out of the loop) — never used, the loop
@@ -32,6 +33,7 @@ NODE_CLASS_MAPPINGS = {
     "wxLoraLoaderTrigger": LoraLoaderTrigger,
     "wxFrame": Frame,
     "wxPromptRows": PromptRows,
+    "wxFloat": WFloat,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -49,4 +51,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "wxLoraLoaderTrigger": "WLoad Lora & Trigger",
     "wxFrame": "WFrame",
     "wxPromptRows": "WPrompt Rows",
+    "wxFloat": "WFloat",
 }

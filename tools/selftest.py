@@ -239,6 +239,8 @@ def run_graphs(oi):
             "4": N("wxRouteIndex", value=L(3, 0), index=0),
             "5": N("PreviewAny", source=L(4, 0)),
         },
+        "wxFloat": {"1": N("wxFloat", value=0.5, control="increment", step=0.1, until=1.0),
+                    "2": N("PreviewAny", source=L(1, 0))},
         "h3SimplePrompt": {"1": N("h3SimplePrompt", scene="a room", action="a man walks", camera="static", sound="rain",
                                   stays_fixed="", what_moves="", final_state="", avoid1="", avoid2="", avoid3="")},
         "h3PromptComposer": {"1": N("h3PromptComposer", intro="", beats_json=beats, total_duration=10.0, sound="", avoid="")},

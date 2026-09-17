@@ -27,6 +27,7 @@ No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** catego
 | [WDifference](#wdifference) | what changed since the last run | [WLoop Start H3](#wloop-start-h3) | which scenes this Run renders |
 | [WLoad Lora & Trigger](#wload-lora--trigger) | LoRA + trigger words, in line | [WLoop Scene Conditioning H3](#wloop-scene-conditioning-h3) | the loop body |
 | [WFrame](#wframe) | crop · resize · place, for outpaint | [WLoop End H3](#wloop-end-h3) | the hand-off to the next scene |
+| [WFloat](#wfloat) | a float that walks, run after run | | |
 
 ## Utilities
 
@@ -75,6 +76,10 @@ Loads the LoRA **and** puts the trigger words you click into your prompt, in one
 One node for the outpaint prep and every framing job. **`new_width` × `new_height` on top is the master**; then crop (an aspect or custom), resize (fit, cover, long side, short side, or a number) and place on the canvas by anchor and offset: what is missing is padded, what sticks out is cut. Out come the picture, the pad **mask** feathered inward (ready for outpaint), the final size and a short text of what was done.
 
 <img src="images/WFrame.png" width="260" alt="WFrame">
+
+### WFloat
+
+A float with the seed-style control of *WLoad Lora & Trigger*'s strength, on its own: `fixed`, or `increment` / `decrement` by `step` after every queued run until it reaches `until`. The label says where it is, where it goes and how many runs to queue (`0.2 → 1 · 9 run`). For any FLOAT input: a strength through Set/Get, a denoise, a CFG.
 
 ## H3 scene loop
 

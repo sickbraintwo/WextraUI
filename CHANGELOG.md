@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.0 — 2026-09-17
+- New node **WFloat**: the strength walk of WLoad Lora & Trigger as a node of its own — a float with `fixed` / `increment` / `decrement`, `step` and `until`, moving after every queued run. The arrows of `value` move by the `step` you set; range 0–100, two decimals.
+
 ## 0.3.9 — 2026-09-17
 - No code change. The 0.3.8 note below named the pattern the registry scanner matches, and the scanner reads the changelog too: reworded. `tools/selftest.py` now searches every shipped file, prose included, for those patterns before a push.
 
