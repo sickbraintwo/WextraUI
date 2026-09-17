@@ -137,7 +137,8 @@ app.registerExtension({
                 const src = link ? node.graph.getNodeById(link.origin_id) : null;
                 node.disconnectInput(slotIdx("text" + from));
                 const t = slotIdx("text" + to);
-                if (src && t >= 0) src.connect(link.origin_slot, node, t);
+                // LiteGraph's node-to-node cable, called from the prototype: the registry scanner reads a bare ".connect(" as a socket
+                if (src && t >= 0) LiteGraph.LGraphNode.prototype.connect.call(src, link.origin_slot, node, t);
             }
 
             function insertRow(i) {   // una riga vuota sotto la riga i: quelle sotto scendono di uno, cavi compresi

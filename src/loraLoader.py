@@ -91,7 +91,9 @@ try:
     async def _wx_lora_tags(request):
         name = request.query.get("name", "")
         want_civ = request.query.get("civitai", "1") not in ("0", "false", "")
-        path = folder_paths.get_full_path("loras", name) if name else None
+        # only a LoRA ComfyUI itself lists: the name is looked up, never used as a path
+        known = name in folder_paths.get_filename_list("loras")
+        path = folder_paths.get_full_path("loras", name) if known else None
         if not path:
             return web.json_response({"error": "not found", "civitai": [], "tags": []}, status=404)
         md, _ = read_header(path)

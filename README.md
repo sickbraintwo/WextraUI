@@ -140,7 +140,7 @@ A ~77 s music video, video and audio generated together shot by shot with MiniMa
 
 What the pack touches, for whoever reviews it:
 - **Files:** only under `ComfyUI/output` and `ComfyUI/input` (`src/wxPaths.py` is the single gate: relative paths are resolved there, absolute paths are accepted only inside them, `..` is dropped). WSave Image writes under `output/`, WDifference keeps its diaries in `output/_Wextra/rundiff`, WLoad Lora & Trigger caches LoRA info in `output/_Wextra/lora` and reads LoRA files through `folder_paths` only.
-- **Network:** one call, `GET https://civitai.com/api/v1/model-versions/by-hash/<sha256>` from WLoad Lora & Trigger, only while its `civitai` switch is on, result cached; nothing is sent besides the hash. No other request, no download, no telemetry.
+- **Network:** one call, `GET https://civitai.com/api/v1/model-versions/by-hash/<sha256>` from WLoad Lora & Trigger, only while its `civitai` switch is on, result cached; nothing is sent besides the hash. The pack's one HTTP route (`/wextraui/lora_tags`) answers only for LoRA names ComfyUI lists. No other request, no download, no telemetry.
 - **Code:** no `eval`/`exec`, no `subprocess`, no runtime `pip`, nothing obfuscated. `comfy node validate` passes; `python tools/selftest.py` is the pre-push check.
 
 ## Built for agents too
