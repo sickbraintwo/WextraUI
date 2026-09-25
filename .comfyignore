@@ -1,0 +1,7 @@
+# Not shipped in the Registry package (stays on GitHub)
+workflows/references/
+tools/
+__pycache__/
+*.bak
+_comfyui_boot.log
+.github/

@@ -1,0 +1,103 @@
+{
+  "_how": "One row per node type (the key is the class name, the display name is in _name). color = the title bar, bgcolor = the body. Each one: hex (#223 / #335 / #1a2b3c), rgb (0,80,159), or a palette name: red, brown, green, blue, pale_blue, cyan, purple, yellow, black, dark green (Italian names work too). A palette name in color with bgcolor empty paints both. Empty, normal grey = the default colours. A new node is born with these, a loaded node too when the file gives it no colour; a node coloured by hand keeps its own. Read once at startup.",
+  "saveWimage": {
+    "_name": "WSave Image",
+    "color": "black",
+    "bgcolor": ""
+  },
+  "h3PromptComposer": {
+    "_name": "WScene Composer H3",
+    "color": "green",
+    "bgcolor": ""
+  },
+  "h3SimplePrompt": {
+    "_name": "WSimple Prompt H3",
+    "color": "green",
+    "bgcolor": ""
+  },
+  "h3Scene": {
+    "_name": "WScene H3",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "h3CollectScenes": {
+    "_name": "WScenes Collection H3",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "h3LoopRange": {
+    "_name": "WLoop Start H3",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "h3SceneConditioning": {
+    "_name": "WLoop Scene Conditioning H3",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "h3HandoffTail": {
+    "_name": "WLoop End H3",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "wxRoute": {
+    "_name": "WRoute",
+    "color": "brown",
+    "bgcolor": ""
+  },
+  "wxRouteIndex": {
+    "_name": "WRoute Index",
+    "color": "brown",
+    "bgcolor": ""
+  },
+  "wxRunDiff": {
+    "_name": "WDifference",
+    "color": "black",
+    "bgcolor": ""
+  },
+  "wxLoraLoaderTrigger": {
+    "_name": "WLoRA",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "wxCheckpointLoader": {
+    "_name": "WCheckpoint",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "wxSampler": {
+    "_name": "WSampler",
+    "color": "normal grey",
+    "bgcolor": ""
+  },
+  "wxScheduler": {
+    "_name": "WScheduler",
+    "color": "normal grey",
+    "bgcolor": ""
+  },
+  "wxFrame": {
+    "_name": "WFrame",
+    "color": "normal grey",
+    "bgcolor": ""
+  },
+  "wxPromptRows": {
+    "_name": "WPrompt Rows",
+    "color": "green",
+    "bgcolor": ""
+  },
+  "wxFloat": {
+    "_name": "WFloat",
+    "color": "dark green",
+    "bgcolor": ""
+  },
+  "wxSeed": {
+    "_name": "WInt🌱",
+    "color": "0,80,159",
+    "bgcolor": ""
+  },
+  "wxSwitch": {
+    "_name": "WSwitch",
+    "color": "normal grey",
+    "bgcolor": ""
+  }
+}
