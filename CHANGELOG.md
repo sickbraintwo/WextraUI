@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.1 — 2026-09-26
+- WSwitch: a saved workflow with more than one slot came back with its outputs shifted. The frontend names the outputs of a file after the three the node is born with (`index`, `out_1`, `carry`), so a saved `out_2` arrived called `carry` and its cables moved on to the real `carry` every time the graph was loaded again (a tab put back after a refresh, a workflow opened from the list; the file on disk was right, the canvas was not). The names now come from the position, which is fixed: the cables stay where they were saved.
+
 ## 0.6.0 — 2026-09-24
 - WSave Image: **`{#id}`** in any text (a part's value, `subject`, `folder`) = the value that WextraUI node used in this run, read from the run's prompt: the sampler's name for WSampler, the scheduler for WScheduler, the bare file name for WCheckpoint / WLoRA, the number for WFloat / WInt🌱, the slot that is on (from 0) for WSwitch — no cable, and the name always tells what the run used; a node not in the run gives nothing. The preview resolves it from the graph as the nodes walk. New button **`from Wnodes on graph`**: the WextraUI nodes of the workflow by name (the type's name, or the title you gave; alphabetical, so a type's nodes sit together) with their value of now; the ones that walk or move on a carry cable are ticked, in the order of the carry chain, slow to fast, drag to change it; `add` makes one part for each (text = the node's name, value `{#id}` locked so a slip cannot lose the node, `−` removes it). Defaults: `write_batch` off, `digits` 2. `+ Add part` reads `+`.
 - WScene Composer H3: the button that folds and unfolds the text areas is a chevron, `⌃` / `⌄`.

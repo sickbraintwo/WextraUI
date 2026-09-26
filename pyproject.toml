@@ -1,7 +1,7 @@
 [project]
 name = "wextraui"
 description = "Extra nodes for ComfyUI, from the Winteraction workbench. Time works for you: WextraUI nodes have a control after generate and the carry that links them, so a queue of runs changes checkpoint, LoRA, sampler, scheduler, seed, frame and prompt on its own, and WSave Image puts every image in the right place with a file name built from parts. One press of Run and the machine never stops. Twenty nodes: WCheckpoint, WLoRA, WSampler, WScheduler, WInt, WFloat, WSwitch, WRoute, WDifference, WFrame, WPrompt Rows and the WScene / WLoop family for MiniMax H3."
-version = "0.6.0"
+version = "0.6.1"
 license = { file = "LICENSE" }
 dependencies = []
 

@@ -72,6 +72,7 @@ app.registerExtension({
             const stray = (s) => { const m = RX.exec(s.name); return !(m && Number(m[1]) <= shown() && Number(m[2]) <= per()); };
 
             let oldOuts = 0;   // how many outputs a file saved before `index` had (set while it loads, used once by layout)
+            let outNames = null;   // the names the file gave its outputs (set while it loads, put back once by layout)
             function layout() {
                 const n = shown(), K = per();
                 // 1. drop what must not be there: widget sockets, slots beyond n, positions beyond K
@@ -94,6 +95,13 @@ app.registerExtension({
                     }
                 }
                 // 4. `index` first, then K outputs typed like their position (the cables follow: origin_slot is rewritten)
+                // The frontend names the outputs of a file after the outputs the node has at that moment (K=1 at birth: index,
+                // out_1, carry), even in the data it hands to onConfigure: a saved `out_2` comes in called `carry` and its cables
+                // would end on the real carry. The names come back from the position, which is fixed.
+                if (outNames) {
+                    if (outNames.length === node.outputs.length) node.outputs.forEach((o, j) => { if (outNames[j]) o.name = outNames[j]; });
+                    outNames = null;
+                }
                 if (oldOuts) {   // a file saved before `index`: its outputs are out_1.., whatever the frontend called them on the way in
                     while (node.outputs.length > oldOuts) node.removeOutput(node.outputs.length - 1);
                     node.outputs.forEach((o, j) => { o.name = "out_" + (j + 1); });
@@ -195,6 +203,7 @@ app.registerExtension({
                 // told by the count, not by the names (the frontend renames the saved outputs after today's): K outputs = no `index` yet
                 const K0 = Math.max(1, Math.min(MAXK, Number(info?.widgets_values?.[0]) || 1));
                 if (Array.isArray(saved) && saved.length && saved.length <= K0) oldOuts = saved.length;
+                else if (Array.isArray(saved) && saved.length > 2) outNames = saved.map((o, j) => j === 0 ? "index" : j === saved.length - 1 ? "carry" : "out_" + j);   // the order is fixed: index, out_1..K, carry
                 setTimeout(layout, 0); setTimeout(layout, 250); return rr; };
             // Nodes 2.0 paints nothing of onDrawForeground: the pills as HTML, in the slot rows of the node's DOM (wxStyle.js)
             function vuePills() {
