@@ -10,11 +10,17 @@
 import { app } from "../../scripts/app.js";
 import { WX, wxVueInputRows, wxVueDecor, wxVueChip } from "./wxStyle.js";
 import { wxCarry } from "./wxCarry.js";
+import { wxReorderInputs, wxReorderOutputs } from "./wxSlots.js";
 
 const MAXS = 20, MAXK = 4, MIN_SLOTS = 2;
 const RX = /^in(\d+)_(\d+)$/;
 const IN = (i, k) => "in" + i + "_" + k;
 const PILL = { w: 34, h: 15, gap: 8 };
+const ORDER = (a, b) => {   // slot, then position; `carry` (and anything else) after
+    const A = RX.exec(a.name), B = RX.exec(b.name);
+    if (A && B) return (Number(A[1]) - Number(B[1])) || (Number(A[2]) - Number(B[2]));
+    return (A ? 0 : 1) - (B ? 0 : 1);
+};
 
 function bury(w) {   // a canvas widget that must not show (on_i) but stays in the workflow and in the prompt
     if (!w) return;
@@ -29,6 +35,27 @@ app.registerExtension({
     name: "WextraUI.switch",
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== "wxSwitch") return;
+        // The frontend's configure matches the saved sockets to the node's by NAME but keeps the ORDER the node has
+        // now (the two sockets it is born with first, the saved rest after), and a cable lives at the index of its
+        // socket (wxSlots.js): the saved sockets go in place here, in their order, and the outputs become `index`,
+        // out_1..K, `carry`, while the node has no cable yet. Then every cable of the file lands on its own socket.
+        const origConfigure = nodeType.prototype.configure;
+        nodeType.prototype.configure = function (info) {
+            const ins = Array.isArray(info?.inputs) ? info.inputs : [], outs = Array.isArray(info?.outputs) ? info.outputs : [];
+            const bare = !(this.inputs || []).some((s) => s.link != null) && !(this.outputs || []).some((o) => (o.links || []).length);
+            if (bare && ins.length) {
+                for (const s of ins) if (s && RX.test(s.name || "") && !this.inputs.some((x) => x.name === s.name)) this.addInput(s.name, "*");
+                this.inputs.sort(ORDER);
+            }
+            const K0 = Math.max(1, Math.min(MAXK, Number(info?.widgets_values?.[0]) || 1));
+            if (bare && outs.length > K0) {   // a file with `index` (0.6 and after): index, out_1..K, carry
+                const body = this.outputs.filter((o) => o.name !== "index" && o.name !== "carry");
+                while (body.length < K0) { this.addOutput("out_" + (body.length + 1), "*"); body.push(this.outputs[this.outputs.length - 1]); }
+                const idx = this.outputs.find((o) => o.name === "index"), carry = this.outputs.find((o) => o.name === "carry");
+                this.outputs.splice(0, this.outputs.length, ...(idx ? [idx] : []), ...body, ...(carry ? [carry] : []));
+            }
+            return origConfigure.apply(this, arguments);
+        };
         const onCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
             const r = onCreated?.apply(this, arguments);
@@ -69,7 +96,7 @@ app.registerExtension({
                 }
                 return "*";
             }
-            const stray = (s) => { const m = RX.exec(s.name); return !(m && Number(m[1]) <= shown() && Number(m[2]) <= per()); };
+            const stray = (s) => { if (s.name === "carry") return false; const m = RX.exec(s.name); return !(m && Number(m[1]) <= shown() && Number(m[2]) <= per()); };
 
             let oldOuts = 0;   // how many outputs a file saved before `index` had (set while it loads, used once by layout)
             let outNames = null;   // the names the file gave its outputs (set while it loads, put back once by layout)
@@ -82,10 +109,9 @@ app.registerExtension({
                     if (s.link != null) node.disconnectInput(idx);
                     node.removeInput(idx);
                 }
-                // 2. add the missing sockets, then slot / position order (the cables follow: target_slot is rewritten)
+                // 2. add the missing sockets, then slot / position order, `carry` last (the cables go with their sockets: wxSlots.js)
                 for (let i = 1; i <= n; i++) for (let k = 1; k <= K; k++) if (inputIdx(IN(i, k)) < 0) node.addInput(IN(i, k), "*");
-                node.inputs.sort((a, b) => { const A = RX.exec(a.name), B = RX.exec(b.name); return (Number(A[1]) - Number(B[1])) || (Number(A[2]) - Number(B[2])); });
-                node.inputs.forEach((s, idx) => { const l = getLink(s.link); if (l) l.target_slot = idx; });
+                wxReorderInputs(node, [...node.inputs].sort(ORDER));
                 // 3. types and labels, position by position
                 for (let k = 1; k <= K; k++) {
                     const t = typeAt(k);
@@ -94,7 +120,7 @@ app.registerExtension({
                         if (m && Number(m[2]) === k) { s.type = t; s.label = (Number(m[1]) - 1) + " · " + (t === "*" ? k : t); }   // the slot as `index` counts it: from 0
                     }
                 }
-                // 4. `index` first, then K outputs typed like their position (the cables follow: origin_slot is rewritten)
+                // 4. `index` first, then K outputs typed like their position, `carry` last (the cables go with their outputs)
                 // The frontend names the outputs of a file after the outputs the node has at that moment (K=1 at birth: index,
                 // out_1, carry), even in the data it hands to onConfigure: a saved `out_2` comes in called `carry` and its cables
                 // would end on the real carry. The names come back from the position, which is fixed.
@@ -112,9 +138,8 @@ app.registerExtension({
                 const isOut = (o) => o.name !== "index" && o.name !== "carry";
                 while (node.outputs.filter(isOut).length > K) { const o = node.outputs.filter(isOut).pop(); node.removeOutput(node.outputs.indexOf(o)); }
                 while (node.outputs.filter(isOut).length < K) node.addOutput("out_" + (node.outputs.filter(isOut).length + 1), "*");
-                node.outputs.splice(0, node.outputs.length, node.outputs.find((o) => o.name === "index"), ...node.outputs.filter(isOut), node.outputs.find((o) => o.name === "carry"));
+                wxReorderOutputs(node, [node.outputs.find((o) => o.name === "index"), ...node.outputs.filter(isOut), node.outputs.find((o) => o.name === "carry")]);
                 node.outputs.forEach((o, j) => {
-                    for (const id of o.links || []) { const l = getLink(id); if (l) l.origin_slot = j; }
                     if (!j) { o.type = "INT"; o.label = "index"; return; }
                     if (j === K + 1) { o.type = "WX_CARRY"; o.label = "carry"; return; }
                     const t = typeAt(j); o.name = "out_" + j; o.type = t; o.label = t === "*" ? "out_" + j : t;

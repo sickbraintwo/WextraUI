@@ -263,9 +263,9 @@ def run_graphs(oi):
                                   text1="_s", type1="int", value1="{#1}", text2="_x", type2="string", value2="{#99}")},
         "EmptyImage+wxFrame": {
             "1": N("EmptyImage", width=256, height=192, batch_size=1, color=0),
-            "2": N("wxFrame", image=L(1), new_width=320, new_height=320, crop_to="none", crop_width=256, crop_height=192,
-                   crop_anchor="center", resize_to="fit new size", resize_value=320, method="lanczos", pad_anchor="center",
-                   offset_x=0, offset_y=0, pad_color="#ff0000", feathering=8),
+            "2": N("wxFrame", image=L(1), method="lanczos",
+                   ops='[{"t":"resize","mode":"fit in box","v":0,"w":320,"h":320},'
+                       '{"t":"pad","w":320,"h":320,"r":"","a":"center","dx":0,"dy":0,"color":"#ff0000","feather":8}]'),
             "3": N("PreviewAny", source=L(2, 4)),
         },
         "h3Scene+h3CollectScenes+h3LoopRange+h3HandoffTail": {

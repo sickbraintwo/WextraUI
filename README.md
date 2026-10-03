@@ -116,7 +116,7 @@ The `sampler_name` and `scheduler` menus as nodes of their own. Each has a **sel
 
 ### WFrame
 
-One node for the outpaint prep and every framing job. **`new_width` × `new_height` on top is the master**. Then crop (an aspect or custom), resize (fit, cover, long side, short side, or a number) and place on the canvas by anchor and offset: what is missing is padded, what sticks out is cut. Out come the picture, the pad **mask** feathered inward (ready for outpaint), the final size and a short text of what was done.
+One node for the outpaint prep and every framing job: a **stack of actions** done in order, as many as the job needs. **crop** = the box that stays (a size or an aspect, an anchor, a shift); **pad** = the picture on a bigger (or smaller) canvas, what is missing padded with a colour, what sticks out cut; **resize** = aspect kept, by a side, a percent, or fit / cover a box. Crop a detail, then pad it to `1:1`; resize, then pad for the outpaint. Out come the picture, the pad **mask** feathered inward (ready for outpaint), the final size and a short text of what was done. Under the stack, a **preview**: the final frame in red, every action a rectangle in the colour of its row, the added border in the pad colour with its width on each side, what is cut outside; click a rectangle to open its action, drag it to move it, pull a corner to size it.
 
 <img src="images/WFrame.png" width="260" alt="WFrame">
 

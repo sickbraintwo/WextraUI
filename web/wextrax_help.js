@@ -7,7 +7,7 @@ import { app } from "../../scripts/app.js";
 
 const CATEGORY = "WextraUI";
 const WIDTHS = { saveWimage: 210, h3PromptComposer: 400, h3SimplePrompt: 400, h3Scene: 220, h3CollectScenes: 220, h3LoopRange: 210, h3SceneConditioning: 270,
-                 h3HandoffTail: 200, wxRoute: 210, wxRouteIndex: 210, wxRunDiff: 210, wxLoraLoaderTrigger: 380, wxCheckpointLoader: 300, wxSampler: 260, wxScheduler: 260, wxFrame: 210 };
+                 h3HandoffTail: 200, wxRoute: 210, wxRouteIndex: 210, wxRunDiff: 210, wxLoraLoaderTrigger: 380, wxCheckpointLoader: 300, wxSampler: 260, wxScheduler: 260, wxFrame: 340 };
 const DOCS = new URL("./docs/", import.meta.url).pathname;  // /extensions/<folder>/docs/, whatever the folder is called
 const ICON = 16, MARGIN = 6;
 const popups = new Map();   // node id -> popup element
