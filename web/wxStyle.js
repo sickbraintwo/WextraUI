@@ -96,14 +96,48 @@ export function wxButton(text, onClick, title) {
 // on load, a file saved with the holes (0.3.5 and before) is recognised by its length and re-read by full index.
 /** true when `v` is a value the widget can hold: a member for combos, a number / boolean / string for the others
  *  (judged on the widget's type, never on the value it holds now, which may be rubbish from an old file). */
-/** A schema widget that holds state for a DOM widget: out of the view, its slot in widgets_values stays. */
-export function wxHideWidget(w) {
-    w.type = "converted-widget";
+/** A schema widget that holds state for a DOM widget: out of the view, its slot in widgets_values stays. With `node`
+ *  given, its input socket stays out of the view too (wxKeepSlotHidden). The type is a name of ours: under Nodes 2.0
+ *  a widget of the frontend's old "converted" type that has a socket is drawn as a row of its own. */
+export function wxHideWidget(w, node) {
+    w.type = "wxhidden";
     w.hidden = true;
     if (w.options) w.options.hidden = true;
     w.computeSize = () => [0, -4];
     const hideEl = () => { if (w.element) { w.element.style.display = "none"; w.element.hidden = true; } };
     hideEl(); setTimeout(hideEl, 0);
+    if (node) wxKeepSlotHidden(node, w);
+}
+
+/** The input socket of widget `w`: with hidden = true it is never drawn and never takes a cable; false puts it back.
+ *  The frontend draws a widget's socket while a cable of its type is dragged over the graph (and when the mouse is on
+ *  it), at the place the socket last had: the socket of a widget hidden since the node was born has no place, and it
+ *  came up as an empty pin at the top of the node, above every other input. The socket itself stays (a saved file
+ *  has it, the inputs are read by position): it only stops showing. */
+export function wxSlotHidden(node, w, hidden = true) {
+    const s = (node?.inputs || []).find((i) => i.widget?.name === w.name);
+    if (!s) return;
+    if (hidden) {
+        if (!s.__wxHidden) { s.__wxHidden = true; s.draw = () => {}; s.isValidTarget = () => false; }
+        if (s.boundingRect && s.boundingRect.length >= 4) { s.boundingRect[2] = 0; s.boundingRect[3] = 0; }   // nothing to hover
+    } else if (s.__wxHidden) {
+        delete s.draw; delete s.isValidTarget; delete s.__wxHidden;
+    }
+}
+
+/** wxSlotHidden for good: the socket of a widget that never shows. A load rebuilds the node's inputs from the file
+ *  (new socket objects): the hiding is put back after every configure. */
+export function wxKeepSlotHidden(node, w) {
+    (node.__wxHiddenW ??= new Set()).add(w);
+    wxSlotHidden(node, w, true);
+    if (node.__wxHiddenHook) return;
+    node.__wxHiddenHook = true;
+    const onConf = node.onConfigure;
+    node.onConfigure = function () {
+        const r = onConf?.apply(this, arguments);
+        for (const x of node.__wxHiddenW) wxSlotHidden(node, x, true);
+        return r;
+    };
 }
 
 export function wxFits(w, v) {

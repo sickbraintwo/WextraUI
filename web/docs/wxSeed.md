@@ -4,14 +4,15 @@ A **seed that walks**, and the seed of a grid: WFloat on an integer, with `rando
 
 ## Use
 - **value**: the seed that goes out.
-- **control**: `fixed`, nothing moves. `increment` / `decrement`: after every queued run `value` moves by `step`. `randomize`: any seed at every run.
-- **step**: how much it moves per run (1 by default).
-- **until**: the arrival of the wheel, and only with a `carry` cable in or out (greyed out without one, below).
+- **control**: `fixed`, nothing moves. `increment` / `decrement`: after every queued run `value` moves by `step`. `randomize`: any seed at every run. `increment-wrap`: forward by `step` to **`until`**, then round to the start, cable or no cable (below).
+- **step**: how much it moves per run (1 by default). The walk starts from the value you set: 1 with step 2 gives 1, 3, 5… (the arrows of `value` move by the same step).
+- **until**: the arrival of the wheel: on `increment-wrap`, or with a `carry` cable in or out (greyed out otherwise, below).
 
-The label of `control` shows the step and its direction (`+1/run`, `random/run`). Queue as many runs as you like: each one gets the next seed.
+The label of `control` shows the step and its direction (`+1/run`, `random/run`, `+1/run · 1 → 4 ↻` on the wheel). Queue as many runs as you like: each one gets the next seed.
 
-## carry: the seed as a wheel
-With a `carry` cable **in or out** the seed is a wheel: from the value you set (by hand: that is the start, kept in a hidden box) to **`until`**, by `step`; at the end it comes round to the start. `until` the same as the start = no arrival. Without a cable `until` does nothing, it is greyed out, and the walk is free.
+## The seed as a wheel
+On **`increment-wrap`**, or with a `carry` cable **in or out**, the seed is a wheel: from the value you set (by hand: that is the start, kept in a hidden box) to **`until`**, by `step`; at the end it comes round to the start. `until` the same as the start = no arrival. On the other controls with no cable `until` does nothing, it is greyed out, and the walk is free.
+- **No cable**, `increment-wrap`: `value` 1, `until` 4: seeds 1, 2, 3, 4, then 1 again. Four seeds, over and over, with nothing else moving.
 - **Cable out** (into `carry` of WSampler, WScheduler, WCheckpoint, WLoRA or WFloat): the seed is the fast wheel. `value` 1, `until` 4, `increment`: seeds 1, 2, 3, 4 at every run, then round to 1 and one beat down the cable. Four seeds for every sampler, the seeds inside. The label of the input of the next node counts the runs: `carry · 4 × 7 = 28 runs`.
 - **Cable in**: the seed is driven, the label reads `on carry`. It moves by `step` on the beat instead of at every run: forward, back with `decrement`, anywhere with `randomize` (a new seed for every full round of the wheel before it).
 

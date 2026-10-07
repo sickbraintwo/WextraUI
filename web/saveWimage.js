@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { ensureWxStyle, wxAddButton, wxCompactWidgets, wxFits, WX } from "./wxStyle.js";
+import { ensureWxStyle, wxAddButton, wxCompactWidgets, wxFits, wxKeepSlotHidden, wxSlotHidden, WX } from "./wxStyle.js";
 import { wxCleanName } from "./wxFolder.js";
 
 // WSave Image (frontend 1.49+): parti dinamiche e anteprima live del nome. Sopra ogni parte una barretta "part i" con due
@@ -15,8 +15,12 @@ import { wxCleanName } from "./wxFolder.js";
 const MAX_PARTS = 8;
 // ---- the placeholder {#id} = the value of that WextraUI node at this run (src/saveWimage.py resolves it from the
 // PROMPT; here the preview resolves it from the graph, and `from Wnodes on graph` proposes the nodes found) ----
-const NODE_VALUE = { wxSampler: "sampler_name", wxScheduler: "scheduler", wxCheckpointLoader: "ckpt_name", wxLoraLoaderTrigger: "lora_name", wxFloat: "value", wxSeed: "value", wxSwitch: "on_" };
+const NODE_VALUE = { wxSampler: "sampler_name", wxScheduler: "scheduler", wxCheckpointLoader: "ckpt_name", wxLoraLoaderTrigger: "lora_name", wxFloat: "value", wxSeed: "value", wxSwitch: "on_", wxFrame: "ops" };
 const NODE_KIND = { wxFloat: "float", wxSeed: "int" };
+// the text of a part made by `from Wnodes on graph`: a short tag for the type, or for the input the node feeds (a WInt🌱 on
+// a `seed`, a WFloat on a `cfg`, through Reroute and Set / Get); otherwise the node's name
+const TYPE_TAG = { wxSampler: "_sa_", wxScheduler: "_sc_", wxFrame: "_fr_" };
+const INPUT_TAG = { seed: "_S_", noise_seed: "_S_", cfg: "_cfg_", steps: "_st_" };
 const BARE = ["wxCheckpointLoader", "wxLoraLoaderTrigger"];
 const IDREF = /\{#([\d:]+)\}/g, ONE_IDREF = /^\{#([\d:]+)\}$/;
 const isCtlW = (w) => w.name === "control" || w.name === "control_after_generate" || (Array.isArray(w.options?.values) && w.options.values.includes("randomize"));
@@ -36,6 +40,8 @@ function ensureFgStyle() {
       .wx-fg-pop label.drag { opacity: .4; }
       .wx-fg-pop label.over { border-top: 2px solid #1464b3; }
       .wx-fg-pop label .h { color: #666; font-size: 11px; margin-left: auto; padding-left: 14px; } .wx-fg-pop label .i { color: #666; font-size: 10px; min-width: 14px; text-align: right; }
+      .wx-fg-pop label .g { color: #666; font-size: 11px; padding-left: 6px; }
+      .wx-fg-pop h6 { margin: 5px 10px 1px; font-size: 11px; font-weight: 600; color: #999; }
       .wx-fg-pop input { margin: 0; accent-color: #1464b3; }
       .wx-fg-pop .wx-muted { padding: 2px 10px; display: block; color: #777; }`;
     document.head.appendChild(st);
@@ -51,7 +57,7 @@ function setHidden(w, hidden) {
 }
 function fmt(v, kind) {
     if (v === undefined || v === null || v === "") return "";
-    if (kind === "int") return String(Math.round(Number(v)));
+    if (kind === "int") { const n = Math.round(Number(v)); return Number.isFinite(n) ? String(n) : String(v); }   // a name on `int`: as it is, like the backend
     if (kind === "float") return Number(v).toFixed(2); // due decimali fissi
     if (kind === "bool") return (v === true || String(v).toLowerCase() === "true" || v === 1 || v === "1") ? "true" : "false";
     return String(v);
@@ -105,6 +111,7 @@ app.registerExtension({
                 if (!n) return undefined;
                 const key = NODE_VALUE[n.type];
                 if (n.type === "wxSwitch") { const i = (n.widgets || []).findIndex((x) => /^on_\d+$/.test(x.name) && x.value === true); return String(Math.max(0, i)); }
+                if (n.type === "wxFrame") return n.__wxInfo ? n.__wxInfo() : undefined;   // its `info`, as web/wxFrame.js computes it
                 const w = key ? (n.widgets || []).find((x) => x.name === key) : (n.widgets || []).find((x) => x.serialize !== false && !isCtlW(x));
                 if (!w || w.value === undefined || w.value === null) return undefined;
                 let s = String(w.value);
@@ -127,6 +134,7 @@ app.registerExtension({
                 if (preview.element) { ensureWxStyle(); preview.element.readOnly = true; preview.element.classList.add("wx-preview"); preview.element.placeholder = "file name"; }
             }
             setHidden(W("parts"), true);
+            if (W("parts")) wxKeepSlotHidden(node, W("parts"));   // its socket neither (it came up as an empty pin at the top)
 
             function count() { return Math.max(0, Math.min(MAX_PARTS, Number(val("parts", 0)) || 0)); }
 
@@ -184,6 +192,7 @@ app.registerExtension({
                         const idx = node.inputs.findIndex((s) => s.name === "value" + i);
                         if (idx >= 0) node.disconnectInput(idx);
                     }
+                    for (const f of FIELDS) { const w = W(f + i); if (w) wxSlotHidden(node, w, !on); }   // the sockets of a part that is not there: neither drawn nor a target
                 }
                 setHidden(wAdd, n > 0);
                 refresh();
@@ -244,9 +253,65 @@ app.registerExtension({
                 clearPart(i + 1);
                 layout();
             }
-            const BAR_H = 18, CHIP = 22, M = 12;
+            // a part dragged by the handle ≡ of its bar takes the place of the part it is dropped on (the ones between
+            // move one up or down); values and cables follow, as with − and +
+            const stashPart = (i) => {   // the part's values and the sources of its cables, the cables unplugged
+                const s = { v: {}, l: {} };
+                for (const f of FIELDS) {
+                    const w = W(f + i); s.v[f] = w ? w.value : DEFAULTS[f];
+                    const k = inputIdx(f + i), l = k >= 0 ? getLink(node.inputs[k].link) : null;
+                    if (l) { s.l[f] = { src: node.graph.getNodeById(l.origin_id), oslot: l.origin_slot }; node.disconnectInput(k); }
+                }
+                return s;
+            };
+            const restorePart = (i, s) => {
+                for (const f of FIELDS) {
+                    const w = W(f + i); if (w) w.value = s.v[f];
+                    unplug(f + i);
+                    const l = s.l[f]; if (!l?.src) continue;
+                    if (f === "value") anySlot(i);
+                    const kt = inputIdx(f + i);
+                    if (kt >= 0) LiteGraph.LGraphNode.prototype.connect.call(l.src, l.oslot, node, kt);   // as in movePart: the scanner reads the bare call as a socket
+                }
+            };
+            function reorderPart(from, to) {
+                const n = count();
+                if (from === to || from < 1 || to < 1 || from > n || to > n) return;
+                const s = stashPart(from);
+                if (from < to) for (let j = from; j < to; j++) movePart(j + 1, j);
+                else for (let j = from; j > to; j--) movePart(j - 1, j);
+                restorePart(to, s);
+                layout();
+            }
+            const BAR_H = 18, CHIP = 22, M = 12, GRIP = 10;   // GRIP: the handle ≡ at the left of the bar
             const bars = {};
-            let hover = null;   // "3:minus" = the mouse is on the - chip of part 3 (the chip turns blue, like the chips of WPrompt Rows)
+            let hover = null;   // "3:minus" = the mouse is on the - chip of part 3 (the chip turns blue, like the chips of WPrompt Rows); "3:grip" on its handle
+            let drag = null;    // { from, over } while a part is dragged by its handle: `over` = the part whose place it takes
+            const onGrip = (x) => x >= M - 2 && x <= M + GRIP + 2;
+            // the part under a canvas y (node space): a part reaches from its bar down to the next bar; below the last, the last
+            const partAt = (y) => { for (let k = count(); k >= 1; k--) { const b = bars[k]; if (b?.__y !== undefined && y >= b.__y - 2) return k; } return 1; };
+            // the drag follows the pointer on the window, not LiteGraph's widget events: a node does not get them once the
+            // pointer leaves it, and the drop may be on another part of the node
+            // while a part is dragged the sockets of the widgets stay down: the frontend shows them when the pointer passes at
+            // their height, and under a drag that is a cable invitation nobody asked for (Sick, 07/10). The ones hidden on
+            // their own (parts not in use, `parts`) are left as they are.
+            const socketOf = (w) => (node.inputs || []).find((s) => s.widget?.name === w.name);
+            const socketsDown = () => { const ws = (node.widgets || []).filter((w) => { const s = socketOf(w); return s && !s.__wxHidden; }); for (const w of ws) wxSlotHidden(node, w, true); return ws; };
+            const startDrag = (i) => {
+                if (drag || !app.canvas) return;
+                drag = { from: i, over: i, sockets: socketsDown() };
+                const cv = app.canvas;
+                const onMove = (ev) => { const [, gy] = cv.convertEventToCanvasOffset(ev); const k = partAt(gy - node.pos[1]); if (k !== drag.over) { drag.over = k; node.setDirtyCanvas(true, false); } };
+                const onUp = () => {
+                    for (const [t, f] of [["pointermove", onMove], ["pointerup", onUp], ["pointercancel", onUp]]) window.removeEventListener(t, f, true);
+                    const { from, over, sockets } = drag; drag = null;
+                    for (const w of sockets) wxSlotHidden(node, w, false);
+                    if (over !== from) reorderPart(from, over);
+                    node.setDirtyCanvas(true, true);
+                };
+                for (const [t, f] of [["pointermove", onMove], ["pointerup", onUp], ["pointercancel", onUp]]) window.addEventListener(t, f, true);
+                node.setDirtyCanvas(true, false);
+            };
             for (let i = 1; i <= MAX_PARTS; i++) {
                 const first = W("text" + i);
                 if (!first) continue;
@@ -260,10 +325,14 @@ app.registerExtension({
                     ctx.font = "11px sans-serif"; ctx.textBaseline = "middle"; ctx.lineWidth = 1;
                     const bid = boundId(i), bn = bid ? graphNode(bid) : null;
                     const label = "part " + i + (bid ? " · " + (bn ? nodeName(bn) : "#" + bid + "?") : "");
-                    ctx.textAlign = "left"; ctx.fillStyle = WX.accent; ctx.fillText(label, M + 2, y + H / 2 + 1);
-                    const lx = M + 2 + ctx.measureText(label).width + 8;
-                    ctx.strokeStyle = "#444"; ctx.beginPath(); ctx.moveTo(lx, y + H / 2 + 0.5); ctx.lineTo(width - M - 2 * CHIP - 14, y + H / 2 + 0.5); ctx.stroke();
-                    ctx.textAlign = "center";
+                    const lifted = drag?.from === i, target = !!drag && drag.over === i && drag.from !== i;   // the part dragged; the part whose place it takes
+                    ctx.textAlign = "left";
+                    ctx.fillStyle = lifted || hover === i + ":grip" ? WX.light : "#666"; ctx.fillText("≡", M + 1, y + H / 2 + 1);   // the handle
+                    ctx.fillStyle = lifted ? "#666" : target ? WX.light : WX.accent; ctx.fillText(label, M + GRIP + 4, y + H / 2 + 1);
+                    const lx = M + GRIP + 4 + ctx.measureText(label).width + 8;
+                    ctx.strokeStyle = target ? WX.accent : "#444"; ctx.lineWidth = target ? 2 : 1;
+                    ctx.beginPath(); ctx.moveTo(lx, y + H / 2 + 0.5); ctx.lineTo(width - M - 2 * CHIP - 14, y + H / 2 + 0.5); ctx.stroke();
+                    ctx.lineWidth = 1; ctx.textAlign = "center";
                     for (const c of chips(width)) {
                         ctx.beginPath(); ctx.roundRect(c.x, y + 2, CHIP, H - 4, (H - 4) / 2);
                         const hot = hover === i + ":" + c.what;
@@ -275,7 +344,9 @@ app.registerExtension({
                 let last = 0;
                 b.mouse = function (event, pos, nd) {
                     const t = String(event?.type || "");
-                    if (t.includes("move") || i > count()) return false;
+                    if (i > count()) return false;
+                    if (t.includes("move")) return !!drag;
+                    if (onGrip(pos[0])) { if (t.includes("down")) startDrag(i); return true; }   // the handle: press and drag the part
                     const c = chips(nd.size[0]).find((c) => pos[0] >= c.x && pos[0] <= c.x + CHIP);
                     if (!c) return false;
                     const now = Date.now(); if (now - last < 250) return true;   // down + up = one click
@@ -296,6 +367,7 @@ app.registerExtension({
                 if (!this.flags?.collapsed) for (let i = 1, n = count(); i <= n && !now; i++) {
                     const b = bars[i];
                     if (!b || b.__y === undefined || pos[1] < b.__y || pos[1] > b.__y + b.__h) continue;
+                    if (onGrip(pos[0])) { now = i + ":grip"; break; }
                     const c = b.__chips(this.size[0]).find((c) => pos[0] >= c.x && pos[0] <= c.x + CHIP);
                     if (c) now = i + ":" + c.what;
                 }
@@ -319,8 +391,30 @@ app.registerExtension({
             const hops = (n, d = 0) => { const ds = n.__wxCarry?.downstream?.() || []; return !ds.length || d > 12 ? 0 : 1 + Math.max(...ds.map((x) => hops(x, d + 1))); };
             const bound = () => { const b = {}; for (let i = 1, n = count(); i <= n; i++) { const id = boundId(i); if (id) b[id] = i; } return b; };
             const byName = (a, b) => nodeName(a.n).localeCompare(nodeName(b.n)) || a.n.id - b.n.id;
-            const found = () => (node.graph?._nodes || node.graph?.nodes || []).filter((n) => n !== node && NODE_VALUE[n.type]).map((n) => ({ n, id: String(n.id), how: walks(n), hops: hops(n) })).sort(byName);   // by name: the nodes of a type together
-            const textFor = (n) => nodeName(n).replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, "").trim() || "_";   // the node's name, no icon
+            const byType = (a, b) => typeTitle(a.n).localeCompare(typeTitle(b.n)) || byName(a, b);
+            const found = () => (node.graph?._nodes || node.graph?.nodes || []).filter((n) => n !== node && NODE_VALUE[n.type]).map((n) => ({ n, id: String(n.id), how: walks(n), hops: hops(n) })).sort(byType);   // by type, then by name
+            // the inputs a node's value reaches (`seed`, `cfg`…), through Reroute and Set / Get (KJNodes), the carry cable left out
+            const feeds = (n) => {
+                const g = n.graph; if (!g) return [];
+                const nodes = g._nodes || g.nodes || [], seen = new Set(), out = [];
+                const linkOf = (id) => g.links instanceof Map ? g.links.get(id) : g.getLink ? g.getLink(id) : g.links?.[id];
+                const constOf = (x) => x?.widgets?.[0]?.value;
+                const walk = (links, hops) => {
+                    if (hops > 12) return;
+                    for (const id of links || []) {
+                        const l = linkOf(id), t = l ? g.getNodeById(l.target_id) : null;
+                        if (!t || seen.has(t.id + ":" + l.target_slot)) continue;
+                        seen.add(t.id + ":" + l.target_slot);
+                        if (t.type === "Reroute") walk(t.outputs?.[0]?.links, hops + 1);
+                        else if (t.type === "SetNode") for (const gt of nodes) { if (gt.type === "GetNode" && constOf(gt) === constOf(t)) walk(gt.outputs?.[0]?.links, hops + 1); }
+                        else { const nm = t.inputs?.[l.target_slot]?.name; if (nm) out.push(String(nm)); }
+                    }
+                };
+                for (const o of n.outputs || []) if (o.name !== "carry") walk(o.links, 0);
+                return out;
+            };
+            const tagOf = (n) => TYPE_TAG[n.type] || (NODE_KIND[n.type] ? feeds(n).map((nm) => INPUT_TAG[nm.toLowerCase()]).find(Boolean) : undefined) || null;
+            const textFor = (n) => tagOf(n) || nodeName(n).replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, "").trim() || "_";   // the tag, else the node's name, no icon
             const openFg = () => {
                 ensureFgStyle();
                 const rows = found(), b = bound();
@@ -353,8 +447,10 @@ app.registerExtension({
                         lab.appendChild(cb);
                         if (on) { const i = document.createElement("span"); i.className = "i"; i.textContent = String(k + 1); lab.appendChild(i); }
                         const t = document.createElement("span"); t.textContent = nodeName(r.n) + " = " + (nodeValue(r.n) ?? "?"); lab.appendChild(t);
-                        const h = document.createElement("span"); h.className = "h"; h.textContent = "#" + r.id + " · " + (b[r.id] ? "part " + b[r.id] : r.how); lab.appendChild(h);
-                        if (on) {   // ticked: a number (its place in the name), drag to reorder
+                        const tag = tagOf(r.n);   // the text the part will have, when it is a tag (`_sa_`, `_S_`…)
+                        const h = document.createElement("span"); h.className = "h"; h.textContent = (tag ? tag + " · " : "") + "#" + r.id + " · " + (b[r.id] ? "part " + b[r.id] : r.how); lab.appendChild(h);
+                        if (on) {   // ticked: a number (its place in the name), a handle, drag to reorder
+                            const g = document.createElement("span"); g.className = "g"; g.textContent = "≡"; lab.appendChild(g);
                             lab.draggable = true;
                             lab.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", r.id); lab.classList.add("drag"); });
                             lab.addEventListener("dragend", () => lab.classList.remove("drag"));
@@ -371,7 +467,14 @@ app.registerExtension({
                     };
                     const t = ticked.map((id) => rows.find((r) => r.id === id)).filter(Boolean), rest = rows.filter((r) => !ticked.includes(r.id));
                     if (t.length) { const h = document.createElement("h5"); h.textContent = "to add — drag to order the name (slow → fast)"; body.appendChild(h); t.forEach((r, k) => body.appendChild(rowOf(r, true, k))); }
-                    if (rest.length) { const h = document.createElement("h5"); h.textContent = t.length ? "others" : "found — tick to add"; body.appendChild(h); rest.forEach((r) => body.appendChild(rowOf(r, false, -1))); }
+                    if (rest.length) {   // the others by type, the type above its group
+                        const h = document.createElement("h5"); h.textContent = t.length ? "others" : "found — tick to add"; body.appendChild(h);
+                        let last = null;
+                        for (const r of rest) {
+                            if (r.n.type !== last) { last = r.n.type; const g = document.createElement("h6"); g.textContent = "— " + typeTitle(r.n); body.appendChild(g); }
+                            body.appendChild(rowOf(r, false, -1));
+                        }
+                    }
                 };
                 render();
                 pop.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -408,8 +511,25 @@ app.registerExtension({
             }
             wxCompactWidgets(node);   // the two buttons take no slot: widgets_values = the inputs of object_info, in order
 
+            // ---- the thumbnails, off by default. The frontend hangs them on the node from its own onDrawBackground (the
+            // prototype's: at every draw it reads the node's outputs and, when `images` are there, loads them into node.imgs
+            // and adds its preview widget). The outputs reach the node by two roads: the `executed` message (onExecuted below
+            // takes `images` out of it) and a workflow loaded from the queue / history panel, which calls no onExecuted: the
+            // thumbnails came up with the switch off. While the switch is off that handler is not run at all, and whatever
+            // it may have hung on the node before (the switch was on, then turned off) is taken down. ----
+            const PREVIEW_W = "$$canvas-image-preview";   // the frontend's preview widget (useNodeCanvasImagePreview)
+            const thumbsOff = () => {
+                let did = false;
+                if (node.imgs !== undefined || node.images !== undefined) { node.imgs = undefined; node.images = undefined; did = true; }
+                const k = (node.widgets || []).findIndex((w) => w.name === PREVIEW_W);
+                if (k >= 0) { node.widgets.splice(k, 1); did = true; }
+                if (did) node.setSize(node.computeSize());
+            };
             const onDrawBg = node.onDrawBackground;
-            node.onDrawBackground = function () { const r = onDrawBg ? onDrawBg.apply(this, arguments) : undefined; watch(); return r; };
+            node.onDrawBackground = function () {
+                if (!val("image_preview", false)) { thumbsOff(); watch(); return undefined; }
+                const r = onDrawBg ? onDrawBg.apply(this, arguments) : undefined; watch(); return r;
+            };
             const onDrawFg = node.onDrawForeground;
             node.onDrawForeground = function () { const r = onDrawFg ? onDrawFg.apply(this, arguments) : undefined; watch(); return r; };
             const timer = setInterval(watch, 400);
@@ -442,8 +562,9 @@ app.registerExtension({
             const origExecuted = node.onExecuted;
             node.onExecuted = function (msg) {
                 // Il backend dichiara sempre le immagini (servono a /history e agli automatismi); le miniature nel nodo
-                // si spengono qui: il frontend le legge da app.nodeOutputs, che e' lo stesso oggetto di msg.
-                if (msg && msg.images && !val("image_preview", false)) { delete msg.images; node.images = undefined; node.imgs = undefined; }
+                // si spengono qui: il frontend le legge dal suo store degli output, che tiene lo stesso oggetto di msg
+                // (anche Nodes 2.0 legge da lì). Per la strada della history (nessun onExecuted) vedi onDrawBackground.
+                if (msg && msg.images && !val("image_preview", false)) { delete msg.images; thumbsOff(); }
                 const r = origExecuted ? origExecuted.apply(this, arguments) : undefined;
                 if (msg && msg.preview && preview) { preview.value = String(msg.preview[0]); node.setDirtyCanvas(true, true); }
                 return r;

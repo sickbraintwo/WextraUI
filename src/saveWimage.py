@@ -19,6 +19,7 @@ Rete di sicurezza: se cartella + nome + contatore + .png supera i 259 caratteri 
 Segnaposto {#id} in qualsiasi campo di testo: il valore che il nodo WextraUI `id` ha usato in QUESTO giro, letto dal
 PROMPT nascosto (WSampler -> sampler_name, WScheduler -> scheduler, WCheckpoint / WLoRA -> nome nudo del file,
 WFloat / WInt -> value, WSwitch -> index dello slot acceso); un nodo assente dal PROMPT (muto, bypass, sparito) da "".
+Dentro un subgraph il PROMPT chiama i nodi "7:12": l'id nudo si cerca prima nel subgraph del nodo stesso (UNIQUE_ID).
 Il frontend (web/saveWimage.js) lo risolve dal grafo per l'anteprima e propone i nodi col pulsante `from Wnodes on graph`."""
 import json
 import os
@@ -46,11 +47,21 @@ MAX_PATH = 259  # Windows: percorso completo, terminatore escluso
 TYPES = ["int", "float", "bool", "string"]
 
 
-def node_value(prompt, nid):
-    """The value of node `nid` at this run, as text; "" when the node or its value is not there."""
-    n = (prompt or {}).get(str(nid)) or {}
+def node_value(prompt, nid, scope=""):
+    """The value of node `nid` at this run, as text; "" when the node or its value is not there.
+    `scope` = where the saving node lives: inside a subgraph the prompt names a node "7:12" (the subgraph node, then
+    the node), while the graph the frontend shows, and `from Wnodes on graph` with it, says 12. A bare id is looked
+    for in the saving node's own subgraph first, then as it is."""
+    p = prompt or {}
+    key_id = scope + str(nid) if scope and p.get(scope + str(nid)) else str(nid)
+    n = p.get(key_id) or {}
     ct = n.get("class_type", "")
     ins = n.get("inputs") or {}
+    if ct == "wxFrame":   # its `info`: the last run's, while the stack is the same; else the stack's numbers (src/frame.py)
+        from .frame import LAST_INFO, frame_text
+        ops = ins.get("ops")
+        last = LAST_INFO.get(key_id)
+        return last[1] if last and last[0] == ops else frame_text(ops)
     if ct == "wxSwitch":   # the slot that is on, counted from 0 (the first on_i that is true)
         for i in range(1, 21):
             if ins.get(f"on_{i}") is True:
@@ -71,11 +82,17 @@ def node_value(prompt, nid):
     return s
 
 
-def resolve(text, prompt):
+def resolve(text, prompt, scope=""):
     """{#id} -> the value of that node in this run (see node_value)."""
     if not isinstance(text, str) or "{#" not in text:
         return text
-    return IDREF.sub(lambda m: node_value(prompt, m.group(1)), text)
+    return IDREF.sub(lambda m: node_value(prompt, m.group(1), scope), text)
+
+
+def scope_of(unique_id):
+    """The prefix of the saving node's own id inside a subgraph: "7:3" -> "7:", "3" -> ""."""
+    s = str(unique_id or "")
+    return s[:s.rfind(":") + 1] if ":" in s else ""
 
 
 def to_str(value, kind):
@@ -138,7 +155,7 @@ class SaveWimage:
             opt[f"value{i}"] = ("STRING", {"default": "", "tooltip": "Valore: scrivilo qui o collega al puntino un INT/FLOAT/BOOLEAN/STRING."})
         opt["write_batch"] = ("BOOLEAN", {"default": False, "label_on": "on", "label_off": "off", "tooltip": "Aggiunge in coda al nome _B{batch}{index}: quante immagini nel giro e quale e' questa (es. _B41)."})
         opt["image_preview"] = ("BOOLEAN", {"default": False, "label_on": "on", "label_off": "off", "tooltip": "Mostra le miniature delle immagini salvate dentro il nodo (off = nodo compatto)."})
-        return {"required": req, "optional": opt, "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"}}
+        return {"required": req, "optional": opt, "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO", "unique_id": "UNIQUE_ID"}}
 
     RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("images", "prefix", "name")
@@ -153,9 +170,10 @@ class SaveWimage:
     def VALIDATE_INPUTS(cls, input_types):
         return True  # i value{i} accettano link di qualsiasi tipo
 
-    def save(self, images=None, preview="", folder="", subject="", digits=2, parts=1, write_batch=False, image_preview=False, prompt=None, extra_pnginfo=None, **kw):
-        kw = {k: (resolve(v, prompt) if k.startswith(("text", "value")) else v) for k, v in kw.items()}
-        folder, name = compose(resolve(folder, prompt), resolve(subject, prompt), parts, kw)
+    def save(self, images=None, preview="", folder="", subject="", digits=2, parts=1, write_batch=False, image_preview=False, prompt=None, extra_pnginfo=None, unique_id=None, **kw):
+        scope = scope_of(unique_id)
+        kw = {k: (resolve(v, prompt, scope) if k.startswith(("text", "value")) else v) for k, v in kw.items()}
+        folder, name = compose(resolve(folder, prompt, scope), resolve(subject, prompt, scope), parts, kw)
         base = name or "Wimage"
         prefix = (folder + "/" if folder else "") + base
         if images is None:  # solo composizione del nome: niente cartella, niente file

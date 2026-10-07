@@ -60,9 +60,9 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 
 Saves the PNGs and writes into the name of every file what made it. The name is **composed from parts**: folder, subject, any string or number from the graph, a counter of chosen width; the usual ComfyUI metadata go inside. The `preview` box shows the name before you run, linked fields included. `images` is optional: unplugged, the node only composes the name for other savers (video, JSON). The `images` output passes the batch through, so the save sits inside the chain instead of at a dead end.
 
-Above each part a slim bar (`part 1`, `part 2`…) has two chips: `−` removes that part, `+` opens an empty one right below; values and cables follow. The **write batch** switch appends `_B{batch}{index}`: how many images the run made and which one this is (`_B41`, `_B42`…); the same placeholders work in any text field.
+Above each part a slim bar (`part 1`, `part 2`…) has a handle `≡` and two chips: drag the handle to move the part, `−` removes it, `+` opens an empty one right below; values and cables follow. The **write batch** switch appends `_B{batch}{index}`: how many images the run made and which one this is (`_B41`, `_B42`…); the same placeholders work in any text field.
 
-**`{#id}`** in any text is the value that WextraUI node used in this run (WSampler, WScheduler, WCheckpoint, WLoRA, WFloat, WInt🌱, WSwitch), no cable. **`from Wnodes on graph`** lists the nodes of the workflow by name, the ones that walk already ticked, in the order of the carry chain, and makes one part for each (`WSampler = euler` in the name, value locked to the node). A grid of trials, and every file telling on its own what made it.
+**`{#id}`** in any text is the value that WextraUI node used in this run (WSampler, WScheduler, WCheckpoint, WLoRA, WFloat, WInt🌱, WSwitch), no cable. **`from Wnodes on graph`** lists the nodes of the workflow by type, the ones that walk already ticked, in the order of the carry chain (drag to change it), and makes one part for each (`_sa_euler` in the name, `_S_` for a WInt🌱 on a seed, `_st_` on steps, `_cfg_` for a WFloat on a cfg; value locked to the node). A grid of trials, and every file telling on its own what made it.
 
 <img src="images/WSaveImage.png" width="300" alt="WSave Image"> <img src="images/WSaveImage_fromWnodes.png" width="300" alt="WSave Image: from Wnodes on graph">
 
@@ -116,9 +116,9 @@ The `sampler_name` and `scheduler` menus as nodes of their own. Each has a **sel
 
 ### WFrame
 
-One node for the outpaint prep and every framing job: a **stack of actions** done in order, as many as the job needs. **crop** = the box that stays (a size or an aspect, an anchor, a shift); **pad** = the picture on a bigger (or smaller) canvas, what is missing padded with a colour, what sticks out cut; **resize** = aspect kept, by a side, a percent, or fit / cover a box. Crop a detail, then pad it to `1:1`; resize, then pad for the outpaint. Out come the picture, the pad **mask** feathered inward (ready for outpaint), the final size and a short text of what was done. Under the stack, a **preview**: the final frame in red, every action a rectangle in the colour of its row, the added border in the pad colour with its width on each side, what is cut outside; click a rectangle to open its action, drag it to move it, pull a corner to size it.
+One node for the outpaint prep and every framing job: a **stack of actions** done in order, as many as the job needs. **crop** = the box that stays (a size or an aspect, an anchor, a shift); **pad** = the picture on a bigger (or smaller) canvas, what is missing padded with a colour, what sticks out cut; **resize** = aspect kept, by a side, a percent, or fit / cover a box. Crop a detail, then pad it to `1:1`; resize, then pad for the outpaint. Out come the picture and the pad **mask** feathered inward (ready for outpaint); what was done goes in a WSave Image name with `from Wnodes on graph` (`c800x800_p112x0`). Under the stack, a **preview**: the final frame in red, every action a rectangle in the colour of its row, the added border in the pad colour with its width on each side, what is cut outside; click a rectangle to open its action, drag it to move it, pull a corner to size it, nudge it with the arrow keys; a `mask` button shows the pad mask; the number boxes slide. Above the stack, what was done, as it goes in the file name.
 
-<img src="images/WFrame.png" width="260" alt="WFrame">
+<img src="images/WFrame.png" width="260" alt="WFrame"> <img src="images/WFrame_mask.png" width="260" alt="WFrame: the mask view">
 
 ### WFloat
 
@@ -128,7 +128,7 @@ A float with a seed-style control: `fixed`, or `increment` / `decrement` by `ste
 
 ### WInt🌱
 
-WFloat on an integer, with `randomize` too: a seed that walks by `step` (1 by default) after every queued run, for the KSampler's `seed` turned into an input or any INT. With a [`carry`](#carry-the-odometer-cable) cable it is a wheel from the value you set to `until`, four seeds for every sampler, the seeds inside, and its beat drives the next node.
+WFloat on an integer, with `randomize` too: a seed that walks by `step` (1 by default) after every queued run, for the KSampler's `seed` turned into an input or any INT. On `increment-wrap` it is a wheel from the value you set to `until`, round and round, no cable needed; with a [`carry`](#carry-the-odometer-cable) cable the same wheel beats the next node: four seeds for every sampler, the seeds inside.
 
 <img src="images/WInt.png" width="260" alt="WInt">
 

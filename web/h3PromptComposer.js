@@ -1,20 +1,13 @@
 import { app } from "../../scripts/app.js";
-import { WX, ensureWxStyle, wxChip, wxAddButton, wxCompactWidgets } from "./wxStyle.js";
+import { WX, ensureWxStyle, wxChip, wxAddButton, wxCompactWidgets, wxHideWidget } from "./wxStyle.js";
 
-const CONVERTED_TYPE = "converted-widget";
 const BASE_REFERENCE_SECONDS = 10.0;
 const MIN_TEXTAREA_HEIGHT = 24;
 const TEXTAREA_GAP = 6;
 
-function hideWidget(widget) {
-    widget.type = CONVERTED_TYPE;
-    widget.computeSize = () => [0, -4];
-    // Multiline STRING widgets are backed by a real <textarea> DOM element,
-    // not just canvas-drawn — computeSize alone doesn't hide that element.
-    if (widget.element) {
-        widget.element.style.display = "none";
-    }
-}
+// Multiline STRING widgets are backed by a real <textarea> DOM element: the shared helper hides the element too,
+// and the widget's socket with it.
+const hideWidget = wxHideWidget;
 
 function defaultBeat(name) {
     return { name: name || "BEAT", base_duration: 10.0, locked: false, text: "" };
@@ -140,7 +133,7 @@ app.registerExtension({
                 makeTextareaAutoGrow(node, w, collapseState);
             });
 
-            hideWidget(jsonWidget);
+            hideWidget(jsonWidget, node);
 
             ensureWxStyle();
             const container = document.createElement("div");

@@ -8,7 +8,7 @@
 // the beat of the cable; coming round from the last slot to the first it beats the next node. `carry` is the last output.
 // Backend: src/wswitch.py.
 import { app } from "../../scripts/app.js";
-import { WX, wxVueInputRows, wxVueDecor, wxVueChip } from "./wxStyle.js";
+import { WX, wxVueInputRows, wxVueDecor, wxVueChip, wxHideWidget } from "./wxStyle.js";
 import { wxCarry } from "./wxCarry.js";
 import { wxReorderInputs, wxReorderOutputs } from "./wxSlots.js";
 
@@ -22,13 +22,8 @@ const ORDER = (a, b) => {   // slot, then position; `carry` (and anything else) 
     return (A ? 0 : 1) - (B ? 0 : 1);
 };
 
-function bury(w) {   // a canvas widget that must not show (on_i) but stays in the workflow and in the prompt
-    if (!w) return;
-    w.type = "converted-widget";
-    w.computeSize = () => [0, -4];
-    w.hidden = true;
-    w.options = w.options || {};
-    w.options.hidden = true;
+function bury(w, node) {   // a canvas widget that must not show (on_i) but stays in the workflow and in the prompt; its socket neither
+    if (w) wxHideWidget(w, node);
 }
 
 app.registerExtension({
@@ -62,7 +57,7 @@ app.registerExtension({
             const node = this;
             const W = (nm) => (node.widgets || []).find((w) => w.name === nm);
             const wN = W("inputs_per_slot"), wCtl = W("control");
-            for (let i = 1; i <= MAXS; i++) bury(W("on_" + i));
+            for (let i = 1; i <= MAXS; i++) bury(W("on_" + i), node);
 
             const per = () => Math.max(1, Math.min(MAXK, Number(wN?.value) || 1));
             const isOn = (i) => W("on_" + i)?.value === true;

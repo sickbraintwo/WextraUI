@@ -5,7 +5,7 @@ A float with a **seed-style control**, for any FLOAT input: a LoRA strength (cab
 ## Use
 - **value**: the number that goes out. Negative values are legitimate.
 - **control**: `fixed`, nothing moves. `increment` / `decrement`: after every queued run `value` moves by `step`, in that direction, with no arrival and no floor.
-- **step**: how much it moves per run (two decimals).
+- **step**: how much it moves per run (two decimals). The walk starts from the value you set: 0.15 with step 0.1 gives 0.15, 0.25, 0.35… (the arrows of `value` move by the same step).
 - **until**: the arrival of the wheel, and only with a `carry` cable in or out (greyed out without one, below).
 
 The label of `control` shows the step and its direction, e.g. `+0.1/run` or `−0.1/run`. Queue as many runs as you like: each one gets the next value.

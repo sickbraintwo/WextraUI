@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { ensureWxStyle, wxVueNodeEl } from "./wxStyle.js";
+import { ensureWxStyle, wxVueNodeEl, wxHideWidget, wxSlotHidden } from "./wxStyle.js";
 
 // WPrompt Rows (frontend 1.49+): il prompt a righe.
 // Ogni riga e' il widget multiline text{i} di Comfy (cosi' il puntino a sinistra e il link STRING sono quelli nativi),
@@ -12,13 +12,8 @@ const MAX = 60;
 const MIN_H = 22;   // una riga sola, come una stringa: cresce solo se il testo va a capo
 const GAP = 6;      // aria sotto ogni riga
 
-function bury(w) {   // widget di canvas che non si deve vedere (rows, on{i}) ma che resta nel workflow e nel prompt
-    if (!w) return;
-    w.type = "converted-widget";
-    w.computeSize = () => [0, -4];
-    w.hidden = true;
-    w.options = w.options || {};
-    w.options.hidden = true;
+function bury(w, node) {   // widget di canvas che non si deve vedere (rows, on{i}) ma che resta nel workflow e nel prompt; nemmeno il suo puntino
+    if (w) wxHideWidget(w, node);
 }
 
 function measure(el) {   // altezza vera del testo (reset a "auto" prima, altrimenti si legge la misura precedente)
@@ -72,8 +67,8 @@ app.registerExtension({
                 return r;
             };
 
-            bury(W("rows"));
-            for (let i = 1; i <= MAX; i++) bury(W("on" + i));
+            bury(W("rows"), node);
+            for (let i = 1; i <= MAX; i++) bury(W("on" + i), node);
 
             function count() { return Math.max(1, Math.min(MAX, Number(W("rows")?.value) || 1)); }
 
@@ -233,6 +228,7 @@ app.registerExtension({
                     if (w.element) w.element.style.display = on ? "" : "none";
                     const s = slot("text" + i);
                     if (s) { if (!on && s.link != null) node.disconnectInput(slotIdx("text" + i)); }
+                    wxSlotHidden(node, w, !on);   // the puntino of a row that is not there: neither drawn nor a target
                     if (on) { mount(i); paint(i); }
                 }
                 pruneSlots();

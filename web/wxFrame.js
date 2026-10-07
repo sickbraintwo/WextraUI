@@ -5,7 +5,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { ensureWxStyle, wxHideWidget, wxCompactWidgets, wxOnRedraw } from "./wxStyle.js";
 
-const RED = "#e85050";
+const RED = "#e85050", MASK = "#ff2bd6";   // the final frame; the pad mask in the `mask` view (fuchsia on black)
 const PALETTE = ["#5aaaff", "#ffb347", "#7ed957", "#d98cff", "#4dd9d9", "#ffe14d", "#ff8ac2", "#c0c0c0"];
 const ASPECTS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"];
 const ANCHORS = ["center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
@@ -179,7 +179,7 @@ app.registerExtension({
             ensureWxStyle();
             const W = (n) => node.widgets.find((w) => w.name === n);
             const wOps = W("ops"), wMethod = W("method");
-            if (wOps) wxHideWidget(wOps);   // the stack's JSON: kept in the file, not shown
+            if (wOps) wxHideWidget(wOps, node);   // the stack's JSON: kept in the file, not shown
 
             // ---- the state: the stack, read from / written to the ops box ----------------------------------------
             let ops = [], lastJSON = null, sel = -1;
@@ -219,11 +219,35 @@ app.registerExtension({
                 return rr;
             };
             const geo = () => { const s = source(); return s ? chain(s.w, s.h, ops) : null; };
+            // the info text as the run writes it for WSave Image (src/frame.py: c800x1000_p100x0 — c = crop, p = pad, r = resize,
+            // a leading − = cut); with no picture, the stack's numbers (frame_text there). Read for a part bound with {#id}
+            // and for the line above the stack.
+            const padText = ([l, t, r, b]) => (l === t && t === r && r === b) ? `p${l}` : (l === r && t === b) ? `p${l}x${t}` : `p${l}-${t}-${r}-${b}`;
+            const infoText = () => {
+                const g = geo();
+                if (!g) return ops.map((op) => {
+                    const w = num(op.w), h = num(op.h), r = String(op.r || "").replace(":", "-");
+                    if (op.t === "resize") return String(op.mode).includes("box") ? `r${w}x${h}` : String(op.mode) === "scale %" ? `r${num(op.v)}pct` : `r${num(op.v)}`;
+                    return op.t[0] + (w && h ? `${w}x${h}` : r);
+                }).join("_");
+                const steps = [];
+                for (const it of g.items) {
+                    if (!it.changed) continue;
+                    if (it.op.t === "crop") steps.push(`c${it.outW}x${it.outH}`);
+                    else if (it.op.t === "pad") { const S = it.sides, C = it.cut; if (S.some(Boolean)) steps.push(padText(S)); if (C.some(Boolean)) steps.push(`-${C[0] + C[2]}x${C[1] + C[3]}`); }
+                    else steps.push(`r${it.outW}x${it.outH}`);
+                }
+                return steps.join("_");
+            };
+            node.__wxInfo = infoText;
 
             // ---- the DOM: the stack (toolbar, rows, the open action's settings) and the preview under it ----------
             const wrap = document.createElement("div"); wrap.className = "wx";
             wrap.style.cssText = "padding:2px 8px 4px;display:flex;flex-direction:column;gap:4px";
             const stack = document.createElement("div"); stack.style.cssText = "display:flex;flex-direction:column;gap:3px";
+            const nameLine = document.createElement("div");   // above everything: what `info` says, the text a WSave Image part gets
+            nameLine.style.cssText = "font:11px/1.3 monospace;color:#bbb;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;user-select:text";
+            nameLine.title = "what a WSave Image part bound to this node says: the steps as the run will do them";
             const bar = document.createElement("div"); bar.style.cssText = "display:flex;gap:4px;align-items:center";
             const kind = document.createElement("select"); kind.style.cssText = INPUT_CSS + ";width:auto;flex:1";
             for (const [v, t] of [["crop", "the box that stays"], ["pad", "a bigger (or smaller) canvas"], ["resize", "aspect kept"]]) { const o = document.createElement("option"); o.value = v; o.textContent = v; o.title = t; kind.appendChild(o); }
@@ -232,13 +256,13 @@ app.registerExtension({
             const btn = (t, title, fn) => { const b = document.createElement("button"); b.className = "wx-btn"; b.textContent = t; b.title = title; b.style.cssText = "padding:1px 7px;min-width:24px"; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
             const bAdd = btn("+", "add the action of the menu after the open one", () => add(kind.value));
             const bDel = btn("−", "remove the open action", () => { if (sel < 0) return; ops.splice(sel, 1); sel = Math.min(sel, ops.length - 1); commit(); rebuild(); });
-            const bUp = btn("↑", "move the open action up", () => move(-1)), bDn = btn("↓", "move the open action down", () => move(1));
-            bar.append(kind, bAdd, bDel, bUp, bDn);
+            bar.append(kind, bAdd, bDel);
             const rows = document.createElement("div"); rows.style.cssText = "display:flex;flex-direction:column;gap:2px";
-            stack.append(bar, rows);
+            stack.append(nameLine, bar, rows);
             const cv = document.createElement("canvas");
-            cv.style.cssText = `display:block;width:100%;height:${PREVIEW_H}px;border-radius:6px;background:#161616;cursor:default;flex:none`;
-            cv.title = "Every action is a rectangle in its colour, the final frame is red. Click one to open it, drag it to move it, pull a corner or a side to size it. The button top right zooms on the open action; again = the whole.";
+            cv.tabIndex = 0;   // the arrow keys move the open rectangle: the drawing takes the focus on a click
+            cv.style.cssText = `display:block;width:100%;height:${PREVIEW_H}px;border-radius:6px;background:#161616;cursor:default;flex:none;outline:none`;
+            cv.title = "Every action is a rectangle in its colour, the final frame is red. Click one to open it, drag it to move it, pull a corner or a side to size it; arrow keys move it 1 px, with Shift 10 px. Top right: the mask of the pads (fuchsia = added pixels, on black), and the zoom on the open action (again = the whole).";
             wrap.append(stack, cv);
             stop(stack);
             const widget = node.addDOMWidget("wx_stack", "custom", wrap, { serialize: false, hideOnZoom: false, getValue: () => undefined, setValue: () => {} });
@@ -257,14 +281,33 @@ app.registerExtension({
                 const [iw, ih] = at > 0 ? (() => { const g = geo(); return g && g.items[at - 1] ? [g.items[at - 1].outW, g.items[at - 1].outH] : [0, 0]; })() : (() => { const s = source(); return s ? [s.w, s.h] : [0, 0]; })();
                 ops.splice(at, 0, newOp(t, iw, ih)); sel = at; commit(); rebuild();
             };
-            const move = (d) => { const j = sel + d; if (sel < 0 || j < 0 || j >= ops.length) return; [ops[sel], ops[j]] = [ops[j], ops[sel]]; sel = j; commit(); rebuild(); };
+            const moveTo = (a, b) => { if (a < 0 || b < 0 || a === b || a >= ops.length || b >= ops.length) return; const [op] = ops.splice(a, 1); ops.splice(b, 0, op); sel = sel === a ? b : sel; commit(); rebuild(); };
 
             // the settings of one action: small labelled inputs, each one writes its field and commits
             const live = [];   // [input, read()] pairs: refreshed after a drag, unless the input has the focus
             const field = (label, el, title) => { const d = document.createElement("label"); d.style.cssText = "display:flex;flex-direction:column;gap:1px;min-width:0"; const s = document.createElement("span"); s.className = "wx-hint"; s.textContent = label; if (title) d.title = title; d.append(s, el); return d; };
+            // a number box slides too: press and drag sideways, 1 per px (10 with Shift); the box fires its own change
+            const floorOf = (inp, v) => (inp.min !== "" ? Math.max(Number(inp.min), v) : v);
+            const slidable = (inp) => {
+                inp.style.cursor = "ew-resize";
+                let st = null;
+                inp.addEventListener("pointerdown", (e) => { if (e.button !== 0 || inp.disabled) return; st = { x: e.clientX, v: num(inp.value), on: false, id: e.pointerId }; });
+                inp.addEventListener("pointermove", (e) => {
+                    if (!st) return;
+                    const dx = e.clientX - st.x;
+                    if (!st.on) { if (Math.abs(dx) < 3) return; st.on = true; inp.blur(); inp.setPointerCapture(st.id); }
+                    e.preventDefault();
+                    const v = String(floorOf(inp, st.v + Math.round(dx) * (e.shiftKey ? 10 : 1)));   // a size stops at 0; a shift and a side go below
+                    if (inp.value !== v) { inp.value = v; inp.dispatchEvent(new Event("change")); }
+                });
+                const end = (e) => { if (!st) return; if (st.on) { e.preventDefault(); inp.releasePointerCapture?.(st.id); } st = null; };
+                inp.addEventListener("pointerup", end); inp.addEventListener("pointercancel", end);
+                return inp;
+            };
             const numIn = (op, k, label, title, after) => {
-                const i = document.createElement("input"); i.type = "number"; i.style.cssText = INPUT_CSS; i.value = num(op[k]);
-                i.onchange = () => { op[k] = num(i.value, op[k]); after?.(); commit(); syncRows(); };
+                const i = slidable(document.createElement("input")); i.type = "number"; i.style.cssText = INPUT_CSS; i.value = num(op[k]);
+                if (k !== "dx" && k !== "dy") i.min = "0";   // a size, a percent, a feather: never below 0 (the shift can be)
+                i.onchange = () => { op[k] = floorOf(i, num(i.value, op[k])); if (String(op[k]) !== i.value) i.value = op[k]; after?.(); commit(); syncRows(); };
                 live.push([i, () => num(op[k])]);
                 return field(label, i, title);
             };
@@ -308,7 +351,7 @@ app.registerExtension({
                     g2.append(field("colour", c, "the added area"), numIn(op, "feather", "feather", "soft edge of the pad mask, in px inward (ImagePadForOutpaint). 0 = hard"));
                     const g3 = grid(4);
                     const sideIn = (k, label) => {
-                        const inp = document.createElement("input"); inp.type = "number"; inp.style.cssText = INPUT_CSS;
+                        const inp = slidable(document.createElement("input")); inp.type = "number"; inp.style.cssText = INPUT_CSS;
                         const cur = () => { const g = geo(); const it = g?.items[i]; return it?.signed ? it.signed[k] : 0; };
                         inp.value = cur(); inp.disabled = !(iw && ih);
                         inp.onchange = () => {
@@ -341,12 +384,19 @@ app.registerExtension({
                     const dot = document.createElement("span"); dot.style.cssText = `width:10px;height:10px;border-radius:50%;background:${PALETTE[i % PALETTE.length]};flex:none`;
                     const txt = document.createElement("span"); txt.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
                     const chev = document.createElement("span"); chev.className = "wx-hint"; chev.textContent = i === sel ? "⌃" : "⌄";
-                    row.append(dot, txt, chev);
+                    const grip = document.createElement("span"); grip.className = "wx-hint"; grip.textContent = "≡"; grip.style.cssText = "cursor:grab;font-size:12px;padding:0 2px"; grip.title = "drag to move the action in the stack";
+                    row.append(dot, txt, chev, grip);
                     row.onclick = (e) => { e.stopPropagation(); sel = i === sel ? -1 : i; rebuild(); };
+                    row.draggable = true;   // the handle: drag the row to another place of the stack
+                    row.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", String(i)); row.style.opacity = ".4"; });
+                    row.addEventListener("dragend", () => { row.style.opacity = ""; });
+                    row.addEventListener("dragover", (e) => { e.preventDefault(); row.style.boxShadow = "0 -2px 0 #1464b3"; });
+                    row.addEventListener("dragleave", () => { row.style.boxShadow = ""; });
+                    row.addEventListener("drop", (e) => { e.preventDefault(); row.style.boxShadow = ""; moveTo(Number(e.dataTransfer.getData("text/plain")), i); });
                     rows.appendChild(row); rowEls.push(txt);
                     if (i === sel) rows.appendChild(panelFor(op, i));
                 });
-                bDel.disabled = bUp.disabled = bDn.disabled = sel < 0; bAdd.disabled = ops.length >= MAX_OPS;
+                bDel.disabled = sel < 0; bAdd.disabled = ops.length >= MAX_OPS;
                 syncRows(); node._wxPrevSig = null; fit();
             };
             const syncRows = () => {   // the row texts and the inputs follow the values (after a drag, a typed number, a new picture)
@@ -357,6 +407,7 @@ app.registerExtension({
                     if (rowEls[i]) rowEls[i].textContent = `${i + 1} · ${t}` + (it && it.changed === false ? "  (no change)" : "");
                 });
                 for (const [inp, get] of live) { if (document.activeElement === inp) continue; const v = String(get()); if (inp.value !== v) inp.value = v; }
+                const t = infoText() || "(no change)"; if (nameLine.textContent !== t) nameLine.textContent = t;
             };
 
             // ---- the preview -----------------------------------------------------------------------------------------
@@ -388,15 +439,14 @@ app.registerExtension({
                     const f = g.items[sel] && g.items[sel].op.t !== "resize" ? g.items[sel].canvas : g.final, mx = f.w * 0.04, my = f.h * 0.04;
                     x0 = f.x - mx; y0 = f.y - my; x1 = f.x + f.w + mx; y1 = f.y + f.h + my;
                 }
-                const M = 14, FOOT = 16, aw = cw - 2 * M, ah = chh - 2 * M - FOOT;
+                const M = 14, FOOT = 0, aw = cw - 2 * M, ah = chh - 2 * M - FOOT, maskOn = !!node._wxMask;
                 const k = Math.min(aw / (x1 - x0), ah / (y1 - y0));
                 const offx = M + (aw - (x1 - x0) * k) / 2, offy = M + (ah - (y1 - y0) * k) / 2;
                 const X = (x) => offx + (x - x0) * k, Y = (y) => offy + (y - y0) * k;
                 const R = (b) => [X(b.x), Y(b.y), b.w * k, b.h * k];
                 map = { k, x0, y0, offx, offy, X, Y, R };
                 const color = (i) => PALETTE[i % PALETTE.length];
-                // 1. the pads, last first: each one colours what of its canvas reaches the end, the earlier ones sit inside
-                for (let i = g.items.length - 1; i >= 0; i--) { const it = g.items[i]; if (it.op.t === "pad" && g.vis[i].w > 0 && g.vis[i].h > 0) { ctx.fillStyle = normColor(it.op.color); ctx.fillRect(...R(g.vis[i])); } }
+                const prevOf = (i) => (i > 0 ? g.items[i - 1].canvas : { x: 0, y: 0, w: g.W, h: g.H });   // what action i found
                 // 2. the picture: faint everywhere (what is cropped, cut or covered), full where it comes out
                 const pic = (alpha, clip) => {
                     ctx.save();
@@ -406,15 +456,12 @@ app.registerExtension({
                     else { ctx.fillStyle = "#8a8a8a"; ctx.fillRect(X(0), Y(0), g.W * k, g.H * k); }
                     ctx.restore();
                 };
-                pic(0.22);
-                if (g.vis0.w > 0 && g.vis0.h > 0) pic(1, g.vis0);
-                // 3. the feather of each pad: a band of its colour fading inward from the sides that get a border
-                g.items.forEach((it, i) => {
+                // 3. the feather of each pad: a band fading inward from the sides that get a border (its colour; white in the mask)
+                const feathers = (colOf, a0 = "b0") => g.items.forEach((it, i) => {
                     const f = num(it.op.feather); if (it.op.t !== "pad" || f <= 0) return;
-                    const prev = i > 0 ? g.items[i - 1].canvas : { x: 0, y: 0, w: g.W, h: g.H };
-                    const reg = inter(prev, g.vis[i]); if (reg.w <= 0 || reg.h <= 0) return;
-                    const [bx, by, bw, bh] = R(reg), fpx = Math.min(f / it.sx * k, bw, bh), col = normColor(it.op.color);
-                    const band = (x, y, w, h, gx0, gy0, gx1, gy1) => { const gr = ctx.createLinearGradient(gx0, gy0, gx1, gy1); gr.addColorStop(0, col + "b0"); gr.addColorStop(1, col + "00"); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); };
+                    const reg = inter(prevOf(i), g.vis[i]); if (reg.w <= 0 || reg.h <= 0) return;
+                    const [bx, by, bw, bh] = R(reg), fpx = Math.min(f / it.sx * k, bw, bh), col = colOf(it);
+                    const band = (x, y, w, h, gx0, gy0, gx1, gy1) => { const gr = ctx.createLinearGradient(gx0, gy0, gx1, gy1); gr.addColorStop(0, col + a0); gr.addColorStop(1, col + "00"); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); };
                     ctx.save(); ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
                     if (it.sides[0] > 0) band(bx, by, fpx, bh, bx, 0, bx + fpx, 0);
                     if (it.sides[2] > 0) band(bx + bw - fpx, by, fpx, bh, bx + bw, 0, bx + bw - fpx, 0);
@@ -422,6 +469,23 @@ app.registerExtension({
                     if (it.sides[3] > 0) band(bx, by + bh - fpx, bw, fpx, 0, by + bh, 0, by + bh - fpx);
                     ctx.restore();
                 });
+                if (maskOn) {   // the pad mask as the run makes it: black around, the picture where it comes out, fuchsia = added pixels (every pad, as far as it reaches the end), the feather fading in
+                    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cw, chh);
+                    if (g.vis0.w > 0 && g.vis0.h > 0) pic(1, g.vis0);
+                    ctx.fillStyle = MASK;
+                    g.items.forEach((it, i) => {
+                        if (it.op.t !== "pad" || g.vis[i].w <= 0 || g.vis[i].h <= 0) return;
+                        const inner = inter(prevOf(i), g.vis[i]);
+                        ctx.beginPath(); ctx.rect(...R(g.vis[i])); if (inner.w > 0 && inner.h > 0) ctx.rect(...R(inner)); ctx.fill("evenodd");
+                    });
+                    feathers(() => MASK, "ff");
+                } else {
+                    // 1. the pads, last first: each one colours what of its canvas reaches the end, the earlier ones sit inside
+                    for (let i = g.items.length - 1; i >= 0; i--) { const it = g.items[i]; if (it.op.t === "pad" && g.vis[i].w > 0 && g.vis[i].h > 0) { ctx.fillStyle = normColor(it.op.color); ctx.fillRect(...R(g.vis[i])); } }
+                    pic(0.22);
+                    if (g.vis0.w > 0 && g.vis0.h > 0) pic(1, g.vis0);
+                    feathers((it) => normColor(it.op.color));
+                }
                 // 4. the rectangles: one per crop / pad in its colour, the open one thicker with its handles; the final frame red
                 const selIt = g.items[sel];
                 if (selIt && selIt.op.t === "pad") {   // a thread from each corner of the open pad to the corner of what it wraps: inward = border, outward = cut
@@ -463,22 +527,23 @@ app.registerExtension({
                     }
                 }
                 if (g.vis0.w < g.W || g.vis0.h < g.H) label(`${g.W}×${g.H}`, X(0) + 3, Y(0) - 7 < 4 ? Y(0) + 8 : Y(0) - 7, "#9a9a9a", "left");
-                // 6. the line under: the steps, as the run will do them
-                const steps = [`${g.W}×${g.H}`].concat(g.items.filter((it) => it.changed).map((it) => it.step), [`${g.fw}×${g.fh}`]);
-                ctx.font = "10px sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#999";
-                let line = steps.join(" → ");
-                while (steps.length > 2 && ctx.measureText(line).width > cw - 8) { steps.splice(1, 1); line = steps[0] + " → … → " + steps.slice(1).join(" → "); }
-                ctx.fillText(line, cw / 2, chh - FOOT / 2 - 1);
-                // 7. the zoom button, top right: on = only the open action (or the final frame) fills the drawing
-                const z = zoomBtn(cw);
-                ctx.beginPath(); ctx.roundRect(z.x, z.y, z.w, z.h, 4);
-                ctx.fillStyle = node._wxZoom ? "#1464b3" : "rgba(40,40,40,0.85)"; ctx.fill();
-                ctx.lineWidth = 1; ctx.strokeStyle = node._wxZoom ? "#a8cdf5" : "#666"; ctx.stroke();
-                ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = node._wxZoom ? "#fff" : "#bbb";
-                ctx.fillText(node._wxZoom ? "⤡" : "⤢", z.x + z.w / 2, z.y + z.h / 2 + 1);
+                // 6. the buttons top right: the mask (fuchsia = the pixels the pads add), and the zoom (on = only the open action,
+                //    or the final frame, fills the drawing)
+                const button = (z, on, t) => {
+                    ctx.beginPath(); ctx.roundRect(z.x, z.y, z.w, z.h, 4);
+                    ctx.fillStyle = on ? "#1464b3" : "rgba(40,40,40,0.85)"; ctx.fill();
+                    ctx.lineWidth = 1; ctx.strokeStyle = on ? "#a8cdf5" : "#666"; ctx.stroke();
+                    ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = on ? "#fff" : "#bbb";
+                    ctx.fillText(t, z.x + z.w / 2, z.y + z.h / 2 + 1);
+                };
+                button(maskBtn(cw), maskOn, "mask");
+                button(zoomBtn(cw), !!node._wxZoom, node._wxZoom ? "⤡" : "⤢");
             };
             const zoomBtn = (cw) => ({ x: cw - 24, y: 4, w: 20, h: 18 });
-            const onZoomBtn = (mx, my) => { const z = zoomBtn(cv.clientWidth); return mx >= z.x && mx <= z.x + z.w && my >= z.y && my <= z.y + z.h; };
+            const maskBtn = (cw) => ({ x: cw - 66, y: 4, w: 38, h: 18 });
+            const hitBtn = (z, mx, my) => mx >= z.x && mx <= z.x + z.w && my >= z.y && my <= z.y + z.h;
+            const onZoomBtn = (mx, my) => hitBtn(zoomBtn(cv.clientWidth), mx, my);
+            const onMaskBtn = (mx, my) => hitBtn(maskBtn(cv.clientWidth), mx, my);
 
             // ---- the pointer: a handle of the open rectangle sizes it, inside it moves it, another rectangle opens it ----
             const HANDLES = [["nw", 0, 0], ["n", 0.5, 0], ["ne", 1, 0], ["w", 0, 0.5], ["e", 1, 0.5], ["sw", 0, 1], ["s", 0.5, 1], ["se", 1, 1]];
@@ -505,7 +570,9 @@ app.registerExtension({
                 e.stopPropagation();
                 if (e.button !== 0) return;
                 const [mx, my] = local(e);
+                cv.focus({ preventScroll: true });
                 if (onZoomBtn(mx, my)) { node._wxZoom = !node._wxZoom; node._wxPrevSig = null; paint(); return; }
+                if (onMaskBtn(mx, my)) { node._wxMask = !node._wxMask; node._wxPrevSig = null; paint(); return; }
                 const h = hitAt(mx, my);
                 if (!h) return;
                 if (h.i !== sel) { sel = h.i; rebuild(); }
@@ -514,7 +581,7 @@ app.registerExtension({
                 cv.setPointerCapture(e.pointerId);
             });
             cv.addEventListener("pointermove", (e) => {
-                if (!drag) { const [mx, my] = local(e); cv.style.cursor = onZoomBtn(mx, my) ? "pointer" : cursorFor(hitAt(mx, my)); return; }
+                if (!drag) { const [mx, my] = local(e); cv.style.cursor = onZoomBtn(mx, my) || onMaskBtn(mx, my) ? "pointer" : cursorFor(hitAt(mx, my)); return; }
                 e.stopPropagation();
                 const z = app.canvas?.ds?.scale || 1, k = map ? map.k : 1;
                 const dx = (e.clientX - drag.x) / (z * k) * drag.sx, dy = (e.clientY - drag.y) / (z * k) * drag.sy;   // in the action's input pixels
@@ -544,10 +611,20 @@ app.registerExtension({
             const endDrag = (e) => { if (!drag) return; e.stopPropagation(); drag = null; node.graph?.setDirtyCanvas?.(true, true); };
             cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
             cv.addEventListener("dblclick", (e) => { e.stopPropagation(); const op = ops[sel]; if (op && op.t !== "resize") { op.dx = 0; op.dy = 0; commit(); syncRows(); } });
+            cv.addEventListener("keydown", (e) => {   // the arrow keys nudge the open rectangle: 1 px of its picture, 10 with Shift
+                const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+                if (!d) return;
+                e.preventDefault(); e.stopPropagation();
+                const it = lastG?.items[sel], op = ops[sel]; if (!it || !op || op.t === "resize") return;
+                const s = e.shiftKey ? 10 : 1, b = { ...it.box, x: it.box.x + d[0] * s, y: it.box.y + d[1] * s };
+                if (op.t === "crop") { b.x = clamp(b.x, 0, it.inW - b.w); b.y = clamp(b.y, 0, it.inH - b.h); }
+                setBox(op, it.inW, it.inH, b); commit(); syncRows();
+            });
+            cv.addEventListener("keyup", (e) => e.stopPropagation());
             if (window.ResizeObserver) { new ResizeObserver(() => { node._wxPrevSig = null; paint(); }).observe(cv); new ResizeObserver(fit).observe(stack); }
 
             // ---- repaint only when something it draws from changed: the stack, the open action, the picture, the box, the zoom
-            const sig = () => { const s = source(); return JSON.stringify([lastJSON, sel, !!node._wxZoom, s?.w, s?.h, s?.img?.src, s?.from, cv.clientWidth, cv.clientHeight, Math.round((app.canvas?.ds?.scale || 1) * 8)]); };
+            const sig = () => { const s = source(); return JSON.stringify([lastJSON, sel, !!node._wxZoom, !!node._wxMask, s?.w, s?.h, s?.img?.src, s?.from, cv.clientWidth, cv.clientHeight, Math.round((app.canvas?.ds?.scale || 1) * 8)]); };
             const refresh = () => {
                 if (wOps && wOps.value !== lastJSON) { read(); rebuild(); }   // the box changed from outside (a load, a paste, a value sent in)
                 if (!node._wxSized) {   // a node born on the canvas opens wide enough for the drawing: once, at its first draw, after

@@ -1,7 +1,7 @@
 // WextraUI — WSampler / WScheduler: the menu with the control after generate, as a node of its own.
 // The frontend makes the control (and its filter box) by itself from the schema. Here:
-//  - `selection`, the drop-down above the name: it reads `all`; open it and every name of the list has a tick box; close
-//    it with at least one ticked and it reads `custom · n`. The ticked names, in the order you drag them, ARE the menu
+//  - `selection`, the drop-down above the name: it reads `all · n` (n = the length of the list); open it and every name
+//    of the list has a tick box; close it with at least one ticked and it reads `custom · n`. The ticked names, in the order you drag them, ARE the menu
 //    of the name from then on: the arrows, the list and the walk of increment / decrement / randomize only meet them.
 //    The ticks live in the hidden `selection` box (a JSON list, an input of the node: saved in the workflow, ignored by
 //    the backend); the frontend's filter box is not needed and is taken out of the view.
@@ -52,7 +52,7 @@ app.registerExtension({
             const wName = W(field), wSel = W("selection");
             if (!wName || !wSel) return r;
             ensureStyle();
-            wxHideWidget(wSel);
+            wxHideWidget(wSel, node);
             // ---- the ticks (the state lives in the hidden `selection` box) ------------------------------------------
             let ticked = [], loading = false;
             let whole = wName.options.values;   // the whole list, kept up to date when the frontend refreshes it
@@ -69,7 +69,7 @@ app.registerExtension({
                 if (!c.length || loading) return all();
                 return c.includes(wName.value) || !all().includes(wName.value) ? c : [wName.value, ...c];   // the name of now is never missing from its own menu
             };
-            Object.defineProperty(wName.options, "values", { get: narrowed, set: (v) => { whole = v; }, configurable: true, enumerable: true });
+            Object.defineProperty(wName.options, "values", { get: narrowed, set: (v) => { whole = v; relabel(); }, configurable: true, enumerable: true });   // a refreshed list: the count follows
             node.__wxLoading = (on) => { loading = on; };
             const wFilter = W("control_filter_list");   // not needed: the menu itself is narrowed. Out of the view, empty.
             if (wFilter) {
@@ -79,9 +79,9 @@ app.registerExtension({
             // ---- the drop-down row --------------------------------------------------------------------------------
             const row = document.createElement("div"); row.className = "wx wx-sel";
             row.innerHTML = `<span class="l">selection</span><span class="v">all</span>`;
-            const relabel = () => {
+            const relabel = () => {   // `all · 27` = the whole list and how long it is; `custom · 3` = the ticked names
                 const n = chosen().length, v = row.querySelector(".v");
-                v.textContent = n ? "custom · " + n : "all";
+                v.textContent = n ? "custom · " + n : "all · " + all().length;
                 v.classList.toggle("on", n > 0);
             };
             const closePop = () => { if (openPop) { openPop.remove(); openPop = null; } };

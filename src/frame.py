@@ -32,6 +32,30 @@ METHODS = ["lanczos", "bicubic", "bilinear", "area", "nearest-exact"]
 RESIZE_MODES = ["width", "height", "long side", "short side", "scale %", "fit in box", "cover box"]
 MAX_OPS = 8
 DEFAULT_OPS = '[{"t":"pad","w":1024,"h":1024,"r":"","a":"center","dx":0,"dy":0,"color":"#000000","feather":0}]'
+LAST_INFO = {}   # unique_id -> (ops, what was done) of the last run: WSave Image reads it for {#id} (src/saveWimage.py)
+
+
+def pad_text(l, t, r, b):
+    """The border a pad adds, short: p100 (the same on every side), p100x0 (left = right, top = bottom), p0-170-0-171."""
+    if l == t == r == b:
+        return f"p{l}"
+    if l == r and t == b:
+        return f"p{l}x{t}"
+    return f"p{l}-{t}-{r}-{b}"
+
+
+def frame_text(ops):
+    """The stack as a short text with no picture: what `info` would say, from the numbers set, when the node has not
+    run (a WSave Image part bound to a WFrame, before the first run, or a WFrame not on the road to the save)."""
+    parts = []
+    for op in _ops(ops):
+        t, w, h, r = op["t"], _num(op.get("w")), _num(op.get("h")), str(op.get("r") or "").replace(":", "-")
+        if t == "resize":
+            mode, v = str(op.get("mode") or "width"), _num(op.get("v"))
+            parts.append(f"r{w}x{h}" if "box" in mode else f"r{v}pct" if mode == "scale %" else f"r{v}")
+        else:
+            parts.append(t[0] + (f"{w}x{h}" if w and h else r))
+    return "_".join(parts)
 
 
 def _anchor_offset(anchor, room_x, room_y):
@@ -219,20 +243,20 @@ class Frame:
             "optional": {
                 "mask": ("MASK", {"tooltip": "Optional mask that follows the same crops, pads and resizes."}),
             },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "INT", "INT", "STRING")
-    RETURN_NAMES = ("image", "pad_mask", "width", "height", "info")
-    OUTPUT_TOOLTIPS = ("The picture after the stack.", "1 where the stack added pixels, feathered inward: ready for outpaint. All zeros when nothing was added.",
-                       "Final width.", "Final height.", "What was done, short and file-name-safe: crop800x800_pad112-0-112-0_1024x1024.")
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "pad_mask")
+    OUTPUT_TOOLTIPS = ("The picture after the stack.", "1 where the stack added pixels, feathered inward: ready for outpaint. All zeros when nothing was added.")
     FUNCTION = "run"
     CATEGORY = "WextraUI"
     DESCRIPTION = ("A stack of actions on the picture, in the order you put them: crop (the box that stays), pad (the picture on a "
                    "bigger or smaller canvas: what is missing is padded, what sticks out is cut) and resize (aspect kept). Each one "
-                   "is a coloured rectangle in the preview under the node: drag it, pull its corners. Pad mask for outpaint, and a "
-                   "text of what it did.")
+                   "is a coloured rectangle in the preview under the node: drag it, pull its corners. Pad mask for outpaint. What it "
+                   "did goes in a WSave Image name with {#id} (from Wnodes on graph): c800x800_p112x0.")
 
-    def run(self, image, ops, method, mask=None):
+    def run(self, image, ops, method, mask=None, unique_id=None):
         img, steps = image, []
         B, H, W, C = img.shape
         ui = {"wx_frame": [{"w": W, "h": H, "thumb": _thumb(image)}]}   # what the preview under the node draws from
@@ -249,7 +273,7 @@ class Frame:
                 pad_mask = pad_mask[:, y:y + ch, x:x + cw]
                 if mask is not None:
                     mask = mask[:, y:y + ch, x:x + cw]
-                steps.append(f"crop{cw}x{ch}")
+                steps.append(f"c{cw}x{ch}")
             elif t == "pad":
                 x, y, fw, fh = pad_box(W, H, op)
                 if (fw, fh) == (W, H) and x == 0 and y == 0:
@@ -257,8 +281,8 @@ class Frame:
                 img, (mask, pad_mask), pm, (l, tt, r, b), (cutx, cuty) = _place(
                     img, [mask, pad_mask], fw, fh, x, y, _hex(op.get("color")), max(0, _num(op.get("feather"))))
                 pad_mask = torch.maximum(pad_mask, pm)
-                if l or tt or r or b: steps.append(f"pad{l}-{tt}-{r}-{b}")
-                if cutx or cuty:      steps.append(f"cut{cutx}x{cuty}")
+                if l or tt or r or b: steps.append(pad_text(l, tt, r, b))
+                if cutx or cuty:      steps.append(f"-{cutx}x{cuty}")   # a leading − = cut, like the sides in the panel
             else:
                 rw, rh = resize_size(W, H, op)
                 if (rw, rh) == (W, H):
@@ -266,8 +290,8 @@ class Frame:
                 img = _resize(img, rw, rh, method)
                 mask = _resize_mask(mask, rw, rh)
                 pad_mask = _resize_mask(pad_mask, rw, rh)
-                steps.append(f"rs{rw}x{rh}")
+                steps.append(f"r{rw}x{rh}")
 
-        B, H, W, C = img.shape
-        steps.append(f"{W}x{H}")
-        return {"ui": ui, "result": (img, pad_mask, W, H, "_".join(steps))}
+        if unique_id is not None:   # what was done, for a WSave Image part bound with {#id}: c800x800_p112x0 (c = crop, p = pad, r = resize, - = cut)
+            LAST_INFO[str(unique_id)] = (ops, "_".join(steps))
+        return {"ui": ui, "result": (img, pad_mask)}

@@ -4,21 +4,14 @@
 // `carry` in and out (wxCarry.js): the odometer cable — every LoRA of the folder for every checkpoint, in one queue.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { ensureWxStyle, wxCompactWidgets, wxOnRedraw } from "./wxStyle.js";
+import { ensureWxStyle, wxCompactWidgets, wxOnRedraw, wxHideWidget } from "./wxStyle.js";
 import { wxFolderMenu, wxLoadingGuard, wxCleanName } from "./wxFolder.js";
 import { wxCarryMenu } from "./wxCarry.js";
 
 const TYPE = "wxLoraLoaderTrigger";
 const MAX_TAGS = 80;
 
-function hideWidget(w) {
-    w.type = "converted-widget";
-    w.hidden = true;
-    if (w.options) w.options.hidden = true;
-    w.computeSize = () => [0, -4];
-    const hideEl = () => { if (w.element) { w.element.style.display = "none"; w.element.hidden = true; } };
-    hideEl(); setTimeout(hideEl, 0);
-}
+const hideWidget = wxHideWidget;   // the shared one: the widget and its socket out of the view
 function ensureStyle() {
     if (document.getElementById("wx-lora-style")) return;
     const st = document.createElement("style"); st.id = "wx-lora-style";
@@ -132,7 +125,7 @@ app.registerExtension({
             const wRg3 = node.widgets.find((w) => w.name === "rgthree_info");
             const wPicked = node.widgets.find((w) => w.name === "picked");
             if (!wLora || !wPicked) return r;
-            hideWidget(wPicked);
+            hideWidget(wPicked, node);
 
             let picked = [];
             try { picked = JSON.parse(wPicked.value || "[]"); if (!Array.isArray(picked)) picked = []; } catch (e) { picked = []; }

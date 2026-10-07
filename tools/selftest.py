@@ -266,7 +266,7 @@ def run_graphs(oi):
             "2": N("wxFrame", image=L(1), method="lanczos",
                    ops='[{"t":"resize","mode":"fit in box","v":0,"w":320,"h":320},'
                        '{"t":"pad","w":320,"h":320,"r":"","a":"center","dx":0,"dy":0,"color":"#ff0000","feather":8}]'),
-            "3": N("PreviewAny", source=L(2, 4)),
+            "3": N("PreviewAny", source=L(2, 1)),
         },
         "h3Scene+h3CollectScenes+h3LoopRange+h3HandoffTail": {
             "1": N("h3Scene", prompt="scene one", duration=5.0, seed=1, first_frame_from="previous_scene", guide_frame_at=0.0,

@@ -3,7 +3,8 @@
 // With a `carry` cable in or out (wxCarry.js, the odometer) the number becomes a wheel: from the value you set (kept in
 // the hidden `start` box) to `until`, by `step`; at the end it comes round to the start and, if the cable goes out,
 // sends its beat. Driven (cable in) it moves on the beat of the node at the other end instead of at every run.
-// Without a cable `until` does nothing: the walk is free, as it was.
+// WInt🌱 on `increment-wrap` is the same wheel with no cable (Sick, 07/10): forward to `until`, then round to the start.
+// Otherwise `until` does nothing: the walk is free, as it was.
 import { app } from "../../scripts/app.js";
 import { wxCarry } from "./wxCarry.js";
 import { wxHideWidget } from "./wxStyle.js";
@@ -25,19 +26,21 @@ app.registerExtension({
             const rnd = isInt ? (x) => Math.round(Number(x)) : (x) => Math.round(Number(x) * 100) / 100;
             const wVal = W("value"), wCtl = W("control"), wStep = W("step"), wUntil = W("until"), wStart = W("start");
             if (!(wVal && wCtl && wStep)) return r;
-            if (wStart) wxHideWidget(wStart);
-            const CTL = ["fixed", "increment", "decrement", "randomize"];
+            if (wStart) wxHideWidget(wStart, node);
+            const CTL = ["fixed", "increment", "decrement", "randomize", "increment-wrap"];
             const ctl = () => (CTL.includes(wCtl.value) ? wCtl.value : "fixed");
+            const wrapOn = () => ctl() === "increment-wrap";   // the wheel with no cable (WInt🌱: the menu offers it)
             const step = () => Math.abs(rnd(wStep.value)) || (isInt ? 1 : 0.1);
             const lo = () => (typeof wVal.options?.min === "number" ? wVal.options.min : -Infinity);
             const hi = () => (typeof wVal.options?.max === "number" ? wVal.options.max : Infinity);
             const clamp = (v) => Math.min(hi(), Math.max(lo(), v));
             const fmt = (v) => (isInt ? String(v) : String(rnd(v)));
             let carry = null;   // set below, once the control's afterQueued is in place
-            // ---- the wheel: start → until by step, only with a carry cable in or out; until = start means no arrival ----
+            // ---- the wheel: start → until by step, with a carry cable in or out or on increment-wrap; until = start means no arrival ----
             const startV = () => { const s = Number(wStart?.value); return wStart && wStart.value !== "" && Number.isFinite(s) ? rnd(s) : rnd(wVal.value); };
+            const wheelOn = () => !!(carry?.linked() || wrapOn());
             const wheel = () => {
-                if (!wUntil || !carry?.linked()) return null;
+                if (!wUntil || !wheelOn()) return null;
                 const s = startV(), u = rnd(wUntil.value), st = step();
                 if (!Number.isFinite(u) || u === s) return null;
                 return { s, u, st, d: u > s ? 1 : -1, n: Math.floor(Math.abs(u - s) / st + 1e-9) + 1 };
@@ -68,14 +71,25 @@ app.registerExtension({
                 syncArrows();
                 const c = ctl(), w = wheel(), d = !!carry?.driven();
                 const by = c === "randomize" ? "random" : (c === "decrement" ? "−" : "+") + step();
-                const arc = w ? ` · ${fmt(w.s)} → ${fmt(w.u)}` : "";
+                const arc = w ? ` · ${fmt(w.s)} → ${fmt(w.u)}` + (c === "increment-wrap" && !d ? " ↻" : "") : "";
                 wCtl.label = d ? "on carry · " + by + arc : c === "fixed" ? "control" : by + "/run" + arc;
-                if (wUntil) wUntil.disabled = !carry?.linked();   // greyed out without a cable: the walk is free then
+                if (wUntil) wUntil.disabled = !wheelOn();   // greyed out with no cable and not on increment-wrap: the walk is free then
                 node.setDirtyCanvas(true, false);
             };
-            // the value you set by hand is where the wheel starts
+            // the value you set by hand is where the wheel starts.
+            // The frontend's own callback of a number box snaps what it gets: an INT to min + k × step2 (so with the arrows
+            // on `step` 2, 1 typed became 2 and the walk went 2, 4, 6 instead of 1, 3, 5), a FLOAT to the rounding of the
+            // settings. Here the number is only rounded (an integer; two decimals) and clamped: the walk starts from the
+            // value you set and moves by `step` from there.
             const cbVal = wVal.callback;
-            wVal.callback = function () { const rr = cbVal?.apply(this, arguments); if (!walking && wStart) wStart.value = String(rnd(wVal.value)); relabel(); return rr; };
+            wVal.callback = function (v) {
+                const rr = cbVal?.apply(this, arguments);
+                const n = Number(v);
+                if (Number.isFinite(n)) wVal.value = clamp(rnd(n));
+                if (!walking && wStart) wStart.value = String(rnd(wVal.value));
+                relabel();
+                return rr;
+            };
             for (const w of [wCtl, wStep, wUntil]) { if (!w) continue; const cb = w.callback; w.callback = function () { const rr = cb?.apply(this, arguments); relabel(); return rr; }; }
             wCtl.afterQueued = () => {
                 const c = ctl();
