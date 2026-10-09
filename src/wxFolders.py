@@ -1,10 +1,13 @@
-"""WextraUI — the `folder` menu of the loaders (WLoRA, WCheckpoint).
-The folders of a model list at every depth, as the menu shows them: (all), Krea2, Krea2 / Characters, Krea2 / Characters / Heroes, ...
-The menu only lives in the node (it narrows the name menu and the walk of the control after generate, in the frontend):
-the backend ignores it, a folder that is gone must never stop a run."""
+"""WextraUI — the menus that narrow a name menu: `folder` of the loaders (WLoRA, WCheckpoint) and `selection`
+(WSampler, WScheduler, and the loaders under `folder`).
+`folder`: the folders of a model list at every depth, as the menu shows them: (all), Krea2, Krea2 / Characters, Krea2 / Characters / Heroes, ...
+`selection`: the names ticked in the drop-down, in the order given (a JSON list filled by the widget).
+Both only live in the node (they narrow the name menu and the walk of the control after generate, in the frontend):
+the backend ignores them, a folder that is gone must never stop a run."""
 import folder_paths
 
 ALL_FOLDERS = "(all)"
+SELECTION = ("STRING", {"default": "", "tooltip": "The names ticked in the selection drop-down, in the order you gave them (JSON list, filled by the widget). Empty = all. Lives in the node: the backend ignores it."})
 
 
 def folders_of(kind):

@@ -46,7 +46,7 @@ class H3CollectScenes:
         "One line per scene: duration, seed, start, hand-off. Wire it to a Show Anything node.",
     )
     FUNCTION = "collect"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     DESCRIPTION = "Collects WScene H3 objects, in socket order, into the list the loop runs over."
 
     def collect(self, **kwargs):

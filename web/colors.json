@@ -99,5 +99,10 @@
     "_name": "WSwitch",
     "color": "normal grey",
     "bgcolor": ""
+  },
+  "wxReso": {
+    "_name": "WReso",
+    "color": "normal grey",
+    "bgcolor": ""
   }
 }

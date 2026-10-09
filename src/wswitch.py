@@ -13,7 +13,12 @@ after every queued run, over the slots in use; on a carry cable it moves on the 
 slot to the first it beats the next node. All in the interface: here control and carry are accepted and ignored.
 
 The first output, `index`, is the index of the slot that is on, counted like an array (0 = the first slot): for the nodes that must follow
-the same choice (a text index, a route, another switch)."""
+the same choice (a text index, a route, another switch).
+
+`labels` (Sick, 09/10): the names of the slots, a JSON object slot -> name kept by the node (double-click a pill to name a
+slot; a slot fed by a checkpoint or LoRA loader gets the bare file name by itself, marked with a leading `~`). WSave
+Image's {#id} of a WSwitch is the name of the slot that is on (src/saveWimage.py), else its number: no String node and
+no Set / Get to carry the short name of the model into the file name."""
 from .route import ANY
 from .wxCarry import CARRY, CARRY_IN, CARRY_OUT_TOOLTIP
 
@@ -40,6 +45,8 @@ class WSwitch:
                                           "the next one (increment), the one before (decrement), any (randomize), coming round at "
                                           "the ends. Driven by a carry cable it moves on the beat instead. Lives in the node."})
         optional["carry"] = CARRY_IN
+        # after the boxes of before (a workflow saved without it, read by position, still lines up); the node keeps it out of view
+        optional["labels"] = ("STRING", {"default": "", "tooltip": "The names of the slots, for the file name (JSON, filled by the node: double-click a slot's pill to name it). WSave Image's {#id} of this node is the name of the slot that is on, else its number. Lives in the node: the backend ignores it."})
         return {
             "required": {
                 "inputs_per_slot": ("INT", {"default": 1, "min": 1, "max": MAX_PER,

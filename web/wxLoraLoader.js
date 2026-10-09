@@ -6,6 +6,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { ensureWxStyle, wxCompactWidgets, wxOnRedraw, wxHideWidget } from "./wxStyle.js";
 import { wxFolderMenu, wxLoadingGuard, wxCleanName } from "./wxFolder.js";
+import { wxSelectionMenu } from "./wxSelection.js";
 import { wxCarryMenu } from "./wxCarry.js";
 
 const TYPE = "wxLoraLoaderTrigger";
@@ -43,8 +44,10 @@ app.registerExtension({
             const wLora = node.widgets.find((w) => w.name === "lora_name");
             const W = (nm) => node.widgets.find((w) => w.name === nm);
             // `folder` (above the name) + the filter box of the control after generate: shared with WCheckpoint (wxFolder.js)
-            const wFolder = W("folder");
+            const wFolder = W("folder"), wSel = W("selection");
             wxFolderMenu(node, wFolder, wLora);
+            // `selection` (under `folder`, shared with WCheckpoint / WSampler: wxSelection.js): the ticked LoRAs, in their order, are the menu
+            if (wSel && wLora) wxSelectionMenu(node, wSel, wLora, { after: wFolder, watch: [wFolder] });
             // Loading a file: put the values where they belong and settle what an older layout left in a wrong box.
             {
                 const CTLS = ["fixed", "increment", "decrement", "randomize", "increment-wrap"];   // control after generate of the LoRA
@@ -217,17 +220,29 @@ app.registerExtension({
             widget.serialize = false;    // the picker mirrors `picked`: no slot of its own in widgets_values
             wxCompactWidgets(node);
             wxLoadingGuard(node);   // outermost: the menu of lora_name stays whole for as long as the file is read
-            wxCarryMenu(node, wLora, [wFolder, W("where")]);   // the odometer cable: at / size / move on the menu narrowed by `folder`
-            let H = 120;
+            wxCarryMenu(node, wLora, [wFolder, wSel, W("where")]);   // the odometer cable: at / size / move on the menu narrowed by `folder` and `selection`
+            // The height is measured from the DOM, so only when the DOM is there to be read: the box of the widget is sized by the
+            // canvas at every draw, and a page in the background (a tab not in front) is never drawn — its box is 0 wide, the text
+            // wraps and the measure is garbage; before, the measure was taken in a requestAnimationFrame, which a page in the
+            // background never runs, and the first one it runs may come before the box is sized: a workflow loaded that way came
+            // up with the node at a wrong height, the picker cut or floating, until something on it changed. Now a measure that
+            // cannot be taken is owed, and taken again at every redraw and on the timer (wxOnRedraw) until it can; and a box whose
+            // width changed (the node resized) is measured again, so the chips that wrap do not push the base line out of sight.
+            let H = 120, lastW = 0, unfit = true, fitting = false;
             widget.computeSize = (width) => [width, H];
-            const fitHeight = () => requestAnimationFrame(() => {
-                if (!root.isConnected || !root.offsetHeight) return;   // no box yet, or the node is off screen (the canvas hides its HTML): nothing to measure
+            const readyW = () => (root.isConnected && root.offsetHeight ? root.offsetWidth : 0);   // the width of the box, 0 = not in view or not sized yet
+            const measure = () => {
+                fitting = false;
+                const w = readyW();
+                if (w < 100) { unfit = true; return; }
+                unfit = false; lastW = w;
                 // where the content ends, not scrollHeight: that one never goes below the height the box already has, so the node grew and never shrank back
                 const last = root.lastElementChild, content = last.offsetTop - root.offsetTop + last.offsetHeight + 4;
                 const h = Math.max(90, Math.min(520, content + 10));   // the lists scroll at 190px; the room above them is for the picked chips, so the base line stays in sight
                 if (Math.abs(h - H) < 4) return;
                 H = h; node.setSize([node.size[0], node.computeSize()[1]]); node.setDirtyCanvas(true, true);
-            });
+            };
+            const fitHeight = () => { unfit = true; if (!fitting) { fitting = true; setTimeout(measure, 0); } };   // after the draw of now, never inside it
             node._wxFit = () => { H = -1; fitHeight(); };   // back from Nodes 2.0 (wxStyle.js): measure the content again, as on a load
 
             // Title: "Lora Loader Trigger" until the node is collapsed for the first time; from then on = LoRA name
@@ -248,6 +263,8 @@ app.registerExtension({
             const watch = () => {
                 if (wLora.value !== lastLora) { lastLora = wLora.value; onLoraChange(); }
                 if (node.flags?.collapsed && !named()) setTitle();
+                const w = readyW();
+                if (unfit ? w >= 100 : w >= 100 && w !== lastW) fitHeight();   // a measure owed (a load in a background tab, the node off screen) as soon as the box is there; a box of a new width (the node resized) again
             };
             wxOnRedraw(node, watch);
             const onCollapse = node.collapse;

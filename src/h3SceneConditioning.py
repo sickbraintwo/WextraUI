@@ -83,7 +83,7 @@ class H3SceneConditioning:
         "One line for a Show Anything node: scene, timing, canvas, seed and hand-off state.",
     )
     FUNCTION = "condition"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     DESCRIPTION = ("Builds the H3 conditioning for scene[scene_index]: first/last frame, guide, references and the "
                    "motion/audio hand-off from the previous scene, in one node.")
 

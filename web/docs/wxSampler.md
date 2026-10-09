@@ -19,6 +19,8 @@ Two things that walk, one inside the other: `carry` **out** of the fast one, **i
 
 Both ends of a menu wrap, so the beat goes on down a chain: WScheduler → WSampler → WCheckpoint = every checkpoint of the folder × every sampler × every scheduler of the selection. The label of the input counts the runs: `carry · 3 × 4 = 12 runs`. Put 12 in the queue and the grid makes itself. The order is fixed by the cable (the slow wheel is downstream); to go the other way round, turn the cable round. The backend is not in it: the cable passes a string, the beats happen in the interface between one queued run and the next.
 
+On the row of the `carry` output, when the node walks (alone with `increment`, or in a chain), two chips: **`⟲`** puts every wheel of the chain back to its first place (the first sampler of the selection, the first scheduler, the first checkpoint, the first seed), **`▶ 12`** does the same and queues the runs of the whole grid (a node alone: its selection). The number goes in the **batch box next to Run** too: the next Run queues the grid again.
+
 ## Title
 The node is called *WSampler* until you **collapse** it for the first time: from then on the title is the sampler's name and follows the menu. Rename it by hand and it keeps your title.
 

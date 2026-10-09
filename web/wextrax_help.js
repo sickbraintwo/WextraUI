@@ -7,7 +7,7 @@ import { app } from "../../scripts/app.js";
 
 const CATEGORY = "WextraUI";
 const WIDTHS = { saveWimage: 210, h3PromptComposer: 400, h3SimplePrompt: 400, h3Scene: 220, h3CollectScenes: 220, h3LoopRange: 210, h3SceneConditioning: 270,
-                 h3HandoffTail: 200, wxRoute: 210, wxRouteIndex: 210, wxRunDiff: 210, wxLoraLoaderTrigger: 380, wxCheckpointLoader: 300, wxSampler: 260, wxScheduler: 260, wxFrame: 340 };
+                 h3HandoffTail: 200, wxRoute: 210, wxRouteIndex: 210, wxRunDiff: 210, wxLoraLoaderTrigger: 380, wxCheckpointLoader: 300, wxSampler: 260, wxScheduler: 260, wxFrame: 340, wxReso: 160 };
 const DOCS = new URL("./docs/", import.meta.url).pathname;  // /extensions/<folder>/docs/, whatever the folder is called
 const ICON = 16, MARGIN = 6;
 const popups = new Map();   // node id -> popup element
@@ -166,7 +166,8 @@ app.registerExtension({
         scan();
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.category !== CATEGORY) return;
+        // "WextraUI" and its sub-menus ("WextraUI/H3"): the help, the width and the colours are for every node of the pack.
+        if (nodeData.category !== CATEGORY && !String(nodeData.category || "").startsWith(CATEGORY + "/")) return;
         const desc = nodeData.description || "";
         const onCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {

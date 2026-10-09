@@ -32,7 +32,7 @@ from PIL.PngImagePlugin import PngInfo
 import folder_paths
 from .wxPaths import output_dir, clean_subfolder
 
-MAX_PARTS = 8
+MAX_PARTS = 10   # 8 until 0.7.1 (Sick, 09/10): parts 9 and 10 are declared before write_batch, web/saveWimage.js migrates the old files
 NODE_VALUE = {   # class_type -> the input that names the walk, for {#id}
     "wxSampler": "sampler_name",
     "wxScheduler": "scheduler",
@@ -45,6 +45,17 @@ BARE = ("wxCheckpointLoader", "wxLoraLoaderTrigger")   # a file: the bare name, 
 IDREF = re.compile(r"\{#([\d:]+)\}")
 MAX_PATH = 259  # Windows: percorso completo, terminatore escluso
 TYPES = ["int", "float", "bool", "string"]
+
+
+def switch_label(labels, slot):
+    """The name of slot `slot` (from 1) in a WSwitch's `labels` (a JSON object slot -> name; a leading `~` marks a name the
+    node found by itself, from the loader on the slot's first cable): "" when there is none."""
+    try:
+        d = json.loads(labels) if isinstance(labels, str) and labels.strip() else {}
+    except Exception:
+        return ""
+    v = d.get(str(slot)) if isinstance(d, dict) else ""
+    return str(v).lstrip("~").strip() if v else ""
 
 
 def node_value(prompt, nid, scope=""):
@@ -62,11 +73,9 @@ def node_value(prompt, nid, scope=""):
         ops = ins.get("ops")
         last = LAST_INFO.get(key_id)
         return last[1] if last and last[0] == ops else frame_text(ops)
-    if ct == "wxSwitch":   # the slot that is on, counted from 0 (the first on_i that is true)
-        for i in range(1, 21):
-            if ins.get(f"on_{i}") is True:
-                return str(i - 1)
-        return "0"
+    if ct == "wxSwitch":   # the name of the slot that is on (its `labels`, typed or found by the node), else its number from 0
+        on = next((i for i in range(1, 21) if ins.get(f"on_{i}") is True), 1)
+        return switch_label(ins.get("labels"), on) or str(on - 1)
     key = NODE_VALUE.get(ct)
     if key is None:   # not a node we know: the first input that is a value, not a link
         for k, v in ins.items():

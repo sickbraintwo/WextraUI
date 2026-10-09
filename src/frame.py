@@ -5,11 +5,13 @@
           crop   {"t":"crop","w":800,"h":800,"r":"","a":"center","dx":0,"dy":0}
                  the box that stays: w x h at the anchor, shifted by dx / dy. 0 = the whole side; with r (an aspect,
                  "1:1") and no size, the biggest box of that aspect inside the picture.
-          pad    {"t":"pad","w":1024,"h":1024,"r":"","a":"center","dx":0,"dy":0,"color":"#000000","feather":0}
-                 the picture goes on a w x h canvas at the anchor, shifted; what is missing is PADDED with the colour,
-                 what sticks out is cut. 0 = keep that side; with r and no size, the smallest canvas of that aspect
-                 around the picture. The pad MASK (1 where pixels were added, feathered inward like ImagePadForOutpaint)
-                 adds up over the pads of the stack and follows the crops and resizes after them.
+          pad    {"t":"pad","w":1024,"h":1024,"r":"","a":"center","dx":0,"dy":0,"color":"#000000","feather":0,"fill":"colour"}
+                 the picture goes on a w x h canvas at the anchor, shifted; what is missing is PADDED with the colour
+                 (fill "colour", the default) or with the picture's own border pixels going on outward, row by row and
+                 column by column (fill "edge", Sick 09/10: a gradient continues, a blue side stays blue); what sticks
+                 out is cut. 0 = keep that side; with r and no size, the smallest canvas of that aspect around the
+                 picture. The pad MASK (1 where pixels were added, feathered inward like ImagePadForOutpaint) adds up
+                 over the pads of the stack and follows the crops and resizes after them.
           resize {"t":"resize","mode":"width","v":1024,"w":1024,"h":1024}
                  aspect kept: width / height / long side / short side = that side to v px; scale % = v; fit in box /
                  cover box = the w x h box (0 = that side of the picture).
@@ -31,7 +33,7 @@ ANCHORS = ["center", "top", "bottom", "left", "right", "top-left", "top-right", 
 METHODS = ["lanczos", "bicubic", "bilinear", "area", "nearest-exact"]
 RESIZE_MODES = ["width", "height", "long side", "short side", "scale %", "fit in box", "cover box"]
 MAX_OPS = 8
-DEFAULT_OPS = '[{"t":"pad","w":1024,"h":1024,"r":"","a":"center","dx":0,"dy":0,"color":"#000000","feather":0}]'
+DEFAULT_OPS = "[]"   # a new node does nothing: the picture passes through until an action is added (Sick, 09/10)
 LAST_INFO = {}   # unique_id -> (ops, what was done) of the last run: WSave Image reads it for {#id} (src/saveWimage.py)
 
 
@@ -124,8 +126,10 @@ def _resize_mask(m, w, h):
     return torch.nn.functional.interpolate(m.unsqueeze(1), size=(h, w), mode="bilinear", align_corners=False).squeeze(1)
 
 
-def _place(img, masks, cw, ch, x, y, color, feather):
+def _place(img, masks, cw, ch, x, y, color, feather, fill="colour"):
     """Put the picture on a cw x ch canvas with its top-left at (x, y): pads what is missing, cuts what sticks out.
+    The added area is the colour, or (fill "edge") the picture's border pixels carried on outward: each row's last
+    pixel to the left and right, then each column's to the top and bottom (the corners come from the corner pixel).
     Returns image, the masks moved the same way (zeros in the added area), the pad mask of this step (1 in the added
     area, feathered inward), the four borders added (l, t, r, b) and the pixels cut (x, y)."""
     B, H, W, C = img.shape
@@ -137,6 +141,15 @@ def _place(img, masks, cw, ch, x, y, color, feather):
     out = torch.empty((B, ch, cw, C), dtype=img.dtype, device=img.device)
     out[:] = torch.tensor((color + [1.0, 1.0])[:C], dtype=img.dtype, device=img.device)
     out[:, dy:dy + vh, dx:dx + vw] = vis
+    if fill == "edge" and vh and vw:
+        if dx > 0:
+            out[:, dy:dy + vh, :dx] = vis[:, :, :1]
+        if dx + vw < cw:
+            out[:, dy:dy + vh, dx + vw:] = vis[:, :, -1:]
+        if dy > 0:
+            out[:, :dy, :] = out[:, dy:dy + 1, :]
+        if dy + vh < ch:
+            out[:, dy + vh:, :] = out[:, dy + vh - 1:dy + vh, :]
     moved = []
     for mask in masks:
         if mask is None:
@@ -252,7 +265,8 @@ class Frame:
     FUNCTION = "run"
     CATEGORY = "WextraUI"
     DESCRIPTION = ("A stack of actions on the picture, in the order you put them: crop (the box that stays), pad (the picture on a "
-                   "bigger or smaller canvas: what is missing is padded, what sticks out is cut) and resize (aspect kept). Each one "
+                   "bigger or smaller canvas: what is missing is padded with a colour or with the picture's own border carried on, "
+                   "what sticks out is cut) and resize (aspect kept). Each one "
                    "is a coloured rectangle in the preview under the node: drag it, pull its corners. Pad mask for outpaint. What it "
                    "did goes in a WSave Image name with {#id} (from Wnodes on graph): c800x800_p112x0.")
 
@@ -279,7 +293,8 @@ class Frame:
                 if (fw, fh) == (W, H) and x == 0 and y == 0:
                     continue
                 img, (mask, pad_mask), pm, (l, tt, r, b), (cutx, cuty) = _place(
-                    img, [mask, pad_mask], fw, fh, x, y, _hex(op.get("color")), max(0, _num(op.get("feather"))))
+                    img, [mask, pad_mask], fw, fh, x, y, _hex(op.get("color")), max(0, _num(op.get("feather"))),
+                    "edge" if op.get("fill") == "edge" else "colour")
                 pad_mask = torch.maximum(pad_mask, pm)
                 if l or tt or r or b: steps.append(pad_text(l, tt, r, b))
                 if cutx or cuty:      steps.append(f"-{cutx}x{cuty}")   # a leading − = cut, like the sides in the panel

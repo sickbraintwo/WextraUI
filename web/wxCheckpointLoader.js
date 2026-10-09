@@ -1,9 +1,11 @@
-// WextraUI — WCheckpoint: the core Load Checkpoint with the `folder` menu above the name and the seed-style control
-// under it (both shared with WLoRA: wxFolder.js), auto title = checkpoint name once collapsed, and `carry`
-// in and out (wxCarry.js): the odometer cable — every checkpoint of the folder for every sampler, in one queue.
+// WextraUI — WCheckpoint: the core Load Checkpoint with the `folder` menu above the name, the `selection` drop-down
+// under it (both shared with WLoRA: wxFolder.js, wxSelection.js) and the seed-style control under the name, auto title
+// = checkpoint name once collapsed, and `carry` in and out (wxCarry.js): the odometer cable — every checkpoint of the
+// folder for every sampler, in one queue.
 import { app } from "../../scripts/app.js";
 import { wxCompactWidgets } from "./wxStyle.js";
 import { wxFolderMenu, wxLoadingGuard, wxTitleFollows } from "./wxFolder.js";
+import { wxSelectionMenu } from "./wxSelection.js";
 import { wxCarryMenu } from "./wxCarry.js";
 
 const TYPE = "wxCheckpointLoader";
@@ -17,9 +19,10 @@ app.registerExtension({
             const r = onCreated?.apply(this, arguments);
             const node = this;
             const W = (nm) => node.widgets.find((w) => w.name === nm);
-            const wFolder = W("folder"), wName = W("ckpt_name");
+            const wFolder = W("folder"), wName = W("ckpt_name"), wSel = W("selection");
             if (!wName) return r;
             wxFolderMenu(node, wFolder, wName);
+            if (wSel) wxSelectionMenu(node, wSel, wName, { after: wFolder, watch: [wFolder] });   // under `folder`: ticks on the menu as `folder` leaves it
             // the control of the name: a value that is not one of its own (a file touched by hand) goes back to fixed
             const ctl = () => node.widgets.find((w) => w !== wFolder && w !== wName && Array.isArray(w.options?.values) && w.options.values.includes("randomize"));
             const onConf = node.onConfigure;
@@ -32,7 +35,7 @@ app.registerExtension({
             wxTitleFollows(node, wName, nodeData.display_name);
             wxCompactWidgets(node);
             wxLoadingGuard(node);   // outermost: the menu of ckpt_name stays whole for as long as the file is read
-            wxCarryMenu(node, wName, [wFolder]);   // the odometer cable: at / size / move on the menu narrowed by `folder`
+            wxCarryMenu(node, wName, [wFolder, wSel]);   // the odometer cable: at / size / move on the menu narrowed by `folder` and `selection`
             return r;
         };
     },

@@ -99,8 +99,8 @@ def widget_inputs(spec):
 def check_schema(oi):
     nodes = sorted(k for k in oi if k.startswith(PREFIXES))
     print(f"2. schema: {len(nodes)} WextraUI nodes in object_info")
-    if len(nodes) < 20:
-        fail(f"expected 20 nodes, found {len(nodes)}: {nodes}")
+    if len(nodes) < 21:
+        fail(f"expected 21 nodes, found {len(nodes)}: {nodes}")
     for k in nodes:
         for name, t, o in widget_inputs(oi[k]):
             if isinstance(t, list) and not t and "default" not in o:
@@ -267,6 +267,14 @@ def run_graphs(oi):
                    ops='[{"t":"resize","mode":"fit in box","v":0,"w":320,"h":320},'
                        '{"t":"pad","w":320,"h":320,"r":"","a":"center","dx":0,"dy":0,"color":"#ff0000","feather":8}]'),
             "3": N("PreviewAny", source=L(2, 1)),
+        },
+        "EmptyImage+wxReso": {
+            "1": N("EmptyImage", width=256, height=192, batch_size=1, color=0),
+            "2": N("wxReso", image=L(1)),                      # from the picture: 256 × 192
+            "3": N("wxSeed", value=640, control="fixed", step=1),
+            "4": N("wxReso", width=L(3, 0), height=L(2, 1)),   # from two cables: 640 × 192
+            "5": N("PreviewAny", source=L(4, 0)),
+            "6": N("PreviewAny", source=L(4, 1)),
         },
         "h3Scene+h3CollectScenes+h3LoopRange+h3HandoffTail": {
             "1": N("h3Scene", prompt="scene one", duration=5.0, seed=1, first_frame_from="previous_scene", guide_frame_at=0.0,

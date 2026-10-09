@@ -38,7 +38,7 @@ class H3SimplePrompt:
     RETURN_NAMES = ("prompt",)
     OUTPUT_TOOLTIPS = ("The composed prompt, ready for the prompt input of WScene H3.",)
     FUNCTION = "compose"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     OUTPUT_NODE = True
     DESCRIPTION = ("MiniMax H3 prompt without time-codes: scene + action in chronological order + Camera + Sound + "
                    "what is fixed / what moves + final state + up to three things to avoid. Empty fields are skipped.")

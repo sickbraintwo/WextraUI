@@ -16,6 +16,7 @@ from .promptRows import PromptRows
 from .wfloat import WFloat
 from .wseed import WSeed
 from .wswitch import WSwitch
+from .wreso import WReso
 
 # Retired (kept in src/legacy/, not registered): h3ImageToVideo (switchable), h3HandoffGate, h3SceneListBuilder
 # — absorbed by H3SceneConditioning (26/08/2026); h3Conditioning (all-in-one, out of the loop) — never used, the loop
@@ -43,6 +44,7 @@ NODE_CLASS_MAPPINGS = {
     "wxFloat": WFloat,
     "wxSeed": WSeed,
     "wxSwitch": WSwitch,
+    "wxReso": WReso,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -66,4 +68,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "wxFloat": "WFloat",
     "wxSeed": "WInt🌱",
     "wxSwitch": "WSwitch",
+    "wxReso": "WReso",
 }

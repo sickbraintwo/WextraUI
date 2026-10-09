@@ -33,7 +33,7 @@ class H3HandoffTail:
         "What was cut and from where, for a Show Anything node.",
     )
     FUNCTION = "cut"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     DESCRIPTION = ("Cuts the hand-off tail for the NEXT scene: its handoff_frames from the clip just rendered, "
                    "or from the file it names (previous_from = file). Wire to the loop end (value1/2/3).")
 

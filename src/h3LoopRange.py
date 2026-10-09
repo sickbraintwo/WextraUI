@@ -53,7 +53,7 @@ class H3LoopRange:
         "True when the run resumes from a file instead of starting fresh from first_keyframe.",
     )
     FUNCTION = "compute"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     DESCRIPTION = ("Loop range + what the first scene of the run starts from: the keyframe (scene 0) or the tail of "
                    "the clip written on that scene (previous_from = file).")
 

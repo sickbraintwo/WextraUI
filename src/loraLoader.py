@@ -6,7 +6,7 @@ import json
 import nodes
 from .loraInfo import read_header, tag_frequency, rg3_info
 import folder_paths
-from .wxFolders import ALL_FOLDERS, folders_of, clean_name
+from .wxFolders import ALL_FOLDERS, SELECTION, folders_of, clean_name
 from .wxCarry import CARRY, CARRY_IN, CARRY_OUT_TOOLTIP
 
 
@@ -25,7 +25,7 @@ class LoraLoaderTrigger:
             # in this order, so that an API prompt written before `folder` existed is still valid as it is.
             "optional": {
                 "folder": (lora_folders(), {"default": ALL_FOLDERS, "tooltip": "Narrows the LoRA menu, and the walk of increment / decrement / randomize, to one folder and what is under it. The label shows where you are in that folder (3/12): the runs to queue. Lives in the node: the backend ignores it."}),
-                "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The LoRA to load.", "control_after_generate": "fixed"}),   # fixed / increment / decrement / randomize, like the seed (Sick, 14/09)
+                "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The LoRA to load. The control under it walks the folder across queued runs (increment / decrement / randomize); the selection drop-down above narrows the menu and the walk to the names you tick, in the order you give them.", "control_after_generate": "fixed"}),   # fixed / increment / decrement / randomize, like the seed (Sick, 14/09)
                 # Everything below the name is `optional`, in the order the boxes are drawn: the saved widgets_values line
                 # up with object_info, so whoever reads the workflow by position (comfy-cli, MCP) pairs the right values.
                 # The walk of the LoRA list is done by the frontend between one queued run and the next; a strength that
@@ -44,6 +44,9 @@ class LoraLoaderTrigger:
                                                  "tooltip": "prefix = trigger words, then your prompt; suffix = your prompt, then the words."}),
                 "separator": ("STRING", {"default": ", ", "multiline": True, "tooltip": "Between the words, and between the words and your prompt. Multi-line: a newline is a valid separator."}),
                 "picked": ("STRING", {"default": "", "multiline": True, "tooltip": "Words chosen in the chip picker (JSON list, filled by the widget)."}),
+                # `selection` (0.8.0) after the boxes of before, so a workflow saved without it, read by position, still
+                # lines up; the frontend moves its row under `folder`
+                "selection": SELECTION,
                 "model": ("MODEL", {"tooltip": "Optional: without it the node only builds the prompt."}),
                 "clip": ("CLIP", {"tooltip": "Optional (models without CLIP, or model-only LoRAs)."}),
                 "prompt": ("STRING", {"forceInput": True, "tooltip": "Your prompt; comes out with the trigger words merged in."}),
@@ -59,7 +62,7 @@ class LoraLoaderTrigger:
     CATEGORY = "WextraUI"
     DESCRIPTION = ("Loads a LoRA and merges its trigger words into the prompt in the same node: the official words (rgthree info file) or "
                    "training tags, chosen by clicking chips in the node. One node instead of loader + name + tags + concat. "
-                   "The seed-style control walks the LoRA list (all of it, or one folder) across queued runs; for a strength that walks, cable a WFloat.")
+                   "The seed-style control walks the LoRA list (all of it, one folder, or the names you tick in the selection drop-down, in their order) across queued runs; for a strength that walks, cable a WFloat.")
 
     @classmethod
     def VALIDATE_INPUTS(cls, folder=ALL_FOLDERS):   # naming `folder` here takes it out of the menu check: a folder that is gone must not stop a run
@@ -67,7 +70,7 @@ class LoraLoaderTrigger:
 
     def load(self, lora_name=None, strength_model=1.0, strength_clip=1.0, where="prefix",
              separator=", ", picked="", model=None, clip=None, prompt=None, **_):
-        # **_ = what lives in the node (folder, rgthree_info, carry) and what an older API prompt may still send
+        # **_ = what lives in the node (folder, selection, rgthree_info, carry) and what an older API prompt may still send
         # (lora_scope, strength_control, strength_step, strength_until, civitai): accepted, ignored
         if not lora_name:   # no LoRA named (a hand-written API prompt): everything goes through untouched
             return (model, clip, prompt or "", "", "")

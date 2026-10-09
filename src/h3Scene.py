@@ -114,7 +114,7 @@ class H3Scene:
     RETURN_NAMES = ("scene",)
     OUTPUT_TOOLTIPS = ("The scene packaged as one H3_SCENE object, for WScenes Collection H3.",)
     FUNCTION = "build"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     DESCRIPTION = "One H3 scene as a single object: prompt, duration, seed, start/end frames, mid-clip guide, references."
 
     def build(self, prompt, duration, seed, first_frame_from, guide_frame_at, handoff_frames=str(HANDOFF_DEFAULT),

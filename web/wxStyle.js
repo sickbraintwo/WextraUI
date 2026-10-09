@@ -33,6 +33,13 @@ const CSS = `
   .wx-pill { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 15px; margin-left: 8px; border-radius: 8px;
     font: 11px sans-serif; background: #2b2b2b; border: 1px solid #555; color: #999; cursor: pointer; user-select: none; flex-shrink: 0; }
   .wx-pill.on { background: ${WX.deep}; border-color: ${WX.accent}; color: ${WX.light}; }
+  .wx-pen { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 15px; margin-left: 4px; border-radius: 4px;
+    font: 12px sans-serif; color: #8a8a8a; cursor: pointer; user-select: none; flex-shrink: 0; }
+  .wx-pen:hover { color: ${WX.light}; background: #2b2b2b; }
+  .wx-pen.on { color: ${WX.light}; }
+  .wx-grip { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 15px; margin-left: 2px; border-radius: 4px;
+    font: 12px sans-serif; color: #777; cursor: grab; user-select: none; flex-shrink: 0; touch-action: none; }
+  .wx-grip:hover { color: ${WX.light}; background: #2b2b2b; }
   .wx-vue-chip { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; margin-left: 8px; border-radius: 4px;
     font: 12px sans-serif; background: #2b2b2b; border: 1px solid ${WX.accent}; color: ${WX.light}; cursor: pointer; user-select: none; flex-shrink: 0; }
   .wx-rowbar .wx-chip { padding: 0 7px; font-size: 11px; line-height: 1.4; min-width: 22px; justify-content: center; }
@@ -229,6 +236,18 @@ export function wxVueInputRows(node) {
     const rows = [];
     for (const el of root.querySelectorAll(".lg-slot--input")) {
         const m = /-in-(\d+)$/.exec(el.querySelector("[data-slot-key]")?.dataset.slotKey || "");
+        if (m) rows.push({ el, idx: Number(m[1]) });
+    }
+    return rows;
+}
+/** The DOM rows of the node's output slots: [{ el, idx }], idx = the index in node.outputs, read from the slot key
+ *  "<id>-out-<idx>". Null on the classic canvas. */
+export function wxVueOutputRows(node) {
+    const root = wxVueNodeEl(node);
+    if (!root) return null;
+    const rows = [];
+    for (const el of root.querySelectorAll(".lg-slot--output")) {
+        const m = /-out-(\d+)$/.exec(el.querySelector("[data-slot-key]")?.dataset.slotKey || "");
         if (m) rows.push({ el, idx: Number(m[1]) });
     }
     return rows;

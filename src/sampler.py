@@ -4,8 +4,7 @@ with `increment` and each one takes the next of the selection. The name also com
 `carry` in and out: the odometer cable (wxCarry.py) — every scheduler for every sampler, in one queue."""
 import comfy.samplers
 from .wxCarry import CARRY, CARRY_IN, CARRY_OUT_TOOLTIP
-
-SELECTION = ("STRING", {"default": "", "tooltip": "The names ticked in the selection drop-down, in the order you gave them (JSON list, filled by the widget). Empty = all. Lives in the node: the backend ignores it."})
+from .wxFolders import SELECTION   # shared with WCheckpoint / WLoRA
 
 
 class Sampler:

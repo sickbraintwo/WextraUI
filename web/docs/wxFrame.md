@@ -6,7 +6,7 @@ One node for the outpaint prep and every framing job. Under the node, a **stack 
 What was done, as the run will write it in a **WSave Image** name: `c800x1000_p100x0` (below, *Into the file name*); with no picture yet, the numbers of the stack (`p1024x1024`, `c1-1`); `(no change)` when the stack does nothing.
 
 ## The stack
-- The menu picks the action (`crop`, `pad`, `resize`), **`+`** adds it after the open one, **`−`** removes the open one; drag a row by its handle **`≡`** to move it. Click a row to open its settings; click again to fold it.
+- A new node has **no action**: the picture passes through until you add one. The menu picks the action (`crop`, `pad`, `resize`; it opens on `crop`), **`+`** adds it after the open one, **`−`** removes the open one; drag a row by its handle **`≡`** to move it. Click a row to open its settings; click again to fold it.
 - Every action sees the picture **as the actions before it left it**, and its numbers are in that picture's pixels.
 - The row tells what the action does with the picture of now (`2 · pad 100·0·100·0`), and `(no change)` when it does nothing.
 
@@ -16,7 +16,8 @@ What was done, as the run will write it in a **WSave Image** name: `c800x1000_p1
 
 ## pad — a bigger (or smaller) canvas
 - **width** × **height** of the canvas: 0 = keep that side. **aspect**: picked, the smallest canvas of that aspect around the picture (`1:1` = make it square by padding).
-- **anchor**: where the picture sits on the canvas; **shift x / y** move it from there. What is missing is padded with the **colour**, what sticks out is cut (a canvas smaller than the picture is a cut: `right` keeps the right edge).
+- **anchor**: where the picture sits on the canvas; **shift x / y** move it from there. What is missing is padded, what sticks out is cut (a canvas smaller than the picture is a cut: `right` keeps the right edge).
+- **fill**: `colour` = the **colour** next to it; `edge` = the picture's own border pixels carried on outward, row by row and column by column (the corners from the corner pixel): a gradient continues into the border, a blue side stays blue and a red side red. The mask and the feather are the same either way. The **pipette** next to the colour picks it from the screen: the picture up the cable, a node's preview, anything on it (Esc to leave). In a browser with no eyedropper of its own it picks from the picture in the drawing: click a point of it.
 - **left / top / right / bottom**: the border on each side in px, typed by hand (− = cut). They need the picture.
 - **feather**: soft edge of the pad *mask*, in px inward, like *ImagePadForOutpaint*.
 

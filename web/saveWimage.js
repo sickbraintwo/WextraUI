@@ -12,14 +12,15 @@ import { wxCleanName } from "./wxFolder.js";
 // Backend (src/saveWimage.py): per ogni parte i = text{i}, type{i}, value{i} (widget di testo il cui
 // puntino accetta qualsiasi link: qui il suo slot viene messo a tipo "*").
 // Il numero di parti vive nel widget nascosto "parts" (cosi' si salva e si ricarica col workflow).
-const MAX_PARTS = 8;
+const MAX_PARTS = 10;   // 8 until 0.7.1: a file saved then, without names, is read again in onConfigure (below)
+const OLD_8_VALUES = 5 + 3 * 8 + 2;   // preview, folder, subject, digits, parts · 8 parts · write_batch, image_preview
 // ---- the placeholder {#id} = the value of that WextraUI node at this run (src/saveWimage.py resolves it from the
 // PROMPT; here the preview resolves it from the graph, and `from Wnodes on graph` proposes the nodes found) ----
 const NODE_VALUE = { wxSampler: "sampler_name", wxScheduler: "scheduler", wxCheckpointLoader: "ckpt_name", wxLoraLoaderTrigger: "lora_name", wxFloat: "value", wxSeed: "value", wxSwitch: "on_", wxFrame: "ops" };
 const NODE_KIND = { wxFloat: "float", wxSeed: "int" };
 // the text of a part made by `from Wnodes on graph`: a short tag for the type, or for the input the node feeds (a WInt🌱 on
 // a `seed`, a WFloat on a `cfg`, through Reroute and Set / Get); otherwise the node's name
-const TYPE_TAG = { wxSampler: "_sa_", wxScheduler: "_sc_", wxFrame: "_fr_" };
+const TYPE_TAG = { wxSampler: "_sa_", wxScheduler: "_sc_", wxFrame: "_fr_", wxCheckpointLoader: "_C_", wxLoraLoaderTrigger: "_L_" };   // _C_ / _L_: Sick, 08/10
 const INPUT_TAG = { seed: "_S_", noise_seed: "_S_", cfg: "_cfg_", steps: "_st_" };
 const BARE = ["wxCheckpointLoader", "wxLoraLoaderTrigger"];
 const IDREF = /\{#([\d:]+)\}/g, ONE_IDREF = /^\{#([\d:]+)\}$/;
@@ -110,7 +111,10 @@ app.registerExtension({
             const nodeValue = (n) => {
                 if (!n) return undefined;
                 const key = NODE_VALUE[n.type];
-                if (n.type === "wxSwitch") { const i = (n.widgets || []).findIndex((x) => /^on_\d+$/.test(x.name) && x.value === true); return String(Math.max(0, i)); }
+                if (n.type === "wxSwitch") {   // the name of the slot that is on (web/wxSwitch.js: typed, or the loader's bare name), else its number from 0
+                    const lab = n.__wxLabel?.(); if (lab) return lab;
+                    const i = (n.widgets || []).findIndex((x) => /^on_\d+$/.test(x.name) && x.value === true); return String(Math.max(0, i));
+                }
                 if (n.type === "wxFrame") return n.__wxInfo ? n.__wxInfo() : undefined;   // its `info`, as web/wxFrame.js computes it
                 const w = key ? (n.widgets || []).find((x) => x.name === key) : (n.widgets || []).find((x) => x.serialize !== false && !isCtlW(x));
                 if (!w || w.value === undefined || w.value === null) return undefined;
@@ -547,9 +551,17 @@ app.registerExtension({
                 const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
                 // a wf saved with the holes of the two old buttons (0.3.5 and before, no names in the file): read again without them
                 const wv = info?.widgets_values, S = node.widgets.filter((w) => w.serialize !== false);
-                if (Array.isArray(wv) && wv.length > S.length && !(info?.widgets_values_named && typeof info.widgets_values_named === "object")) {
+                const named = info?.widgets_values_named && typeof info.widgets_values_named === "object";
+                if (Array.isArray(wv) && wv.length > S.length && !named) {
                     const flat = wv.filter((v) => v !== null && v !== undefined);
                     if (flat.length === S.length) S.forEach((w, k) => { if (wxFits(w, flat[k])) w.value = flat[k]; });
+                }
+                // a wf saved with 8 parts (0.7.1 and before) and no names: write_batch and image_preview sat right after part 8,
+                // where part 9 is now, and the frontend read them by position into text9 / type9. Back where they belong.
+                if (Array.isArray(wv) && wv.length === OLD_8_VALUES && S.length === OLD_8_VALUES + 3 * (MAX_PARTS - 8) && !named) {
+                    S.forEach((w, k) => { if (k < OLD_8_VALUES - 2 && wxFits(w, wv[k])) w.value = wv[k]; });
+                    for (const [nm, k] of [["write_batch", OLD_8_VALUES - 2], ["image_preview", OLD_8_VALUES - 1]]) { const w = W(nm); if (w && typeof wv[k] === "boolean") w.value = wv[k]; }
+                    for (let i = 9; i <= MAX_PARTS; i++) for (const [f, d] of [["text", "_"], ["type", "int"], ["value", ""]]) { const w = W(f + i); if (w) w.value = d; }
                 }
                 // a wf saved before 0.3.4 leaves the two buttons' nulls here: back to the defaults of object_info
                 for (const [nm, d] of [["write_batch", true], ["image_preview", false]]) {

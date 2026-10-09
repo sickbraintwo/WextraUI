@@ -56,7 +56,7 @@ class H3PromptComposer:
         "The real H3 frame count, snapped up to the 17k+5 grid.",
     )
     FUNCTION = "compose"
-    CATEGORY = "WextraUI"
+    CATEGORY = "WextraUI/H3"
     OUTPUT_NODE = True
     DESCRIPTION = ("Storyboard -> MiniMax H3 prompt with a time-code per beat: intro + beats (SOUND/IMAGE written together, "
                    "locked or scaled to total_duration) + Sound + Avoid. Outputs the prompt, the duration, a readable timing table "

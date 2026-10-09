@@ -28,7 +28,7 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/sickbraintwo/WextraUI
 ```
 
-No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** category.
+No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** category, the seven of the H3 scene loop in its sub-menu **WextraUI/H3**.
 
 <p align="center"><img src="images/help_popup.png" width="860" alt="WLoRA with its ? help page open"></p>
 <p align="center"><sub>Every node has a <b>?</b> in its title bar: the full help page, inside ComfyUI. This README is the tour, the <b>?</b> is the manual.</sub></p>
@@ -46,6 +46,7 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 | [WDifference](#wdifference) | what changed since the last run | [WLoop Start H3](#wloop-start-h3) | which scenes this Run renders |
 | [WLoRA](#wlora) | LoRA + trigger words, in line | [WLoop Scene Conditioning H3](#wloop-scene-conditioning-h3) | the loop body |
 | [WFrame](#wframe) | crop · resize · place, for outpaint | [WLoop End H3](#wloop-end-h3) | the hand-off to the next scene |
+| [WReso](#wreso) | the resolution, written large | | |
 | [WFloat](#wfloat) | a float that walks, run after run | | |
 | [WInt🌱](#wint) | an integer that walks: the seeds of a grid, a count | | |
 | [WSwitch](#wswitch) | slots of cables, one on, the rest asleep | | |
@@ -56,13 +57,15 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 
 ## Utilities
 
+Fourteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution). Menu **WextraUI**.
+
 ### WSave Image
 
 Saves the PNGs and writes into the name of every file what made it. The name is **composed from parts**: folder, subject, any string or number from the graph, a counter of chosen width; the usual ComfyUI metadata go inside. The `preview` box shows the name before you run, linked fields included. `images` is optional: unplugged, the node only composes the name for other savers (video, JSON). The `images` output passes the batch through, so the save sits inside the chain instead of at a dead end.
 
 Above each part a slim bar (`part 1`, `part 2`…) has a handle `≡` and two chips: drag the handle to move the part, `−` removes it, `+` opens an empty one right below; values and cables follow. The **write batch** switch appends `_B{batch}{index}`: how many images the run made and which one this is (`_B41`, `_B42`…); the same placeholders work in any text field.
 
-**`{#id}`** in any text is the value that WextraUI node used in this run (WSampler, WScheduler, WCheckpoint, WLoRA, WFloat, WInt🌱, WSwitch), no cable. **`from Wnodes on graph`** lists the nodes of the workflow by type, the ones that walk already ticked, in the order of the carry chain (drag to change it), and makes one part for each (`_sa_euler` in the name, `_S_` for a WInt🌱 on a seed, `_st_` on steps, `_cfg_` for a WFloat on a cfg; value locked to the node). A grid of trials, and every file telling on its own what made it.
+**`{#id}`** in any text is the value that WextraUI node used in this run (WSampler, WScheduler, WCheckpoint, WLoRA, WFloat, WInt🌱, WSwitch), no cable. **`from Wnodes on graph`** lists the nodes of the workflow by type, the ones that walk already ticked, in the order of the carry chain (drag to change it), and makes one part for each (`_sa_euler` in the name, `_C_` for a WCheckpoint, `_L_` for a WLoRA, `_S_` for a WInt🌱 on a seed, `_st_` on steps, `_cfg_` for a WFloat on a cfg; value locked to the node). A grid of trials, and every file telling on its own what made it.
 
 <img src="images/WSaveImage.png" width="300" alt="WSave Image"> <img src="images/WSaveImage_fromWnodes.png" width="300" alt="WSave Image: from Wnodes on graph">
 
@@ -98,13 +101,13 @@ It reads the hidden PROMPT that every Save node embeds in the file, keeps the pr
 
 Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. The words come from the `<lora>.rgthree-info.json` that rgthree-comfy saves next to a LoRA (the official words, `rgthree_info` switch) and from the training tags inside the file: click the chips, drag to reorder.
 
-Above the name, **`folder`** narrows the LoRA menu to one folder (any depth) and shows where you are in it (`folder · 3/12` = runs to queue). Under the name, the seed-style **control after generate** (`increment` / `decrement` / `randomize`) walks the LoRAs of that folder across queued runs. For a strength that walks, cable a [WFloat](#wfloat) on `strength_model` (and on `strength_clip`). The walk lives in the node, but `folder` is a real input (in `object_info`, optional), so a script reading the saved workflow sees the same values you see.
+Above the name, **`folder`** narrows the LoRA menu to one folder (any depth) and shows where you are in it (`folder · 3/12` = runs to queue); under it, the **selection** drop-down of [WSampler](#wsampler--wscheduler) (`all · 12`, or tick the LoRAs you want, drag them into order, and it reads `custom · 3`: from then on the menu and the walk only meet those). Under the name, the seed-style **control after generate** (`increment` / `decrement` / `randomize`) walks the LoRAs of that folder, or of the selection, across queued runs. For a strength that walks, cable a [WFloat](#wfloat) on `strength_model` (and on `strength_clip`). The walk lives in the node, but `folder` is a real input (in `object_info`, optional), so a script reading the saved workflow sees the same values you see.
 
 <img src="images/WLoRA.png" width="400" alt="WLoRA">
 
 ### WCheckpoint
 
-The core Load Checkpoint with the same two things as the LoRA loader. **`folder`** above the name: the folders of your checkpoint list at any depth, and the label shows where you are (`folder · 3/12` = runs to queue). The seed-style **control after generate** under it: `increment` / `decrement` / `randomize` walk the checkpoints of that folder across queued runs. Same load as the core node (`MODEL`, `CLIP`, `VAE`, same caching), plus **`name`** as a string for [WSave Image](#wsave-image): one prompt, one seed, every model of a family in one go, and each file says which model made it. `folder` is a real input (optional, in `object_info`); a folder that is gone never stops a run.
+The core Load Checkpoint with the same three things as the LoRA loader. **`folder`** above the name: the folders of your checkpoint list at any depth, and the label shows where you are (`folder · 3/12` = runs to queue). The **selection** drop-down under it: tick the checkpoints of that folder you want, drag them into order, and the menu and the walk only meet those. The seed-style **control after generate** under the name: `increment` / `decrement` / `randomize` walk the checkpoints of that folder, or of the selection, across queued runs. Same load as the core node (`MODEL`, `CLIP`, `VAE`, same caching), plus **`name`** as a string for [WSave Image](#wsave-image): one prompt, one seed, every model of a family in one go, and each file says which model made it. `folder` is a real input (optional, in `object_info`); a folder that is gone never stops a run.
 
 <img src="images/WCheckpoint.png" width="380" alt="WCheckpoint">
 
@@ -120,6 +123,12 @@ One node for the outpaint prep and every framing job: a **stack of actions** don
 
 <img src="images/WFrame.png" width="260" alt="WFrame"> <img src="images/WFrame_mask.png" width="260" alt="WFrame: the mask view">
 
+### WReso
+
+The resolution, **written large on the node**, and nothing else: plug a picture, or two INT cables (`width`, `height` from a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance; the same two numbers go out as INT. As small as a node gets. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
+
+<img src="images/WReso.png" width="260" alt="WReso">
+
 ### WFloat
 
 A float with a seed-style control: `fixed`, or `increment` / `decrement` by `step` after every queued run, with no arrival and no floor (negative values are legitimate). The label of `control` shows the step and its direction (`+0.1/run` / `−0.1/run`). For any FLOAT input: a strength through Set/Get, a denoise, a CFG. With a [`carry`](#carry-the-odometer-cable) cable in or out it is a wheel, from the value you set to `until`; without a cable `until` does nothing.
@@ -128,7 +137,7 @@ A float with a seed-style control: `fixed`, or `increment` / `decrement` by `ste
 
 ### WInt🌱
 
-WFloat on an integer, with `randomize` too: a seed that walks by `step` (1 by default) after every queued run, for the KSampler's `seed` turned into an input or any INT. On `increment-wrap` it is a wheel from the value you set to `until`, round and round, no cable needed; with a [`carry`](#carry-the-odometer-cable) cable the same wheel beats the next node: four seeds for every sampler, the seeds inside.
+WFloat on an integer, with `randomize` too: a seed that walks by `step` (1 by default) after every queued run, for the KSampler's `seed` turned into an input or any INT. On `increment-wrap` it is a wheel from the value you set to `until`, round and round, no cable needed; with a [`carry`](#carry-the-odometer-cable) cable the same wheel beats the next node: four seeds for every sampler, the seeds inside. Seeds that are not one after the other go in the **selection** under `value`: type them (`1, 3, 6, 90, 1234`), drag them into order, and the wheel goes through those instead, from the first one at the first run. Drop a PNG saved by ComfyUI on the node and the seed that made it joins the list.
 
 <img src="images/WInt.png" width="260" alt="WInt">
 
@@ -138,7 +147,7 @@ A switch with **slots**. A slot holds `inputs_per_slot` cables of any type (3 = 
 
 The **type of every position is learned from the first cable** you connect there: the same position of every slot and the output take it, the socket gets its colour and refuses another type. The cables of the slots that are off are lazy: **the branches behind them do not run** (no VRAM, no seconds). The first output, **`index`**, is the slot that is on, counted like an array (0 = the first): cable it to whatever must follow the same choice (WRoute Index grows to match it). Set `inputs_per_slot` before wiring: changing it reshapes the slots and the cables of the positions that disappear are dropped.
 
-WSwitch walks too: with `control` on `increment` the slot that is on moves to the next one in use after every queued run, and the **`carry`** cable drives it or is driven by it, like the other nodes that walk. In WSave Image `{#id}` of a WSwitch is the slot that is on.
+WSwitch walks too: with `control` on `increment` the slot that is on moves to the next one in use after every queued run, and the **`carry`** cable drives it or is driven by it, like the other nodes that walk. Every slot is a **box** around its rows, the one that is on in blue, with its on/off pill, a pencil `✎` and a handle `≡`: **drag a slot** by its handle onto another one and it takes that place, cables and name with it, nothing to unplug. **The slots have names**: click the pencil and type one (`krea`); a slot fed by a checkpoint, LoRA or UNet loader gets the bare file name by itself. The row reads `0 · krea`, and in WSave Image `{#id}` of a WSwitch is the name of the slot that is on (its number when it has none): the short name of the model in the file name, with no String node and no Set / Get.
 
 <img src="images/WSwitch.png" width="300" alt="WSwitch">
 
@@ -150,9 +159,11 @@ Chain as many as you like. WScheduler → WSampler → WCheckpoint is every chec
 
 The cable may pass through Set / Get and Reroute. It passes a string, and the backend, comfy-cli or an agent see an ordinary link: the beats happen in the interface, between one queued run and the next, where the walk already lives.
 
+**Two chips on the `carry` row** of every node that walks, alone or in a chain. **`⟲`** puts every wheel of the chain back to its first place (the first seed picked, the start of the wheel, the first name of the selection or the folder, the first slot): a grid interrupted half way, or a new one from the start, with nothing to set by hand. **`▶ 12`** does the same and then queues the runs of the whole grid, 12 = the sizes of the chain multiplied; a node alone shows its own size (the seeds picked, the wheel to `until`, the folder or the selection, the slots in use). No number for a free walk by `step` (no arrival): then only `⟲`. The number goes in the **batch box next to Run** too: the next Run queues the grid again, with nothing to type.
+
 ## H3 scene loop
 
-A film for MiniMax H3 Sync Sound as a **list of scenes rendered one after the other**, each clip joined to the previous one by a hand-off of frames and audio. You describe the scenes; the loop renders them, resumes from any point, and lets every scene choose how it joins the one before.
+Seven nodes for one model: a film for MiniMax H3 Sync Sound as a **list of scenes rendered one after the other**, each clip joined to the previous one by a hand-off of frames and audio. You describe the scenes; the loop renders them, resumes from any point, and lets every scene choose how it joins the one before. Menu **WextraUI/H3**; the node types (`h3Scene`, `h3LoopRange`…) are the same as ever, saved workflows load as they are.
 
 <details><summary>How the hand-off works</summary>
 

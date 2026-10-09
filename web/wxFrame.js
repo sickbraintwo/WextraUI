@@ -96,7 +96,7 @@ function chain(W, H, ops) {
 // ---- the actions: new ones, a saved one made whole, the box of a dragged one written back as anchor + shift
 const newOp = (t, inW, inH) => {
     if (t === "crop") { const s = inW && inH ? Math.min(inW, inH) : 0; return { t: "crop", w: s, h: s, r: "", a: "center", dx: 0, dy: 0 }; }
-    if (t === "pad") { const s = inW && inH ? Math.max(inW, inH) : 1024; return { t: "pad", w: s, h: s, r: "", a: "center", dx: 0, dy: 0, color: "#000000", feather: 0 }; }
+    if (t === "pad") { const s = inW && inH ? Math.max(inW, inH) : 1024; return { t: "pad", w: s, h: s, r: "", a: "center", dx: 0, dy: 0, color: "#000000", feather: 0, fill: "colour" }; }
     return { t: "resize", mode: "width", v: 1024, w: 1024, h: 1024 };
 };
 const normColor = (v) => { let c = String(v || "").trim().replace(/^#/, ""); if (c.length === 3) c = c.split("").map((x) => x + x).join(""); return /^[0-9a-f]{6}$/i.test(c) ? "#" + c.toLowerCase() : "#000000"; };
@@ -113,6 +113,7 @@ function normOp(o) {
         else if (k === "r") op.r = ASPECTS.includes(v) ? v : "";
         else if (k === "mode") op.mode = RESIZE_MODES.includes(v) ? v : "width";
         else if (k === "color") op.color = normColor(v);
+        else if (k === "fill") op.fill = v === "edge" ? "edge" : "colour";   // the added area: the colour, or the picture's border carried on
         else op[k] = num(v, d[k]);
     }
     return op;
@@ -150,7 +151,7 @@ function legacyOps(info) {
 
 /** The picture that feeds the node, read from the graph: the first node up the IMAGE cable that shows one (a Load Image,
  *  a node with a preview after a run). Null when none shows a picture. */
-function upstreamPicture(node) {
+export function upstreamPicture(node) {   // WReso (wxReso.js) reads the picture the same way
     let n = node, guard = 8;
     while (n && n.graph && guard--) {
         const s = (n.inputs || []).find((i) => i.type === "IMAGE" && i.link != null);
@@ -167,6 +168,8 @@ function upstreamPicture(node) {
 
 const stop = (el) => { for (const t of ["pointerdown", "pointerup", "mousedown", "mouseup", "click", "dblclick", "keydown", "keyup", "wheel"]) el.addEventListener(t, (e) => e.stopPropagation()); };
 const INPUT_CSS = "background:#222;border:1px solid #444;color:#ddd;border-radius:4px;padding:1px 4px;font:11px sans-serif;min-width:0;width:100%";
+const PIPETTE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1-4 9-9 3 3-9 9-4 1z"/><path d="M13 8l3-3a2.1 2.1 0 0 1 3 3l-3 3"/></svg>';
+const hex2 = (n) => n.toString(16).padStart(2, "0");
 
 app.registerExtension({
     name: "WextraUI.frame",
@@ -252,7 +255,7 @@ app.registerExtension({
             const kind = document.createElement("select"); kind.style.cssText = INPUT_CSS + ";width:auto;flex:1";
             for (const [v, t] of [["crop", "the box that stays"], ["pad", "a bigger (or smaller) canvas"], ["resize", "aspect kept"]]) { const o = document.createElement("option"); o.value = v; o.textContent = v; o.title = t; kind.appendChild(o); }
             kind.title = "the action that + adds: crop = the box that stays · pad = a bigger (or smaller) canvas · resize = aspect kept";
-            kind.value = "pad";
+            kind.value = "crop";   // the menu opens on crop (Sick, 09/10); a new node has no action until + is pressed
             const btn = (t, title, fn) => { const b = document.createElement("button"); b.className = "wx-btn"; b.textContent = t; b.title = title; b.style.cssText = "padding:1px 7px;min-width:24px"; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
             const bAdd = btn("+", "add the action of the menu after the open one", () => add(kind.value));
             const bDel = btn("−", "remove the open action", () => { if (sel < 0) return; ops.splice(sel, 1); sel = Math.min(sel, ops.length - 1); commit(); rebuild(); });
@@ -314,8 +317,8 @@ app.registerExtension({
             const selIn = (op, k, label, values, names, title, after) => {
                 const s = document.createElement("select"); s.style.cssText = INPUT_CSS;
                 values.forEach((v, j) => { const o = document.createElement("option"); o.value = v; o.textContent = names ? names[j] : v; s.appendChild(o); });
-                s.value = op[k]; s.onchange = () => { op[k] = s.value; after?.(); commit(); syncRows(); };
-                live.push([s, () => op[k]]);
+                s.value = op[k] ?? values[0]; s.onchange = () => { op[k] = s.value; after?.(); commit(); syncRows(); };
+                live.push([s, () => op[k] ?? values[0]]);
                 return field(label, s, title);
             };
             const grid = (cols) => { const g = document.createElement("div"); g.style.cssText = `display:grid;grid-template-columns:repeat(${cols},1fr);gap:3px 6px`; return g; };
@@ -344,11 +347,26 @@ app.registerExtension({
                 p.appendChild(g);
                 if (!crop) {
                     const g2 = grid(3);
+                    const cRow = document.createElement("div"); cRow.style.cssText = "display:flex;gap:3px;align-items:center;min-width:0";
                     const c = document.createElement("input"); c.type = "color"; c.value = normColor(op.color);
-                    c.style.cssText = "width:100%;height:20px;padding:0;border:1px solid #555;border-radius:4px;background:#222;cursor:pointer";
+                    c.style.cssText = "flex:1;min-width:0;height:20px;padding:0;border:1px solid #555;border-radius:4px;background:#222;cursor:pointer";
                     c.oninput = () => { op.color = c.value; commit(); };
                     live.push([c, () => normColor(op.color)]);
-                    g2.append(field("colour", c, "the added area"), numIn(op, "feather", "feather", "soft edge of the pad mask, in px inward (ImagePadForOutpaint). 0 = hard"));
+                    // the pipette (Sick, 08/10): the colour from the screen (the browser's EyeDropper: the picture up the cable, a
+                    // node's preview, anything on it); where the browser has none, from the picture in the drawing, at a click
+                    const pipette = document.createElement("button"); pipette.className = "wx-btn"; pipette.innerHTML = PIPETTE;
+                    pipette.style.cssText = "flex:none;height:20px;min-width:22px;padding:0 4px;display:flex;align-items:center;justify-content:center";
+                    pipette.title = window.EyeDropper ? "pick the colour from the screen: the picture up the cable, a node's preview, anything on it (Esc to leave)" : "pick the colour from the picture in the drawing: click a point of it (Esc to leave)";
+                    pipette.onclick = async (e) => {
+                        e.stopPropagation(); e.preventDefault();
+                        if (!window.EyeDropper) { armPick(op); return; }
+                        try { const got = await new window.EyeDropper().open(); setColor(op, got?.sRGBHex); } catch (_) { /* Esc: nothing picked */ }
+                    };
+                    cRow.append(c, pipette);
+                    // fill (Sick, 09/10): the colour, or the picture's own border pixels going on outward (a gradient continues)
+                    const fillF = selIn(op, "fill", "fill", ["colour", "edge"], ["colour", "edge: the border goes on"], "what fills the added area: the colour, or the picture's border pixels carried on outward, row by row and column by column (a gradient continues, a blue side stays blue)", () => { cRow.style.opacity = op.fill === "edge" ? ".45" : ""; });
+                    cRow.style.opacity = op.fill === "edge" ? ".45" : "";
+                    g2.append(fillF, field("colour", cRow, "the added area"), numIn(op, "feather", "feather", "soft edge of the pad mask, in px inward (ImagePadForOutpaint). 0 = hard"));
                     const g3 = grid(4);
                     const sideIn = (k, label) => {
                         const inp = slidable(document.createElement("input")); inp.type = "number"; inp.style.cssText = INPUT_CSS;
@@ -456,6 +474,23 @@ app.registerExtension({
                     else { ctx.fillStyle = "#8a8a8a"; ctx.fillRect(X(0), Y(0), g.W * k, g.H * k); }
                     ctx.restore();
                 };
+                // a pad on `edge`: the picture's border pixels carried on over the border, as the run does it (a one-pixel row or
+                // column of the picture stretched; the corners from the corner pixel). Only what the source picture has: the
+                // border an earlier pad added stays in the colour here.
+                const edgeFill = (vis, inner) => {
+                    const im = src.img; if (!im || !im.naturalWidth) return;
+                    const pix = inter(inner, { x: 0, y: 0, w: g.W, h: g.H }); if (pix.w <= 0 || pix.h <= 0) return;
+                    const sx = im.naturalWidth / g.W, sy = im.naturalHeight / g.H;
+                    const S = (x, y, w, h) => [Math.min(im.naturalWidth - 1, Math.floor(x * sx)), Math.min(im.naturalHeight - 1, Math.floor(y * sy)), Math.max(1, Math.round(w * sx)), Math.max(1, Math.round(h * sy))];
+                    const px0 = pix.x, py0 = pix.y, px1 = pix.x + pix.w, py1 = pix.y + pix.h, vx0 = vis.x, vy0 = vis.y, vx1 = vis.x + vis.w, vy1 = vis.y + vis.h;
+                    const draw = (ax, ay, aw, ah, dx0, dy0, dx1, dy1) => { if (dx1 > dx0 && dy1 > dy0) ctx.drawImage(im, ...S(ax, ay, aw, ah), X(dx0), Y(dy0), (dx1 - dx0) * k, (dy1 - dy0) * k); };
+                    ctx.save(); ctx.beginPath(); ctx.rect(...R(vis)); ctx.clip(); ctx.imageSmoothingEnabled = false;
+                    draw(px0, py0, 1, pix.h, vx0, py0, px0, py1); draw(px1 - 1, py0, 1, pix.h, px1, py0, vx1, py1);   // left, right
+                    draw(px0, py0, pix.w, 1, px0, vy0, px1, py0); draw(px0, py1 - 1, pix.w, 1, px0, py1, px1, vy1);   // top, bottom
+                    draw(px0, py0, 1, 1, vx0, vy0, px0, py0); draw(px1 - 1, py0, 1, 1, px1, vy0, vx1, py0);           // the corners
+                    draw(px0, py1 - 1, 1, 1, vx0, py1, px0, vy1); draw(px1 - 1, py1 - 1, 1, 1, px1, py1, vx1, vy1);
+                    ctx.restore();
+                };
                 // 3. the feather of each pad: a band fading inward from the sides that get a border (its colour; white in the mask)
                 const feathers = (colOf, a0 = "b0") => g.items.forEach((it, i) => {
                     const f = num(it.op.feather); if (it.op.t !== "pad" || f <= 0) return;
@@ -481,7 +516,11 @@ app.registerExtension({
                     feathers(() => MASK, "ff");
                 } else {
                     // 1. the pads, last first: each one colours what of its canvas reaches the end, the earlier ones sit inside
-                    for (let i = g.items.length - 1; i >= 0; i--) { const it = g.items[i]; if (it.op.t === "pad" && g.vis[i].w > 0 && g.vis[i].h > 0) { ctx.fillStyle = normColor(it.op.color); ctx.fillRect(...R(g.vis[i])); } }
+                    for (let i = g.items.length - 1; i >= 0; i--) {
+                        const it = g.items[i]; if (it.op.t !== "pad" || g.vis[i].w <= 0 || g.vis[i].h <= 0) continue;
+                        ctx.fillStyle = normColor(it.op.color); ctx.fillRect(...R(g.vis[i]));
+                        if (it.op.fill === "edge") edgeFill(g.vis[i], inter(prevOf(i), g.vis[i]));
+                    }
                     pic(0.22);
                     if (g.vis0.w > 0 && g.vis0.h > 0) pic(1, g.vis0);
                     feathers((it) => normColor(it.op.color));
@@ -566,11 +605,31 @@ app.registerExtension({
             const cursorFor = (h) => h ? ({ n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize" })[h.h] || "move" : "default";
             let drag = null;
             const local = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * cv.clientWidth, (e.clientY - r.top) / r.height * cv.clientHeight]; };
+            // ---- the pipette: a colour for a pad. setColor writes it; armPick waits for a click on the picture in the drawing
+            //      (the browsers with no EyeDropper), colourAt reads that pixel from the picture itself, not from the dimmed drawing
+            let pick = null;   // the pad waiting for a click on the drawing
+            const setColor = (op, hex) => { if (!hex || !ops.includes(op)) return; op.color = normColor(hex); commit(); syncRows(); };
+            const armPick = (op) => { pick = op; cv.style.cursor = "crosshair"; cv.focus({ preventScroll: true }); };
+            const disarmPick = () => { pick = null; cv.style.cursor = "default"; };
+            const colourAt = (mx, my) => {
+                const s = source(), img = s?.img;
+                if (!img || !map || !lastG || !img.naturalWidth) return null;
+                const x = (mx - map.offx) / map.k + map.x0, y = (my - map.offy) / map.k + map.y0;
+                if (x < 0 || y < 0 || x >= lastG.W || y >= lastG.H) return null;
+                try {
+                    const one = document.createElement("canvas"); one.width = one.height = 1;
+                    const cx = one.getContext("2d", { willReadFrequently: true });
+                    cx.drawImage(img, Math.floor(x * img.naturalWidth / lastG.W), Math.floor(y * img.naturalHeight / lastG.H), 1, 1, 0, 0, 1, 1);
+                    const [r, g, b] = cx.getImageData(0, 0, 1, 1).data;
+                    return "#" + hex2(r) + hex2(g) + hex2(b);
+                } catch (_) { return null; }   // a picture the canvas may not read
+            };
             cv.addEventListener("pointerdown", (e) => {
                 e.stopPropagation();
                 if (e.button !== 0) return;
                 const [mx, my] = local(e);
                 cv.focus({ preventScroll: true });
+                if (pick) { const op = pick; disarmPick(); setColor(op, colourAt(mx, my)); return; }
                 if (onZoomBtn(mx, my)) { node._wxZoom = !node._wxZoom; node._wxPrevSig = null; paint(); return; }
                 if (onMaskBtn(mx, my)) { node._wxMask = !node._wxMask; node._wxPrevSig = null; paint(); return; }
                 const h = hitAt(mx, my);
@@ -581,6 +640,7 @@ app.registerExtension({
                 cv.setPointerCapture(e.pointerId);
             });
             cv.addEventListener("pointermove", (e) => {
+                if (pick) return;   // the pipette is on: the crosshair stays
                 if (!drag) { const [mx, my] = local(e); cv.style.cursor = onZoomBtn(mx, my) || onMaskBtn(mx, my) ? "pointer" : cursorFor(hitAt(mx, my)); return; }
                 e.stopPropagation();
                 const z = app.canvas?.ds?.scale || 1, k = map ? map.k : 1;
@@ -612,6 +672,7 @@ app.registerExtension({
             cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
             cv.addEventListener("dblclick", (e) => { e.stopPropagation(); const op = ops[sel]; if (op && op.t !== "resize") { op.dx = 0; op.dy = 0; commit(); syncRows(); } });
             cv.addEventListener("keydown", (e) => {   // the arrow keys nudge the open rectangle: 1 px of its picture, 10 with Shift
+                if (e.key === "Escape" && pick) { e.preventDefault(); e.stopPropagation(); disarmPick(); return; }
                 const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
                 if (!d) return;
                 e.preventDefault(); e.stopPropagation();
