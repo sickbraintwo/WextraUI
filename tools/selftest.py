@@ -99,8 +99,8 @@ def widget_inputs(spec):
 def check_schema(oi):
     nodes = sorted(k for k in oi if k.startswith(PREFIXES))
     print(f"2. schema: {len(nodes)} WextraUI nodes in object_info")
-    if len(nodes) < 21:
-        fail(f"expected 21 nodes, found {len(nodes)}: {nodes}")
+    if len(nodes) < 30:
+        fail(f"expected 30 nodes, found {len(nodes)}: {nodes}")
     for k in nodes:
         for name, t, o in widget_inputs(oi[k]):
             if isinstance(t, list) and not t and "default" not in o:
@@ -275,6 +275,12 @@ def run_graphs(oi):
             "4": N("wxReso", width=L(3, 0), height=L(2, 1)),   # from two cables: 640 × 192
             "5": N("PreviewAny", source=L(4, 0)),
             "6": N("PreviewAny", source=L(4, 1)),
+        },
+        "wxReso defining+reading": {
+            "1": N("wxReso", section="defining", define_width=0, define_height=832, aspect_ratio="16:9", custom_width=16,
+                   custom_height=9, multiple="8", invert=True, ratio_width=0, ratio_height=0),   # 832 at 16:9, turned: 832 × 1480
+            "2": N("wxReso", width=L(1, 0), height=L(1, 1)),                                    # a WReso of 0.8.0: reading only
+            "3": N("PreviewAny", source=L(1, 0)),
         },
         "h3Scene+h3CollectScenes+h3LoopRange+h3HandoffTail": {
             "1": N("h3Scene", prompt="scene one", duration=5.0, seed=1, first_frame_from="previous_scene", guide_frame_at=0.0,

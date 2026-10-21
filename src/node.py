@@ -17,6 +17,12 @@ from .wfloat import WFloat
 from .wseed import WSeed
 from .wswitch import WSwitch
 from .wreso import WReso
+from .foley import FoleyLoopStart, FoleyLoopWindow, FoleyLoopEnd, AonV
+from .mixer import WMixer
+from .cutscene import WCutScene
+from .audioprompts import WAudioPrompts
+from .extractor import WExtractor
+from .mount import WMount
 
 # Retired (kept in src/legacy/, not registered): h3ImageToVideo (switchable), h3HandoffGate, h3SceneListBuilder
 # — absorbed by H3SceneConditioning (26/08/2026); h3Conditioning (all-in-one, out of the loop) — never used, the loop
@@ -45,6 +51,15 @@ NODE_CLASS_MAPPINGS = {
     "wxSeed": WSeed,
     "wxSwitch": WSwitch,
     "wxReso": WReso,
+    "wxFoleyLoopStart": FoleyLoopStart,
+    "wxFoleyLoopWindow": FoleyLoopWindow,
+    "wxFoleyLoopEnd": FoleyLoopEnd,
+    "wxAonV": AonV,
+    "wxMixer": WMixer,
+    "wxCutScene": WCutScene,
+    "wxAudioPrompts": WAudioPrompts,
+    "wxExtractor": WExtractor,
+    "wxMount": WMount,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -69,4 +84,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "wxSeed": "WInt🌱",
     "wxSwitch": "WSwitch",
     "wxReso": "WReso",
+    "wxFoleyLoopStart": "WLoop Start Foley",
+    "wxFoleyLoopWindow": "WLoop Window Foley",
+    "wxFoleyLoopEnd": "WLoop End Foley",
+    "wxAonV": "WAonV",
+    "wxMixer": "WMixer",
+    "wxCutScene": "WCutScene",
+    "wxAudioPrompts": "WAudio Prompts",
+    "wxExtractor": "WExtractor",
+    "wxMount": "WMount",
 }

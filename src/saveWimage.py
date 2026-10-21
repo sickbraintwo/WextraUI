@@ -147,6 +147,18 @@ def batch_tokens(text, size, index):
     return text.replace("{batch}", str(size)).replace("{index}", f"{index:0{len(str(size))}d}")
 
 
+def _running_prompt():
+    """The PROMPT ComfyUI is executing now (its queue runs one at a time), or None."""
+    try:
+        from server import PromptServer
+        q = PromptServer.instance.prompt_queue
+        with q.mutex:
+            items = list(q.currently_running.values())
+        return items[0][2] if len(items) == 1 else None
+    except Exception:
+        return None
+
+
 class SaveWimage:
     @classmethod
     def INPUT_TYPES(cls):
@@ -178,6 +190,21 @@ class SaveWimage:
     @classmethod
     def VALIDATE_INPUTS(cls, input_types):
         return True  # i value{i} accettano link di qualsiasi tipo
+
+    @classmethod
+    def IS_CHANGED(cls, prompt=None, unique_id=None, images=None, extra_pnginfo=None, **kw):
+        """ComfyUI riusa il risultato di prima finche' gli ingressi del nodo restano uguali; il valore che un {#id} legge
+        vive in un ALTRO nodo, quindi senza immagini (o con le stesse) il nome restava quello del giro prima (Sick, 17/10:
+        un giro ACE di 12 brani salvati quasi tutti con lo stesso nome). L'impronta e' quindi il testo gia' risolto. Qui
+        ComfyUI passa un PROMPT vuoto: si legge quello in esecuzione dalla coda; se non si trova, il nodo si rifa' sempre."""
+        texts = {k: v for k, v in kw.items() if isinstance(v, str)}
+        if not any("{#" in v for v in texts.values()):
+            return ""   # nothing read from other nodes: ComfyUI's own check on the inputs is the right one
+        p = prompt or _running_prompt()
+        if not p:
+            return float("nan")
+        scope = scope_of(unique_id)
+        return "|".join(f"{k}={resolve(v, p, scope)}" for k, v in sorted(texts.items()))
 
     def save(self, images=None, preview="", folder="", subject="", digits=2, parts=1, write_batch=False, image_preview=False, prompt=None, extra_pnginfo=None, unique_id=None, **kw):
         scope = scope_of(unique_id)

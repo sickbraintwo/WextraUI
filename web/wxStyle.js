@@ -26,6 +26,8 @@ const CSS = `
   .wx-input, .wx input[type=text], .wx input[type=number], .wx input:not([type]) { background: #222; border: 1px solid #444; color: #ddd;
     border-radius: 4px; padding: 2px 6px; font: 12px sans-serif; min-width: 0; }
   .wx-input:focus, .wx input:focus { outline: none; border-color: ${WX.accent}; }
+  .wx-num { -moz-appearance: textfield; appearance: textfield; }
+  .wx-num::-webkit-inner-spin-button, .wx-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .wx-btn, .wx button { background: #333; border: 1px solid #555; color: #ddd; border-radius: 4px; padding: 1px 8px; font-size: 11px; cursor: pointer; }
   .wx-btn:hover, .wx button:hover { border-color: ${WX.accent}; }
   .wx-mono { font-family: ui-monospace, Consolas, monospace; color: ${WX.light}; }

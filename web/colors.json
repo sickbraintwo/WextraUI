@@ -104,5 +104,50 @@
     "_name": "WReso",
     "color": "normal grey",
     "bgcolor": ""
+  },
+  "wxFoleyLoopStart": {
+    "_name": "WLoop Start Foley",
+    "color": "cyan",
+    "bgcolor": ""
+  },
+  "wxFoleyLoopWindow": {
+    "_name": "WLoop Window Foley",
+    "color": "cyan",
+    "bgcolor": ""
+  },
+  "wxFoleyLoopEnd": {
+    "_name": "WLoop End Foley",
+    "color": "cyan",
+    "bgcolor": ""
+  },
+  "wxAonV": {
+    "_name": "WAonV",
+    "color": "black",
+    "bgcolor": ""
+  },
+  "wxMixer": {
+    "_name": "WMixer",
+    "color": "black",
+    "bgcolor": ""
+  },
+  "wxCutScene": {
+    "_name": "WCutScene",
+    "color": "pale_blue",
+    "bgcolor": ""
+  },
+  "wxAudioPrompts": {
+    "_name": "WAudio Prompts",
+    "color": "cyan",
+    "bgcolor": ""
+  },
+  "wxExtractor": {
+    "_name": "WExtractor",
+    "color": "black",
+    "bgcolor": ""
+  },
+  "wxMount": {
+    "_name": "WMount",
+    "color": "black",
+    "bgcolor": ""
   }
 }

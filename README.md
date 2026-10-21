@@ -28,7 +28,7 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/sickbraintwo/WextraUI
 ```
 
-No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** category, the seven of the H3 scene loop in its sub-menu **WextraUI/H3**.
+No extra dependencies. Restart ComfyUI; the nodes are in the **WextraUI** category, with four sub-menus: **WextraUI/H3** (the seven of the H3 scene loop), **WextraUI/Video**, **WextraUI/Audio** and **WextraUI/Foley**.
 
 <p align="center"><img src="images/help_popup.png" width="860" alt="WLoRA with its ? help page open"></p>
 <p align="center"><sub>Every node has a <b>?</b> in its title bar: the full help page, inside ComfyUI. This README is the tour, the <b>?</b> is the manual.</sub></p>
@@ -46,7 +46,7 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 | [WDifference](#wdifference) | what changed since the last run | [WLoop Start H3](#wloop-start-h3) | which scenes this Run renders |
 | [WLoRA](#wlora) | LoRA + trigger words, in line | [WLoop Scene Conditioning H3](#wloop-scene-conditioning-h3) | the loop body |
 | [WFrame](#wframe) | crop · resize · place, for outpaint | [WLoop End H3](#wloop-end-h3) | the hand-off to the next scene |
-| [WReso](#wreso) | the resolution, written large | | |
+| [WReso](#wreso) | read, define, find the ratio of a size | | |
 | [WFloat](#wfloat) | a float that walks, run after run | | |
 | [WInt🌱](#wint) | an integer that walks: the seeds of a grid, a count | | |
 | [WSwitch](#wswitch) | slots of cables, one on, the rest asleep | | |
@@ -55,9 +55,17 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 | [WScheduler](#wsampler--wscheduler) | the scheduler menu + control after generate | | |
 | [carry](#carry-the-odometer-cable) | the cable that makes a grid of two walks | | |
 
+| Video | | Audio · Foley | |
+|---|---|---|---|
+| [WExtractor](#wextractor) | one frame of a video, or every frame between two | [WMixer](#wmixer) | a timeline mixer inside the node, played live |
+| [WMount](#wmount) | videos joined into one mp4, every joint its own way | [WAudio Prompts](#waudio-prompts) | the sound prompt of every scene, written by a vision model |
+| [WCutScene](#wcutscene) | where the shot changes, checked by eye | [WLoop Start Foley](#wloop-start-foley) | the sound of a whole video in one Run |
+| [WAonV](#waonv) | the sound on a video, the picture untouched | [WLoop Window Foley](#wloop-window-foley) | one window of the plan |
+| | | [WLoop End Foley](#wloop-end-foley) | the window into the mix, with its fades |
+
 ## Utilities
 
-Fourteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution). Menu **WextraUI**.
+Fifteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution). Menu **WextraUI**.
 
 ### WSave Image
 
@@ -125,7 +133,12 @@ One node for the outpaint prep and every framing job: a **stack of actions** don
 
 ### WReso
 
-The resolution, **written large on the node**, and nothing else: plug a picture, or two INT cables (`width`, `height` from a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance; the same two numbers go out as INT. As small as a node gets. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
+Every question about a size, in **three sections** with a ▸ / ▾ head, one open at a time; the outputs (`width`, `height`) are the numbers of the section open, or of the last one opened, written large at the foot of the node.
+- **Resolution Reading**: plug a picture, or two INT cables (`width`, `height` from a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
+- **Resolution Defining**: one side and a ratio give the other side. Type the width **or** the height, pick the ratio (every landscape one in use, from `1:1` to `32:9`: photo, screens, cinema; or `custom` and two numbers of your own): a height of 832 at 16:9 reads `1480 × 832`. The side worked out is rounded to the nearest multiple of 8; while one side is above 0 the box of the other one is greyed out. **invert** turns the result round (`832 × 1480`): the upright frame.
+- **Ratio Finding**: a width and a height, given back as they are, and their ratio written under them: `16:9` when it is exact, `≈ 16:9` when it is within 1%, the reduced fraction otherwise; small under it, the fraction and the decimal (`185:104 | 1.78:1`).
+
+A WReso saved with 0.8.0 opens with Resolution Reading and works as before. It runs with nothing on its outputs, like a Preview.
 
 <img src="images/WReso.png" width="260" alt="WReso">
 
@@ -212,6 +225,64 @@ Closes one iteration of the loop: from the clip just rendered it cuts **the tail
 
 <img src="images/WLoopEnd_H3.png" width="300" alt="WLoop End H3">
 
+## Video and sound
+
+Nine nodes for the part of the job that comes after the generation: pick a frame out of a video, join clips into one film, find where the shots change, write a sound prompt for every scene, make the sound of the whole video with a video-to-audio model, mix tracks on a timeline, put the sound on the picture. No ffmpeg to install: everything goes through the PyAV that ComfyUI ships. Menus **WextraUI/Video**, **WextraUI/Audio**, **WextraUI/Foley**.
+
+### WExtractor
+
+One frame of a video, or every frame between two. Pick the video (the input folder, then the output one, or upload one, or drag it onto the node), move the pointer on the **timeline** under the preview: the frame where you leave it goes out of `images`, with its number and its fps. Arrow keys for one frame (Shift: ten), space to play, F for the full screen. With **multiple** on, a second pointer, and every frame from the first to the second goes out, their number written between them (and how much memory they take when it is a lot). The frame picked is the frame that goes out: both are counted from the video's own timestamps.
+
+<img src="images/WExtractor.png" width="300" alt="WExtractor">
+
+### WMount
+
+Videos joined into one mp4: the clips of a **folder** of ComfyUI's input or output, in the order of their names, then the connected ones (a video or frames; the last socket connected makes a new one, up to 32). **Every clip has its own row of rules**: `in`, frames dropped from its head (22 by default, the frames a scene continued from the one before repeats); `out`, `drop` n frames from its tail (a loop that ends on its first picture: `drop 1`), or `blend` n frames into the first ones of the clip after, the sound fading across the same stretch. The frames go through one at a time, from the clips to the new file: a long 1080p mount does not fill the memory. The preview plays in the node.
+
+<img src="images/WMount.png" width="300" alt="WMount">
+
+### WCutScene
+
+Where the shot changes. The frames go in, **the start of every scene comes out**, one time per line, and on the node a **sheet** with the first, middle and last frame of each scene: a cut that was missed shows as two shots in one cell, a cut too many as the same shot in two. A cut is a sudden jump of the picture, much larger than the frames around it, so fast motion, a flash and a fade from black are not cuts; a cross-dissolve never jumps and is not found: write its time in the **cuts** box, where the found cuts are written after the Run and can be fixed by hand (add a line, delete one; empty the box to find them again). The **beats** box is for times where the shot goes on but the sound changes (a drop falls): written by hand, they make a scene of their own, marked `+`, which the Foley nodes fade in slowly instead of cutting.
+
+<img src="images/WCutScene.png" width="300" alt="WCutScene">
+
+### WAudio Prompts
+
+The sound prompt of every scene, written by **Qwen3-VL** (a Load CLIP, as Comfy's own Generate Text uses it: nothing outside ComfyUI) looking at a few frames of each scene, with the rules of a foley prompt built in: only sounds whose source is seen, material and timbre, what changes on screen, no invented events, no speech, no music. After WCutScene: its `cuts` say where each scene starts; out comes the **timeline** `time | prompt` for WLoop Start Foley. The text goes into the **prompts** box after the Run, where it can be fixed by hand; empty a line to have just that scene written again, another seed for another text. The **custom** box takes prompts of your own: a scene with a line there is not asked to the model. On the node, each scene's middle frame with its prompt.
+
+<img src="images/WAudioPrompts.png" width="300" alt="WAudio Prompts">
+
+### WLoop Start Foley
+
+The sound of a whole video in one Run, a prompt for every scene, with **LTX-2.3 and the Foley V2A LoRA** on an Easy-Use For Loop. The video goes in whole with the **timeline** (`time | prompt`, from WAudio Prompts or by hand; `| seed` for a seed of your own; `+` before a time for a beat) and comes out as the **plan**: every scene cut into windows the model can take (`window` 169 frames = 7 s at 24 fps, the longest clip the LoRA was trained on), overlapping by `overlap` seconds inside a scene, meeting over `cut_fade` (0.1 s) across a cut, because a cut in the picture is a cut in the sound. `windows` is the loop's `total`, `mix` its `initial_value1`. **redo_scenes** (`4` · `4, 7` · `4-6`) with the **previous_audio** of an earlier run makes only those scenes again and puts them into the old sound, with the same fades.
+
+<img src="images/WLoopStart_Foley.png" width="300" alt="WLoop Start Foley">
+
+### WLoop Window Foley
+
+Inside the loop: the window the loop's `index` points at. Its **frames** (the video's aspect at `megapixels`, 0.5 ≈ 960 × 544, the size the LoRA was trained at, sides to multiples of 32), how many they are (1+8n, for the audio latent), the **prompt** of its scene with the common text, its **seed**.
+
+<img src="images/WLoopWindow_Foley.png" width="300" alt="WLoop Window Foley">
+
+### WLoop End Foley
+
+At the end of the loop body: the sound just made goes **into the mix at its place, with its fades**, constant power so the level does not dip; at the last window the whole mix comes down under `ceiling_db` if it peaks above it (a volume change, nothing squashed). After the loop, `mix` is the sound of the whole video, 48 kHz stereo: save it as flac, put it on the picture with WAonV.
+
+<img src="images/WLoopEnd_Foley.png" width="300" alt="WLoop End Foley">
+
+### WMixer
+
+A **timeline mixer inside the node**, as the layers of After Effects. Every track is an audio file of the input or output folder (or dragged onto the node), with its volume, offset, mute and solo; on each track the **clips** that play, with a fade in and a fade out on their top corners; a **volume line** drawn with the mouse, with dips and curves. It **plays live** while you edit (Web Audio), with the video next to it, muted, in step; the cuts of a WLoop Start Foley in the same graph are on the ruler, and the clips snap to them, to a **beat grid** (bpm, first beat) and to each other. Double-click makes a clip filling the scene, Ctrl+click cuts it, Alt+click deletes it; the mixer has its own undo. Space plays, F is the full screen, `?` in the bar is the card with every gesture. Run makes the same mix in Python and gives it as AUDIO, under a ceiling.
+
+<img src="images/WMixer.png" width="860" alt="WMixer">
+
+### WAonV
+
+Audio on video: the sound on a video file **without encoding the picture again**, the sound the video had left out. The video from the menu (input, then output folder) or from a cable; the mix of WMixer or of the Foley loop, or a Load Audio; AAC at the bitrate you pick. `length` says whether the video, the sound or the shorter of the two sets the length of the file. The sound made on a small copy of the video goes on the high-definition one in seconds.
+
+<img src="images/WAonV.png" width="300" alt="WAonV">
+
 ## Made with it: RESONANCE
 
 A ~77 s music video, video and audio generated together shot by shot with MiniMax H3, driven by these nodes and by an AI agent (Claude Code) working part of the loop through Comfy MCP: a world that exists only where sound touches it, five acts around one black riveted-iron skull. Nine `WScene H3` chained end to end, all seeds fixed for reproduction. Entry for the Comfy H3 Sync Sound Community Challenge, September 2026.
@@ -224,9 +295,9 @@ A ~77 s music video, video and audio generated together shot by shot with MiniMa
 ## Security
 
 What the pack touches, for whoever reviews it:
-- **Files:** only under `ComfyUI/output` and `ComfyUI/input` (`src/wxPaths.py` is the single gate: relative paths are resolved there, absolute paths are accepted only inside them, `..` is dropped). WSave Image writes under `output/`, WDifference keeps its diaries in `output/_Wextra/rundiff`. WCheckpoint loads the checkpoint through the core node's code, by a name ComfyUI itself lists. WLoRA reads LoRA files, their header and — read-only, when there is one — the `.rgthree-info.json` next to them, through `folder_paths` only, in the model folders ComfyUI itself lists; nothing is written back next to the LoRA.
-- **Network:** none. The pack makes no outbound request of any kind. Its one HTTP route (`/wextraui/lora_tags`, served by ComfyUI itself) answers only for LoRA names ComfyUI lists, from data already on disk.
-- **Code:** no `eval`/`exec`, no `subprocess`, no runtime `pip`, nothing obfuscated. `comfy node validate` passes; `python tools/selftest.py` is the pre-push check.
+- **Files:** only under `ComfyUI/output`, `ComfyUI/input` and `ComfyUI/temp` (`src/wxPaths.py` is the single gate for the first two: relative paths are resolved there, absolute paths are accepted only inside them, `..` is dropped; the video and audio nodes resolve their files the same way). WSave Image writes under `output/`, WDifference keeps its diaries in `output/_Wextra/rundiff`, WMount and WAonV write their mp4 under `output/`, WCutScene and WAudio Prompts their sheets under `temp/`. WExtractor and WMixer read videos and audio files of `input/` and `output/` and keep a light copy (a small proxy, the sound as flac) under `temp/`, made once per version of the file; a file dragged onto them is uploaded through ComfyUI's own `/upload/image`. WCheckpoint loads the checkpoint through the core node's code, by a name ComfyUI itself lists. WLoRA reads LoRA files, their header and — read-only, when there is one — the `.rgthree-info.json` next to them, through `folder_paths` only, in the model folders ComfyUI itself lists; nothing is written back next to the LoRA. WAudio Prompts runs the vision model through ComfyUI's own CLIP loader: nothing is downloaded.
+- **Network:** none. The pack makes no outbound request of any kind. Its HTTP routes (`/wextraui/lora_tags`, `media_files`, `video_audio`, `video_proxy`, `extractor_info`, `extractor_files`, `mount_clips`, `mount_folders`), all GET and served by ComfyUI itself, answer only about files in the folders above, from data already on disk.
+- **Code:** no `eval`/`exec`, no `subprocess`, no runtime `pip`, nothing obfuscated; the video and audio work is done in-process by the PyAV that ComfyUI ships. `comfy node validate` passes; `python tools/selftest.py` is the pre-push check.
 
 ## Built for agents too
 

@@ -208,7 +208,10 @@ app.registerExtension({
             const ruler = document.createElement("canvas").getContext("2d");
             const widest = (c, slots) => { c.save(); c.font = "14px Arial"; const w = Math.max(0, ...(slots || []).map((s) => c.measureText(s.label || s.name || "").width)); c.restore(); return w; };
             function minWidth(sz) {
-                const row = 24 + widest(ruler, node.inputs) + PILL.gap + PILL.w + PEN.gap + PEN.w + GRIP.gap + GRIP.w + BOX.pad + 10 + widest(ruler, node.outputs) + 24;
+                // the row of `carry` may carry the two chips ⟲ / ▶ (wxCarry.js): they need their own room before the label
+                const chips = node.__wxCarry?.chipsWidth?.() || 0;
+                const right = Math.max(widest(ruler, node.outputs), chips ? chips + widest(ruler, node.outputs.filter((o) => o.name === "carry")) : 0);
+                const row = 24 + widest(ruler, node.inputs) + PILL.gap + PILL.w + PEN.gap + PEN.w + GRIP.gap + GRIP.w + BOX.pad + 10 + right + 24;
                 return Math.ceil(Math.max((sz || node.computeSize())[0], row));
             }
 
@@ -341,6 +344,9 @@ app.registerExtension({
             if (wCtl) {
                 wCtl.afterQueued = () => { const c = wCtl.value; if (c && c !== "fixed") move(c === "decrement" ? "-" : c === "randomize" ? "rand" : "+"); };
                 wxCarry(node, { control: () => wCtl, at, size, move, first: () => setActive(1) });
+                // the chips come and go with `control` (and with the carry cable: onConnectionsChange below): the width follows
+                const cbCtl = wCtl.callback;
+                wCtl.callback = function () { const rr = cbCtl?.apply(this, arguments); setTimeout(layout, 0); return rr; };
             }
             const origConn = node.onConnectionsChange;
             node.onConnectionsChange = function () { const rr = origConn?.apply(this, arguments); setTimeout(layout, 0); return rr; };

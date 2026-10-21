@@ -120,6 +120,9 @@ export function wxCarry(node, { control, at, size, move, first = null, labelCont
         out.push({ k: "rewind", t: "⟲", x: right - w, y, w, h: CHIP.h });
         return out;
     };
+    // the room the chips take on their row (with their gaps), 0 when there are none: a node that draws across the row
+    // (WSwitch, the box of a slot) keeps wide enough for them (Sick, 21/10: nothing under the chips)
+    node.__wxCarry.chipsWidth = () => { const cs = chips(ruler); return cs ? cs.reduce((s, c) => s + c.w + CHIP.gap, 0) + 8 : 0; };
     const origDraw = node.onDrawForeground;
     node.onDrawForeground = function (ctx) {
         const rr = origDraw?.apply(this, arguments);
