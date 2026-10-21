@@ -1,4 +1,7 @@
-<h1 align="center"><img src="images/WextraUI.png" width="420" alt="WextraUI"></h1>
+<h1 align="center"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/WextraUI.png">
+  <img src="images/WextraUI_light.png" width="420" alt="WextraUI">
+</picture></h1>
 <p align="center">Extra nodes for ComfyUI, from the Winteraction workbench.</p>
 
 <p align="center"><img src="images/Carry.png" width="860" alt="The carry chain: checkpoint, sampler, scheduler and seed walking together, and the file name that says what made each image"></p>
