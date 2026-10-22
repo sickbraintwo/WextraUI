@@ -14,6 +14,17 @@ input). So:
 - **Widgets with no state of their own** (buttons, a picker that mirrors another box, a table that mirrors a JSON box) get
   `widget.serialize = false` **and** the node calls `wxCompactWidgets(node)` at the end of `nodeCreated`. Passing
   `{ serialize: false }` in the options is not enough: the frontend leaves a `null` (or a copy of the value) in the array.
+- **Every new value takes a cable** (rule of 2026-10-22, for what is added from then on). A number, a float, a toggle, a
+  text, a choice on the edge of the node: each is a schema input with its socket; rows inside a node's own drawing, away
+  from its edge (the slots of WSwitch, the rows of WPrompt Rows), are not values of this kind and stay as they are. Each is never `socketless`, never a menu where a number is meant (`multiple` of WReso is an INT
+  limited to its seven values in the JS, not a combo: a combo refuses an INT cable). A node loaded from a file keeps the
+  sockets the file saved, slot by slot. `web/wxSockets.js` repairs the saved list **before** the frontend reads it,
+  in place and **only by list**: an input in `RETIRED` (left a released node) gives its index to the box the fresh node
+  has there, a box in `CHANGED` (type changed after a release) gets its new type. Add the input there in the same commit
+  that removes or retypes it. Never repair by rule over the schema: some nodes leave boxes socketless on purpose (WSwitch,
+  WPrompt Rows) and some sockets have a type of their own (`*` on the values of WSave Image); a rule broke both on
+  2026-10-22. A socket appended after the load, out of the schema's order, may be drawn and take no cable.
+  Check a new or changed box on a node **loaded from an old workflow**, not only on a fresh one.
 - **New inputs go at the end of `optional`.** Inserting one in the middle shifts every value after it in old files.
 - **Never rename an input, never reorder outputs** without (a) a rule in `tools/migrate_outputs.py` and (b) a load guard in
   the JS. The name is the key old files are restored by (`widgets_values_named`, saved by frontend ≥ 1.5x).

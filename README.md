@@ -49,7 +49,8 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 | [WDifference](#wdifference) | what changed since the last run | [WLoop Start H3](#wloop-start-h3) | which scenes this Run renders |
 | [WLoRA](#wlora) | LoRA + trigger words, in line | [WLoop Scene Conditioning H3](#wloop-scene-conditioning-h3) | the loop body |
 | [WFrame](#wframe) | crop · resize · place, for outpaint | [WLoop End H3](#wloop-end-h3) | the hand-off to the next scene |
-| [WReso](#wreso) | read, define, find the ratio of a size | | |
+| [WReso](#wreso) | read, define or multiply a size | | |
+| [WRatio](#wratio) | the ratio of a size, its two numbers out | | |
 | [WFloat](#wfloat) | a float that walks, run after run | | |
 | [WInt🌱](#wint) | an integer that walks: the seeds of a grid, a count | | |
 | [WSwitch](#wswitch) | slots of cables, one on, the rest asleep | | |
@@ -68,7 +69,7 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 
 ## Utilities
 
-Fifteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution). Menu **WextraUI**.
+Sixteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution, WRatio its ratio). Menu **WextraUI**.
 
 ### WSave Image
 
@@ -136,14 +137,20 @@ One node for the outpaint prep and every framing job: a **stack of actions** don
 
 ### WReso
 
-Every question about a size, in **three sections** with a ▸ / ▾ head, one open at a time; the outputs (`width`, `height`) are the numbers of the section open, or of the last one opened, written large at the foot of the node.
-- **Resolution Reading**: plug a picture, or two INT cables (`width`, `height` from a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
-- **Resolution Defining**: one side and a ratio give the other side. Type the width **or** the height, pick the ratio (every landscape one in use, from `1:1` to `32:9`: photo, screens, cinema; or `custom` and two numbers of your own): a height of 832 at 16:9 reads `1480 × 832`. The side worked out is rounded to the nearest multiple of 8; while one side is above 0 the box of the other one is greyed out. **invert** turns the result round (`832 × 1480`): the upright frame.
-- **Ratio Finding**: a width and a height, given back as they are, and their ratio written under them: `16:9` when it is exact, `≈ 16:9` when it is within 1%, the reduced fraction otherwise; small under it, the fraction and the decimal (`185:104 | 1.78:1`).
+The size of a picture, in **three sections** with a ▸ / ▾ head, one open at a time; the outputs (`width`, `height`) are the numbers of the section open, or of the last one opened, written large at the foot of the node. Every number of the node takes a cable.
+- **Read**: plug a picture, or two INT cables (`width`, `height` from a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
+- **Define**: one side and a ratio give the other side. Type the width **or** the height, pick the ratio (every landscape one in use, from `1:1` to `32:9`: photo, screens, cinema; or `custom` and two numbers of your own): a height of 832 at 16:9 reads `1480 × 832`. The side worked out is rounded to the nearest multiple of 8; while one side is above 0 the box of the other one is greyed out. **invert** turns the result round (`832 × 1480`): the upright frame. `multiple` is 1, 2, 4, 8, 16, 32 or 64, in a number box that takes a cable: a number in between goes to the nearest of them.
+- **Multiply**: a width and a height times a number with one decimal (`multiply by`, 1.0 to start): 1024 × 576 at 1.5 reads `1536 × 864`, each side to the nearest pixel.
 
-A WReso saved with 0.8.0 opens with Resolution Reading and works as before. It runs with nothing on its outputs, like a Preview.
+A WReso saved with 0.8.0 opens with Read and works as before; one saved on the Ratio Finding of 0.9.0 opens with Read too (that section is WRatio now). It runs with nothing on its outputs, like a Preview.
 
 <img src="images/WReso.png" width="260" alt="WReso">
+
+### WRatio
+
+The ratio of a size, and its **two numbers out**. A width and a height, typed or by cable; their ratio written large: `16:9` when it is exact, `≈ 16:9` when it is within 1%, the reduced fraction otherwise; small under it, the fraction and the decimal (`185:104 | 1.78:1`); on the right, the nearest sizes that are that ratio exactly with both sides multiples of 8, one bigger (↑) and one smaller (↓). Out, `ratio_width` and `ratio_height`: 16 and 9 for 16:9 or ≈ 16:9; a ratio with a decimal made whole, the same ratio (`1.85:1` is 37 and 20). The two outputs fit the `custom` ratio of WReso as they are: the ratio of one picture, the size of another. It runs with nothing on its outputs, like a Preview.
+
+<img src="images/WRatio.png" width="260" alt="WRatio">
 
 ### WFloat
 

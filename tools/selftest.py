@@ -99,8 +99,8 @@ def widget_inputs(spec):
 def check_schema(oi):
     nodes = sorted(k for k in oi if k.startswith(PREFIXES))
     print(f"2. schema: {len(nodes)} WextraUI nodes in object_info")
-    if len(nodes) < 30:
-        fail(f"expected 30 nodes, found {len(nodes)}: {nodes}")
+    if len(nodes) < 31:
+        fail(f"expected 31 nodes, found {len(nodes)}: {nodes}")
     for k in nodes:
         for name, t, o in widget_inputs(oi[k]):
             if isinstance(t, list) and not t and "default" not in o:
@@ -278,9 +278,20 @@ def run_graphs(oi):
         },
         "wxReso defining+reading": {
             "1": N("wxReso", section="defining", define_width=0, define_height=832, aspect_ratio="16:9", custom_width=16,
-                   custom_height=9, multiple="8", invert=True, ratio_width=0, ratio_height=0),   # 832 at 16:9, turned: 832 × 1480
+                   custom_height=9, multiple=8, invert=True),                                     # 832 at 16:9, turned: 832 × 1480
             "2": N("wxReso", width=L(1, 0), height=L(1, 1)),                                    # a WReso of 0.8.0: reading only
             "3": N("PreviewAny", source=L(1, 0)),
+        },
+        "wxReso multiply": {
+            "1": N("wxReso", section="multiply", multiply_width=1024, multiply_height=576, multiply_by=1.5),   # 1536 × 864
+            "2": N("PreviewAny", source=L(1, 0)),
+        },
+        "wxRatio+wxReso custom": {
+            "1": N("wxRatio", width=1480, height=832),                                         # ≈ 16:9: out 16 and 9
+            "2": N("wxReso", section="defining", define_width=0, define_height=1080, aspect_ratio="custom",
+                   custom_width=L(1, 0), custom_height=L(1, 1), multiple=8, invert=False),      # 1080 at 16:9: 1920 × 1080
+            "3": N("PreviewAny", source=L(2, 0)),
+            "4": N("PreviewAny", source=L(1, 1)),
         },
         "h3Scene+h3CollectScenes+h3LoopRange+h3HandoffTail": {
             "1": N("h3Scene", prompt="scene one", duration=5.0, seed=1, first_frame_from="previous_scene", guide_frame_at=0.0,

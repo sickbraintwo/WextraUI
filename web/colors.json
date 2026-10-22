@@ -105,6 +105,11 @@
     "color": "normal grey",
     "bgcolor": ""
   },
+  "wxRatio": {
+    "_name": "WRatio",
+    "color": "normal grey",
+    "bgcolor": ""
+  },
   "wxFoleyLoopStart": {
     "_name": "WLoop Start Foley",
     "color": "cyan",

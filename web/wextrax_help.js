@@ -8,7 +8,7 @@ import { app } from "../../scripts/app.js";
 const CATEGORY = "WextraUI";
 // Sick's reference scene, 21/10/2026: the width every node is born with (the height is the one its widgets ask for).
 const WIDTHS = { saveWimage: 210, h3PromptComposer: 400, h3SimplePrompt: 400, h3Scene: 220, h3CollectScenes: 230, h3LoopRange: 210, h3SceneConditioning: 250,
-                 h3HandoffTail: 180, wxRoute: 230, wxRouteIndex: 230, wxRunDiff: 230, wxLoraLoaderTrigger: 370, wxCheckpointLoader: 370, wxSampler: 260, wxScheduler: 260, wxFrame: 350, wxReso: 210,
+                 h3HandoffTail: 180, wxRoute: 230, wxRouteIndex: 230, wxRunDiff: 230, wxLoraLoaderTrigger: 370, wxCheckpointLoader: 370, wxSampler: 260, wxScheduler: 260, wxFrame: 350, wxReso: 210, wxRatio: 210,
                  wxSwitch: 270, wxSeed: 230, wxFloat: 230, wxPromptRows: 400,
                  wxFoleyLoopStart: 230, wxFoleyLoopWindow: 210, wxFoleyLoopEnd: 210, wxAonV: 210, wxMixer: 790, wxCutScene: 210, wxAudioPrompts: 210, wxExtractor: 300, wxMount: 210 };
 const DOCS = new URL("./docs/", import.meta.url).pathname;  // /extensions/<folder>/docs/, whatever the folder is called

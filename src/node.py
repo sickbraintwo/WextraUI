@@ -17,6 +17,7 @@ from .wfloat import WFloat
 from .wseed import WSeed
 from .wswitch import WSwitch
 from .wreso import WReso
+from .wratio import WRatio
 from .foley import FoleyLoopStart, FoleyLoopWindow, FoleyLoopEnd, AonV
 from .mixer import WMixer
 from .cutscene import WCutScene
@@ -51,6 +52,7 @@ NODE_CLASS_MAPPINGS = {
     "wxSeed": WSeed,
     "wxSwitch": WSwitch,
     "wxReso": WReso,
+    "wxRatio": WRatio,
     "wxFoleyLoopStart": FoleyLoopStart,
     "wxFoleyLoopWindow": FoleyLoopWindow,
     "wxFoleyLoopEnd": FoleyLoopEnd,
@@ -84,6 +86,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "wxSeed": "WInt🌱",
     "wxSwitch": "WSwitch",
     "wxReso": "WReso",
+    "wxRatio": "WRatio",
     "wxFoleyLoopStart": "WLoop Start Foley",
     "wxFoleyLoopWindow": "WLoop Window Foley",
     "wxFoleyLoopEnd": "WLoop End Foley",
