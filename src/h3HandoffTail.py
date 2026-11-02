@@ -46,10 +46,10 @@ class H3HandoffTail:
         if nxt is not None and nxt.get("previous_from", "loop") == "file":
             clip, aud = tail_from_file(nxt, i + 1, "H3 Handoff Tail")
             info = f"scene {i} -> {i + 1}: {clip.shape[0]} frames ({seconds:.2f} s) from file {nxt.get('resume_path')}"
-            return (clip[-1:], clip, aud, info)
+            return {"ui": {"wx_loop": [{"i": i}]}, "result": (clip[-1:], clip, aud, info)}
 
         clip = video_tail(images, n)
         aud = audio_tail(audio, seconds)
         where = f"scene {i} -> {i + 1}" if nxt is not None else f"scene {i} (last one)"
         info = f"{where}: last {clip.shape[0]} frames ({seconds:.2f} s) of this clip"
-        return (images[-1:], clip, aud, info)
+        return {"ui": {"wx_loop": [{"i": i}]}, "result": (images[-1:], clip, aud, info)}   # the row of the loop (web/wxLoopRow.js)

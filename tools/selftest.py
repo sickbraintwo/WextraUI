@@ -11,8 +11,10 @@ Usage:  python tools/selftest.py [--comfy <path to comfy.exe>] [--url http://127
                  `success` (WLoRA needs a checkpoint and a LoRA: the first of each found in the model
                  folders; skipped when there is none).
 Exit code 1 when anything fails. Nothing is written in the ComfyUI output folder (the runs preview, they do not save)."""
+import ast
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -80,6 +82,49 @@ def check_scanner():
         fail("registry scanner would flag " + h + " (code, comment or prose: reword it)")
 
 
+def check_times():
+    """The same lines through the boxes as the backend reads them and as the page does (web/wxTimes.js): the strip of
+    WCutScene and the rows of WAudio Prompts must see what the Run will see."""
+    node = shutil.which("node")
+    if not node:
+        print("   times: no node on PATH, skipped")
+        return
+    ns = {"re": re}
+    for rel, names in ((("src", "foley.py"), ("TIME", "parse_time", "parse_mark")), (("src", "cutscene.py"), ("parse_marks",))):
+        tree = ast.parse(open(os.path.join(REPO, *rel), encoding="utf-8").read())
+        keep = [n for n in tree.body if (isinstance(n, ast.FunctionDef) and n.name in names) or
+                (isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") in names)]
+        exec(compile(ast.Module(keep, []), rel[-1], "exec"), ns)
+    fps, total = 24, 144
+    cases = [("", ""), ("2.5\n4", "3.2"), ("2.5\n+3", ""), ("+2.5\n2.5", ""), ("2.5", "2.5"), ("0", "0"), ("1:02.5", ""), ("0:03,5", "72f"),
+             ("144f", ""), ("143f", ""), ("6", ""), ("5.99", ""), ("abc", ""), ("2 # two\n# nothing\n\n3", ""), ("2.0625", ""), ("2.02083333", "+ 4"),
+             ("1:2f", ""), ("2", "x"), ("7\nabc", "9")]
+
+    def backend(cuts, beats):
+        try:
+            found = not cuts.strip()
+            frames, marked = ([0], set()) if found else ns["parse_marks"](cuts, fps, total)
+            extra = ns["parse_marks"](beats, fps, total, all_beats=True, where="beats")[1]
+            hard = set(frames) - marked
+            marked = (marked | extra) - hard
+            return {"starts": sorted(hard | marked), "beats": sorted(marked), "err": False}
+        except ValueError:
+            return {"err": True}
+    url = "file:///" + os.path.join(REPO, "web", "wxTimes.js").replace(os.sep, "/")
+    js = (f"import {{ scenesOf }} from {json.dumps(url)};\n"
+          f"for (const [c, b] of {json.dumps(cases)}) {{ const r = scenesOf(c, b, {fps}, {total});\n"
+          "console.log(JSON.stringify(r.err ? { err: true } : { starts: r.starts, beats: [...r.beats].sort((x, y) => x - y), err: false })); }\n")
+    out = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, encoding="utf-8")
+    lines = out.stdout.strip().splitlines()
+    if out.returncode or len(lines) != len(cases):
+        fail("times: the page's reading did not run: " + out.stderr[:200])
+        return
+    bad = [c for c, l in zip(cases, lines) if json.loads(l) != backend(*c)]
+    print(f"   times: {len(cases) - len(bad)}/{len(cases)} lines read the same in the page and in the backend")
+    for c in bad:
+        fail(f"times: {c} reads differently in the page and in the backend")
+
+
 # ---------- 2. schema ----------
 def widget_inputs(spec):
     """(name, type, options) of every input that is a widget, in comfy-cli's order (required then optional)."""
@@ -99,8 +144,8 @@ def widget_inputs(spec):
 def check_schema(oi):
     nodes = sorted(k for k in oi if k.startswith(PREFIXES))
     print(f"2. schema: {len(nodes)} WextraUI nodes in object_info")
-    if len(nodes) < 31:
-        fail(f"expected 31 nodes, found {len(nodes)}: {nodes}")
+    if len(nodes) < 34:
+        fail(f"expected 34 nodes, found {len(nodes)}: {nodes}")
     for k in nodes:
         for name, t, o in widget_inputs(oi[k]):
             if isinstance(t, list) and not t and "default" not in o:
@@ -240,10 +285,27 @@ def run_graphs(oi):
             "4": N("wxRouteIndex", value=L(3, 0), index=0),
             "5": N("PreviewAny", source=L(4, 0)),
         },
+        # Wif / WIndex (29/10): the input chosen goes out, lazily; a chosen input with no cable blocks (no output, no error).
+        # Wif with count 2: each pair has its own output, the same `if` decides both; pair 2 has no `true`, so out 2 blocks
+        "wxif+wxIndex": {"1": N("wxFloat", value=0.25, control="fixed", step=0.1),
+                         "2": N("wxFloat", value=0.75, control="fixed", step=0.1),
+                         "3": N("wxif", count=1, **{"if": False}, true1=L(1, 0), false1=L(2, 0)),
+                         "4": N("wxIndex", index=1, value0=L(1, 0), value1=L(3, 0)),
+                         "5": N("PreviewAny", source=L(4, 0)),
+                         "6": N("wxIndex", index=3, value0=L(1, 0)),
+                         "7": N("PreviewAny", source=L(6, 0)),
+                         "8": N("wxif", count=1, **{"if": True}, false1=L(2, 0)),
+                         "9": N("PreviewAny", source=L(8, 0)),
+                         "10": N("wxif", count=2, **{"if": True}, true1=L(2, 0), false1=L(1, 0), false2=L(1, 0)),
+                         "11": N("PreviewAny", source=L(10, 0)),
+                         "12": N("PreviewAny", source=L(10, 1)),
+                         "_expect": {"5": "0.75", "7": None, "9": None, "11": "0.75", "12": None}},
         "wxFloat": {"1": N("wxFloat", value=0.5, control="increment", step=0.1),
                     "2": N("PreviewAny", source=L(1, 0)),
                     "3": N("wxFloat", value=1.0, control="fixed", step=0.5, until=2.0, start="1", carry=L(1, 1)),   # the odometer cable: a type of its own, a string
-                    "4": N("PreviewAny", source=L(3, 0))},
+                    "4": N("PreviewAny", source=L(3, 0)),
+                    "5": N("wxFloat", value=0.75, control="increment", step=0.1, selection="[0.5, 0.75, 1.2]"),   # the numbers of your own (25/10): accepted, ignored by the backend
+                    "6": N("PreviewAny", source=L(5, 0))},
         "wxSeed": {"1": N("wxSeed", value=7, control="increment", step=1, until=9, start="7"),
                    "2": N("wxSeed", value=100, control="fixed", step=10, until=100, start="", carry=L(1, 1)),
                    "3": N("PreviewAny", source=L(2, 0))},
@@ -253,6 +315,11 @@ def run_graphs(oi):
                              "3": N("wxSwitch", inputs_per_slot=1, on_1=False, on_2=True, in1_1=L(1, 0), in2_1=L(2, 0)),
                              "4": N("PreviewAny", source=L(3, 1)),
                              "5": N("PreviewAny", source=L(3, 0))},   # index = 1 (the second slot, counted from 0)
+        # ten cables per slot (26/10): the tenth cable of the slot that is on comes out of out_10 (output 10: index, out_1..out_10, carry)
+        "wxSwitch 10 per slot": {"1": N("wxFloat", value=0.25, control="fixed", step=0.1),
+                                 "2": N("wxSwitch", inputs_per_slot=10, on_1=True, in1_10=L(1, 0)),
+                                 "3": N("PreviewAny", source=L(2, 10)),
+                                 "_expect": {"3": "0.25"}},
         "h3SimplePrompt": {"1": N("h3SimplePrompt", scene="a room", action="a man walks", camera="static", sound="rain",
                                   stays_fixed="", what_moves="", final_state="", avoid1="", avoid2="", avoid3="")},
         "h3PromptComposer": {"1": N("h3PromptComposer", intro="", beats_json=beats, total_duration=10.0, sound="", avoid="")},
@@ -267,6 +334,20 @@ def run_graphs(oi):
                    ops='[{"t":"resize","mode":"fit in box","v":0,"w":320,"h":320},'
                        '{"t":"pad","w":320,"h":320,"r":"","a":"center","dx":0,"dy":0,"color":"#ff0000","feather":8}]'),
             "3": N("PreviewAny", source=L(2, 1)),
+        },
+        "EmptyImage+wxFrame (no action: the size that came in)": {   # with no action, width and height = the picture's
+            "1": N("EmptyImage", width=256, height=192, batch_size=2, color=0),
+            "2": N("wxFrame", image=L(1), method="lanczos", ops="[]"),
+            "3": N("PreviewAny", source=L(2, 2)),
+            "4": N("PreviewAny", source=L(2, 3)),
+            "5": N("PreviewAny", source=L(2, 1)),
+            "6": N("wxFrame", image=L(1), method="lanczos",   # a crop that keeps it all: still no change
+                   ops='[{"t":"crop","w":0,"h":0,"r":"","a":"center","dx":0,"dy":0}]'),
+            "7": N("PreviewAny", source=L(6, 2)),
+            "8": N("wxFrame", image=L(1), method="lanczos",   # the picture shifted off a 100 x 100 canvas
+                   ops='[{"t":"pad","w":100,"h":100,"r":"","a":"center","dx":5000,"dy":0,"color":"#000000","feather":0}]'),
+            "9": N("PreviewAny", source=L(8, 3)),
+            "_expect": {"3": "256", "4": "192", "7": "256", "9": "100"},
         },
         "EmptyImage+wxReso": {
             "1": N("EmptyImage", width=256, height=192, batch_size=1, color=0),
@@ -293,6 +374,18 @@ def run_graphs(oi):
             "3": N("PreviewAny", source=L(2, 0)),
             "4": N("PreviewAny", source=L(1, 1)),
         },
+        # WRatio's aspect_ratio on WReso's menu: an upright picture goes out as 9:16 and WReso reads it upright, no invert;
+        # Read with its two boxes typed (28/10)
+        "wxRatio aspect upright": {
+            "1": N("wxRatio", width=1088, height=1920),                                        # ≈ 9:16
+            "2": N("wxReso", section="defining", define_width=1080, define_height=0, aspect_ratio=L(1, 2), custom_width=16,
+                   custom_height=9, multiple=8, invert=False),                                  # 1080 at 9:16: 1080 × 1920
+            "3": N("PreviewAny", source=L(2, 1)),
+            "4": N("PreviewAny", source=L(1, 2)),
+            "5": N("wxReso", width=640, height=480),                                           # Read, typed: 640 × 480
+            "6": N("PreviewAny", source=L(5, 1)),
+            "_expect": {"3": "1920", "4": "9:16", "6": "480"},
+        },
         "h3Scene+h3CollectScenes+h3LoopRange+h3HandoffTail": {
             "1": N("h3Scene", prompt="scene one", duration=5.0, seed=1, first_frame_from="previous_scene", guide_frame_at=0.0,
                    handoff_frames="22", previous_from="loop", resume_from_video=""),
@@ -305,6 +398,17 @@ def run_graphs(oi):
             "8": N("PreviewAny", source=L(5, 3)),
         },
     }
+    # WPrompt Rows (02/11): no row with text = the text on prompt_to_divide as it is; a row with text, even off, stops it
+    g["wxPromptRows empty"] = {
+        "1": N("PrimitiveStringMultiline", value="a cat,\n on a roof,"),
+        "2": N("wxPromptRows", join="comma", rows=2, text1="", text2="  ", prompt_to_divide=L(1, 0)),
+        "3": N("PreviewAny", source=L(2, 0)),
+        "4": N("wxPromptRows", join="comma", rows=1, on1=False, text1="off", prompt_to_divide=L(1, 0)),
+        "5": N("PreviewAny", source=L(4, 0)),
+        "6": N("wxPromptRows", join="comma", rows=1, text1="mine", prompt_to_divide=L(1, 0)),
+        "7": N("PreviewAny", source=L(6, 0)),
+        "_expect": {"3": "a cat,\n on a roof,", "5": "", "7": "mine"},
+    }
     ckpt = first_model(oi, "CheckpointLoaderSimple", "ckpt_name")
     lora = first_model(oi, "wxLoraLoaderTrigger", "lora_name")
     if ckpt and lora:
@@ -313,6 +417,45 @@ def run_graphs(oi):
             "2": N("wxLoraLoaderTrigger", lora_name=lora, strength_model=0.7, strength_clip=0.7, rgthree_info=True,
                    where="prefix", separator=", ", picked="", model=L(1, 0), clip=L(1, 1), prompt="a portrait"),
             "3": N("PreviewAny", source=L(2, 2)),   # the merged prompt
+        }
+        # WLoRA Stack: three blocks in use, the second one off (not loaded, its words left out), the fourth hidden by
+        # `loras`; then `loras` by cable; then a separator typed as backslash-n. `_expect`: what the previews must read.
+        clean = re.split(r"[\\/]", lora)[-1].rsplit(".", 1)[0]
+        g["CheckpointLoaderSimple+wxLoraStack"] = {
+            "1": N("CheckpointLoaderSimple", ckpt_name=ckpt),
+            "2": N("wxLoraStack", loras=3, separator=", ",
+                   on_1=True, lora_1=lora, strength_model_1=0.7, strength_clip_1=0.7, rgthree_info_1=True, picked_1='["first word"]',
+                   on_2=False, lora_2=lora, strength_model_2=0.5, strength_clip_2=0.5, rgthree_info_2=True, picked_2='["second word"]',
+                   on_3=True, lora_3=lora, strength_model_3=0.0, strength_clip_3=0.0, rgthree_info_3=True, picked_3='["third word"]',
+                   lora_4=lora, picked_4='["hidden word"]', model=L(1, 0), clip=L(1, 1), prompt="a portrait"),
+            "3": N("PreviewAny", source=L(2, 2)),
+            "4": N("PreviewAny", source=L(2, 3)),
+            "_expect": {"3": "first word, third word, a portrait", "4": f"{clean} + {clean}"},
+        }
+        g["wxSeed+wxLoraStack"] = {
+            "1": N("wxSeed", value=3, control="fixed", step=1),
+            "2": N("wxLoraStack", loras=L(1, 0), lora_1=lora, lora_2=lora, lora_3=lora, picked_3='["third"]', prompt="p"),
+            "3": N("PreviewAny", source=L(2, 2)),
+            "_expect": {"3": "third, p"},
+        }
+        g["wxLoraStack newline"] = {
+            "1": N("wxLoraStack", loras=2, separator="\\n", lora_1=lora, picked_1='["a"]', lora_2=lora, picked_2='["b"]', prompt="p"),
+            "2": N("PreviewAny", source=L(1, 2)),
+            "_expect": {"2": "a\nb\np"},
+        }
+        # twenty blocks (27/10): the twelfth loads, `solo` and `carry` live in the interface; the carry output passes the name
+        g["wxLoraStack twenty"] = {
+            "1": N("wxLoraStack", loras=12, solo="increment", lora_12=lora, picked_12='["twelfth"]', prompt="p"),
+            "2": N("PreviewAny", source=L(1, 2)),
+            "3": N("PreviewAny", source=L(1, 4)),
+            "_expect": {"2": "twelfth, p", "3": clean},
+        }
+        # an empty block (02/11): `None` passes validation, loads nothing, leaves out its words and its name
+        g["wxLoraStack none"] = {
+            "1": N("wxLoraStack", loras=2, lora_1="None", picked_1='["left out"]', lora_2=lora, picked_2='["b"]', prompt="p"),
+            "2": N("PreviewAny", source=L(1, 2)),
+            "3": N("PreviewAny", source=L(1, 3)),
+            "_expect": {"2": "b, p", "3": clean},
         }
     else:
         print("   (no checkpoint or LoRA on the server: the loader run is skipped)")
@@ -352,6 +495,7 @@ def post(url, graph):
 def check_runs(url, oi):
     print("4. run: one API graph per node family on /prompt")
     for name, graph in run_graphs(oi).items():
+        expect = graph.pop("_expect", {})
         r, err = post(url, graph)
         if err:
             detail = json.dumps(err.get("node_errors") or err.get("error"), ensure_ascii=False)[:300]
@@ -369,7 +513,15 @@ def check_runs(url, oi):
             continue
         st = h.get("status", {})
         if st.get("status_str") == "success":
-            print(f"   ok  {name}")
+            wrong = []
+            for nid, want in expect.items():   # a preview's text: outputs[nid]["text"][0]
+                got = ((h.get("outputs", {}).get(nid) or {}).get("text") or [None])[0]
+                if got != want:
+                    wrong.append(f"node {nid}: {got!r} instead of {want!r}")
+            if wrong:
+                fail(f"{name}: " + "; ".join(wrong))
+            else:
+                print(f"   ok  {name}" + (f" ({len(expect)} outputs as expected)" if expect else ""))
         else:
             msg = "?"
             for m in st.get("messages", []):
@@ -392,6 +544,7 @@ def main(argv):
             files.append(a)
     check_registry(comfy)
     check_scanner()
+    check_times()
     try:
         oi = get(url + "/object_info")
     except Exception as e:

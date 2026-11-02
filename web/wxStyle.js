@@ -10,6 +10,7 @@ export const WX = {
 const CSS = `
   .wx { font: 12px/1.3 sans-serif; color: #ddd; box-sizing: border-box; }
   .wx * { box-sizing: border-box; }
+  .lg-node-widget:has(> * .wx-in) > .opacity-0 { opacity: 1; }   /* Nodes 2.0: the socket of a row that is only a name stays in view, as a plain input */
   .wx-label { margin: 6px 0 3px; font-size: 11px; font-weight: 600; color: ${WX.accent}; text-transform: uppercase; letter-spacing: .04em; }
   .wx-label .wx-muted { text-transform: none; font-weight: 400; letter-spacing: 0; }
   .wx-muted { color: #888; font-style: italic; }
@@ -69,12 +70,20 @@ export function wxChip(text, on, onClick) {
 }
 // A canvas button drawn in the WextraUI look (rounded, blue edge). Same call as addWidget("button"): the label is
 // widget.name, so it can be renamed later (the Composer's collapse/expand toggle does).
+/** Under Nodes 2.0 a drawn row gets its own small canvas, as wide as the others but 12 px to their left: this puts it in line
+ *  with them. True under Nodes 2.0, where the row takes the whole width of its canvas. To call from `draw`. */
+export function wxVueDrawnRow(ctx) {
+    if (!LiteGraph.vueNodesMode) return false;
+    const box = ctx.canvas?.parentElement;
+    if (box && box.style.transform !== "translateX(12px)") box.style.transform = "translateX(12px)";
+    return true;
+}
 export function wxAddButton(node, label, onClick) {
     const w = node.addWidget("wxbutton", label, null, () => {}, { serialize: false });
     w.serialize = false;   // no slot in widgets_values (see wxCompactWidgets)
     let last = 0;
     w.draw = function (ctx, node, width, y, H) {
-        const m = 12, x = m, wd = width - 2 * m;
+        const m = wxVueDrawnRow(ctx) ? 1 : 12, x = m, wd = width - 2 * m;
         ctx.save();
         ctx.beginPath(); ctx.roundRect(x, y + 1, wd, H - 2, 6);
         ctx.fillStyle = "#2b2b2b"; ctx.fill();
@@ -219,6 +228,36 @@ export function wxOnRedraw(node, fn, ms = 400) {
     node.onRemoved = function () { clearInterval(t); return rm?.apply(this, arguments); };
 }
 
+/** The title of a collapsed node = its name and the value it holds: `WSampler · euler`, `WInt🌱 · 1234`, `WReso · 1920 × 1080`
+ *  (Sick, 25/10: a collapsed node shows only its title, so the value belongs there; the name stays, the node's own or the
+ *  one typed). `value()` = the text to show (empty = the name alone). Open again, the title is the name alone. The name is
+ *  the title as the user left it: a title the node did not write (typed, or loaded from a file) is taken as the name; a
+ *  file saved collapsed has the value in its tail, taken off after the last ` · `. `oldAuto()` = the title the node wrote
+ *  by itself before 0.11.0 (the clean name of the file, for WSampler / WCheckpoint / WLoRA): found on load, it is the
+ *  display name again. node.__wxBaseTitle() gives the name to whoever reads titles (WSave Image). */
+export const WX_DOT = " · ";
+export function wxCollapsedValue(node, value, displayName, oldAuto = null) {
+    let base = node.title || displayName, shown = null;
+    node.__wxBaseTitle = () => base;
+    const sync = () => {
+        const t = node.title;
+        if (t !== shown) {   // not what we wrote last: the user's title (typed, or from the file)
+            base = t || displayName;
+            if (t && node.flags?.collapsed) { const i = t.lastIndexOf(WX_DOT); if (i > 0) base = t.slice(0, i); }
+            if (oldAuto && t && t === oldAuto()) base = displayName;
+        }
+        const v = node.flags?.collapsed ? String(value() ?? "") : "";
+        const want = v ? base + WX_DOT + v : base;
+        if (node.title !== want) { node.title = want; node.setDirtyCanvas(true, true); }
+        shown = node.title;
+    };
+    wxOnRedraw(node, sync);   // every redraw, and on a timer under Nodes 2.0
+    const onCollapse = node.collapse;
+    node.collapse = function () { const r = onCollapse?.apply(this, arguments); sync(); return r; };
+    const onConf = node.onConfigure;
+    node.onConfigure = function () { const r = onConf?.apply(this, arguments); shown = null; setTimeout(sync, 0); return r; };
+}
+
 // ---- Nodes 2.0 (the Vue renderer, `Comfy.VueNodes.Enabled`) -------------------------------------------------------
 // A node is a DOM box there ([data-node-id]); its widgets are Vue components, a widget of a type of ours (wxbutton,
 // wxpartbar) is drawn by the frontend's legacy widget on a small canvas, with the mouse; a DOM widget is mounted as it
@@ -284,6 +323,24 @@ export function wxVueRefresh(node) {
     return true;
 }
 
+/** A graph laid over one with the same node ids (every Ctrl+Z is one): Vue keeps the box of each node and its rows, by id and
+ *  name, and never mounts the DOM widgets of the new node. The old ones stay on screen, and typing there writes into the dead
+ *  node. So, on the timer below: a DOM widget goes back in its row, found by name, and what the old node hung on the box goes
+ *  (its timers went with it; the new node's put back their own). */
+const WX_HUNG = ":is(.wx, [class^='wx-'], [class*=' wx-']):not(textarea, input, .lg-slot, .lg-node-widget)";
+function wxVueReclaim(node) {
+    const root = wxVueNodeEl(node);
+    if (!root) return;
+    const mine = (node.widgets || []).filter((w) => w.element);
+    for (const w of mine) w.element.dataset.wxw ??= w.name;
+    const was = root.__wxNode;
+    root.__wxNode = node;
+    if (!was || was === node) return;
+    for (const w of mine) if (!w.element.isConnected) root.querySelector(`[data-wxw="${w.name}"]`)?.replaceWith(w.element);
+    for (const el of root.querySelectorAll(WX_HUNG)) if (!mine.some((w) => w.element.contains(el))) el.remove();
+    for (const t of root.querySelectorAll("textarea")) { delete t.dataset.wxRow; delete t.dataset.wxSp; }
+}
+
 export const wxIsOurs = (node) => /wextraui/i.test(node?.constructor?.nodeData?.python_module || "");
 const ourNodes = () => (app.graph?._nodes || []).filter(wxIsOurs);
 
@@ -321,6 +378,9 @@ app.registerExtension({
             setTimeout(fix, 400);
             setTimeout(fix, 1500);   // WLoRA and the Composer measure their DOM again once back on the canvas, a beat later
         });
-        setInterval(() => { if (LiteGraph.vueNodesMode) for (const n of ourNodes()) wxVueRefresh(n); }, 400);
+        setInterval(() => {
+            if (!LiteGraph.vueNodesMode) return;
+            for (const n of (app.canvas?.graph || app.graph)?._nodes || []) if (wxIsOurs(n)) { wxVueRefresh(n); wxVueReclaim(n); }
+        }, 400);
     },
 });

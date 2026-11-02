@@ -16,3 +16,8 @@ Decides **which scenes this Run renders** and what the first of them starts from
 ## Typical settings
 - Final film in one Run: `0 / <number of scenes>`.
 - Re-render one scene only: on its Scene node set `previous_from = file` and `resume_from_video = <previous clip>`, then `start_scene = its index`, `scene_count = 1`.
+
+## The row of the loop
+At the bottom of the node, `start`, `scene` and `end` on a thread; the arc is the way back, one dash per scene. The blue step is this node. During a Run the three nodes of the loop show the same moment: the step at work lights up, the thread towards `end` lights up while the body generates, the dash of the round fills with the sampler's steps and `3/9` counts the rounds. The result stays until the next Run; a Run where nothing changed runs nothing, and the row stays as it is. Interrupt leaves it where it stopped, in orange; an error shows in red. The node never changes size, so no cable moves. The three nodes know each other by the `scenes` cable, also through Set/Get; two H3 loops on the same list share the row.
+
+The `v1` `v2` `v3` chips on `start_frame`, `start_clip` and `start_audio` mark a value of the For Loop: the same number on the three nodes and on the For Loop's `value1/2/3`.

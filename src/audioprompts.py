@@ -7,8 +7,8 @@ no speech, no music). Out comes the timeline `time | prompt` for WLoop Start Fol
 The model is Comfy's own: a Load CLIP with a Qwen3-VL file (text_encoders, type the default one), the same way the core
 node Generate Text uses it. No server, nothing outside Comfy.
 
-The `prompts` box: empty = every scene is written here, and the frontend (web/wxSceneBoxes.js) puts the result into
-the box; filled = the lines there are kept as they are, and only the scenes with no line, or with nothing after the
+The `prompts` box (shown as one row per scene, web/wxAudioPrompts.js): empty = every scene is written here, and the
+frontend (web/wxSceneBoxes.js) puts the result into the box; filled = the lines there are kept as they are, and only the scenes with no line, or with nothing after the
 `|`, are written again (a new `seed` gives a new text). A line whose time is no longer the start of a scene is kept at
 the bottom as a comment, so nothing typed is lost.
 
@@ -20,6 +20,7 @@ The `custom` box (Sick, 19/10/2026): prompts written by hand, the same `time | p
 there takes it, and the model is not asked for it; its own line in the `prompts` box, if any, stays there unused. The
 node never writes into `custom`: empty a line there and the scene goes back to the model's text."""
 import os
+import re
 import uuid
 
 import torch.nn.functional as F
@@ -155,6 +156,12 @@ def sheet(images, cuts, prompts, new, fps, beats=(), mine=()):
     return img
 
 
+def scene_heads(text):
+    """The `# k · a-b s` comments of a prompts box: the rows of the node (web/wxAudioPrompts.js) are built on them, so a
+    Run that changes them sends the box back even when no scene was written."""
+    return [l.strip() for l in str(text or "").splitlines() if re.match(r"#\s*\d+\s*·", l.strip())]
+
+
 def read_box(text, fps, where="prompts"):
     """A prompts box -> {frame: (prompt, seed or None)}, by the time each line is written at (the same lines WLoop
     Start Foley reads: `time | prompt | seed`, a line without | goes on with the prompt above, # = a comment)."""
@@ -237,8 +244,8 @@ class WAudioPrompts:
     OUTPUT_NODE = True
     CATEGORY = "WextraUI/Foley"
     DESCRIPTION = ("The sound prompt of every scene, written by Qwen3-VL from a few frames of each, with the Foley rules "
-                   "built in. On the node: each scene's middle frame with its prompt. The text goes into the prompts box, "
-                   "where it can be fixed by hand; empty a line to have just that scene written again.")
+                   "built in. On the node: a row per scene, where the text can be fixed by hand (empty a row to have just that "
+                   "scene written again), and each scene's middle frame with its prompt.")
 
     def write(self, clip, images, cuts, fps, frames_per_scene, seed, context="", prompts="", custom=""):
         total = int(images.shape[0])
@@ -272,5 +279,5 @@ class WAudioPrompts:
                         "# custom lines whose time is not the start of a scene (not used):")
         name = f"wxaudioprompts_{uuid.uuid4().hex[:10]}.jpg"
         sheet(images, starts, texts, new, fps, beats, mine).save(os.path.join(folder_paths.get_temp_directory(), name), quality=88)
-        ui = {"images": [{"filename": name, "subfolder": "", "type": "temp"}], "wx_prompts": [box if new else ""]}
+        ui = {"images": [{"filename": name, "subfolder": "", "type": "temp"}], "wx_prompts": [box if new or scene_heads(box) != scene_heads(prompts) else ""]}
         return {"ui": ui, "result": (text,)}

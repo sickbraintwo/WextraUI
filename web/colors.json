@@ -50,6 +50,16 @@
     "color": "brown",
     "bgcolor": ""
   },
+  "wxif": {
+    "_name": "Wif",
+    "color": "brown",
+    "bgcolor": ""
+  },
+  "wxIndex": {
+    "_name": "WIndex",
+    "color": "brown",
+    "bgcolor": ""
+  },
   "wxRunDiff": {
     "_name": "WDifference",
     "color": "black",
@@ -57,6 +67,11 @@
   },
   "wxLoraLoaderTrigger": {
     "_name": "WLoRA",
+    "color": "blue",
+    "bgcolor": ""
+  },
+  "wxLoraStack": {
+    "_name": "WLoRA Stack",
     "color": "blue",
     "bgcolor": ""
   },

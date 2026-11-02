@@ -28,7 +28,7 @@ app.registerExtension({
                 Object.defineProperty(wFilter, "value", { get: () => "", set: () => {}, configurable: true });
                 node.widgets.splice(node.widgets.indexOf(wFilter), 1);
             }
-            wxSelectionMenu(node, wSel, wName);   // the drop-down first, above the name
+            wxSelectionMenu(node, wSel, wName, { road: true });   // the drop-down first, above the name; the row drawn (Sick 27/10, variant D)
             wxTitleFollows(node, wName, nodeData.display_name);
             wxCompactWidgets(node);
             wxLoadingGuard(node);   // outermost: the menu of the name stays whole for as long as the file is read

@@ -23,7 +23,7 @@ from .route import ANY
 from .wxCarry import CARRY, CARRY_IN, CARRY_OUT_TOOLTIP
 
 MAX_SLOTS = 20
-MAX_PER = 4
+MAX_PER = 10   # cables per slot (4 up to 0.10.0; 10 from 0.11.0, Sick 26/10)
 
 
 def _in(i, k):

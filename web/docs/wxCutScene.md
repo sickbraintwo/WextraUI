@@ -16,6 +16,11 @@ Where the shot changes in a video. The frames go in, the start of every scene co
 ## The beats box
 Times where the shot goes on but the sound changes: a drop falls, a match is struck. They are never found by the node, only written here by hand, one per line, and they are added to the cuts above. A beat makes a scene of its own, shown on the sheet in blue; on the `cuts` output its line starts with `+` (`+16.50`), which WAudio Prompts and WLoop Start Foley read as the same shot going on: the prompt keeps the place, and the sound fades in slowly instead of cutting in.
 
+## The strip
+Under the two boxes, the scenes in proportion to their length, numbered from 0: a beat has a blue edge, a scene shorter than half a second is orange, as on the sheet. It follows the boxes as you type, before the Run. A line that is not a time, or a time past the end, is said under the strip at once; at the Run the same line would stop the node. The strip only reads the boxes: it changes nothing in the Run.
+
+The length of the video comes from the Run and stays with the node: before the first Run the strip says so, and after a new video it shows the length of the last Run until the next one. With the `cuts` box empty it says the cuts come with the Run.
+
 ## The sheet
 One cell per scene: its number and times, then its first, middle and last frame side by side. A cut that was missed shows as two different shots in one cell; a cut too many as the same shot in two. A fade from black leaves the first frame dark: the middle one shows the shot. A scene shorter than half a second is written in orange, a beat in blue.
 

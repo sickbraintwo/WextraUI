@@ -1,18 +1,66 @@
-// WextraUI — WMount: one row of rules per clip, the folder menu kept fresh, the video_1..32 sockets in a cascade.
-// The rows: the clips of the folder (in the order of their names, with their frames), then the connected sockets. Each
-// row: `in` (frames off the head), `out` drop / blend and its frames. They live in the hidden `specs` box as JSON
-// ({"f:scene_1.mp4": {in, out, n}, "video_1": {...}}): a row nobody touched is not written, and takes the default the
-// backend gives too (in 22, 0 for the first clip; out drop 0). The sockets: only the first shows on a new node; connect
-// the last one and the next appears under it; disconnect, and the empty ones at the end go away.
+// WextraUI — WMount: the strip of the clips and the rules of one clip, the folder menu kept fresh, the video_1..32 sockets in a cascade.
+// Restyle C (Sick 02/11, mockup WMount): one band per clip, as long as its frames: the clips of the folder (in the order
+// of their names), then the connected sockets, empty because their frames are not known before the Run. What `in` and
+// `drop` take off is hatched, a `blend` fades blue on both clips. Under it the frames that will come out (plan() in
+// src/mount.py is the rule, and the number here does the same sum). A click on a band opens its rules: `in` (frames off
+// the head), `out` drop / blend and its frames. They live in the hidden `specs` box as JSON ({"f:scene_1.mp4": {in, out,
+// n}, "video_1": {...}}): what nobody touched is not written, reads faint, and takes the default the backend gives too
+// (in 22, 0 for the first clip; out drop 0). The node stays short with thirty clips. The sockets: only the first shows on
+// a new node; connect the last one and the next appears under it; disconnect, and the empty ones at the end go away.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { WX, ensureWxStyle, wxHideWidget, wxCompactWidgets } from "./wxStyle.js";
+import { wxHideWidget, wxCompactWidgets } from "./wxStyle.js";
 
 const MAX = 32;
 const HANDOFF = 22;
-const ROW_H = 46;
+const H = 118;        // the strip, the sum and the rules of one clip
+const ARROWS = 10;    // past this many clips a band is thin to hit: the rules get ‹ › to walk them
 const NAME = (i) => "video_" + i;
-const el = (tag, css, text) => { const e = document.createElement(tag); if (css) e.style.cssText = css; if (text !== undefined) e.textContent = text; return e; };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+function ensureStyle() {
+    if (document.getElementById("wx-mt-style")) return;
+    const st = document.createElement("style"); st.id = "wx-mt-style";
+    st.textContent = `
+      .wx-mt { --ink: var(--input-text, #ddd); --quiet: color-mix(in srgb, var(--ink) 62%, transparent); --faint: color-mix(in srgb, var(--ink) 40%, transparent);
+        --line: color-mix(in srgb, var(--ink) 16%, transparent); --well: color-mix(in srgb, var(--ink) 8%, transparent); --lt: #a8cdf5; --acc: #1464b3;
+        box-sizing: border-box; width: 100%; padding: 4px 10px 0; color: var(--ink); font: 11.5px/16px "Segoe UI", system-ui, sans-serif; user-select: none; overflow: hidden; }
+      .wx-mt * { box-sizing: border-box; }
+      .wx-mt.vue { --ink: var(--component-node-foreground, #ddd); padding: 4px 0 0; }
+      .wx-mt button, .wx-mt input { margin: 0; border: 0; padding: 0; background: none; color: inherit; font: inherit; }
+      .wx-mt button { cursor: pointer; }
+      .wx-mt button:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+      .wx-mt .strip { display: flex; gap: 2px; height: 42px; margin-bottom: 4px; overflow: hidden; }
+      .wx-mt .seg { position: relative; height: 42px; min-width: 2px; border-radius: 5px; background: color-mix(in srgb, var(--ink) 22%, transparent); overflow: hidden; cursor: pointer; }
+      .wx-mt .seg .cut { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ink) 18%, transparent) 0 2px, transparent 2px 5px); }
+      .wx-mt .seg .bl { position: absolute; top: 0; bottom: 0; right: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lt) 70%, transparent)); }
+      .wx-mt .seg .hd { position: absolute; top: 0; bottom: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--lt) 70%, transparent), transparent); }
+      .wx-mt .seg .n { position: absolute; left: 5px; top: 4px; font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+      .wx-mt .seg.sock { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+      .wx-mt .seg.bad { background: color-mix(in srgb, #f0a070 40%, transparent); }
+      .wx-mt .seg.sel { box-shadow: inset 0 0 0 2px var(--lt); }
+      .wx-mt .sum { display: flex; justify-content: space-between; align-items: baseline; height: 22px; font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .wx-mt .sum b { font-size: 15px; font-weight: 600; color: var(--ink); }
+      .wx-mt .sum .err { color: #f0a070; }
+      .wx-mt .clip { padding: 3px 5px 4px; border-radius: 6px; background: var(--well); }
+      .wx-mt .top, .wx-mt .bot { display: flex; align-items: center; gap: 5px; height: 18px; white-space: nowrap; }
+      .wx-mt .bot { padding-left: 19px; }
+      .wx-mt .num { width: 14px; flex-shrink: 0; color: var(--faint); font-variant-numeric: tabular-nums; }
+      .wx-mt .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      .wx-mt .sock .nm { color: var(--quiet); font-style: italic; }
+      .wx-mt .fr { color: var(--faint); font-variant-numeric: tabular-nums; }
+      .wx-mt .go { width: 14px; height: 16px; flex-shrink: 0; border-radius: 4px; color: var(--quiet); }
+      .wx-mt .go:hover { color: var(--ink); background: var(--line); }
+      .wx-mt .lbq { color: var(--faint); font-size: 11px; }
+      .wx-mt .gap { width: 6px; }
+      .wx-mt .fld { width: 34px; height: 18px; padding: 0 5px; border-radius: 9px; background: color-mix(in srgb, var(--ink) 10%, transparent); text-align: right; font-variant-numeric: tabular-nums; cursor: ew-resize; user-select: text; }
+      .wx-mt .fld:focus { outline: none; box-shadow: inset 0 0 0 1px var(--acc); cursor: text; }
+      .wx-mt .fld.dflt { color: var(--faint); }
+      .wx-mt .kind { height: 18px; padding: 0 7px; border-radius: 9px; background: var(--well); color: var(--quiet); font-size: 11px; }
+      .wx-mt .kind.blend { background: color-mix(in srgb, var(--acc) 30%, transparent); color: var(--lt); }
+      .wx-mt .kind:hover { box-shadow: inset 0 0 0 1px var(--acc); }`;
+    document.head.appendChild(st);
+}
 
 app.registerExtension({
     name: "WextraUI.Mount",
@@ -23,11 +71,12 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function () {
             const ret = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
             const node = this;
-            ensureWxStyle();
+            ensureStyle();
             wxCompactWidgets(node);
             const W = (n) => node.widgets.find((w) => w.name === n);
             const wFolder = W("folder"), wSpecs = W("specs");
             wxHideWidget(wSpecs, node);
+            if (W("filename_prefix")) W("filename_prefix").label = "save as";
 
             // ---- the rules, read from and written to `specs` -----------------------------------------------------------
             const specs = () => { try { const o = JSON.parse(wSpecs.value || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } };
@@ -35,6 +84,7 @@ app.registerExtension({
                 const o = specs();
                 o[key] = { ...o[key], ...part };
                 wSpecs.value = JSON.stringify(o);
+                paintStrip();
                 node.setDirtyCanvas(true, true);
             };
             const ruleOf = (key, index) => {
@@ -43,15 +93,15 @@ app.registerExtension({
                          out: s.out === "blend" ? "blend" : "drop", n: Number.isFinite(+s.n) && s.n != null ? +s.n : 0 };
             };
 
-            // ---- the rows ------------------------------------------------------------------------------------------------
-            const root = el("div", "display:flex;flex-direction:column;gap:4px;width:100%;overflow:hidden"); root.className = "wx";
+            // ---- the strip and the rules of one clip ---------------------------------------------------------------------
+            const root = el("div", "wx-mt"), strip = el("div", "strip"), sum = el("div", "sum"), clip = el("div", "clip");
+            root.append(strip, sum, clip);
             for (const t of ["pointerdown", "pointermove", "pointerup", "mousedown", "mouseup", "wheel", "dblclick", "keydown", "contextmenu"])
                 root.addEventListener(t, (e) => e.stopPropagation());
-            let rows = 0;
-            const widget = node.addDOMWidget("wx_mount", "custom", root, {
-                serialize: false, hideOnZoom: false, getValue: () => undefined, setValue: () => {},
-                getMinHeight: () => (rows ? rows * ROW_H + 6 : 0) });   // no clip, no room: the node is its menus (Sick, 21/10)
+            let rows = 0, sel = 0;
+            const widget = node.addDOMWidget("wx_mount", "custom", root, { serialize: false, hideOnZoom: false, margin: 0, getValue: () => undefined, setValue: () => {} });
             widget.serialize = false;
+            widget.computeSize = (width) => [width, rows ? H : -4];   // no clip, no room: the node is its menus (Sick, 21/10)
 
             let folderClips = [];   // [{name, frames}] of the folder picked
             const linked = () => {
@@ -63,10 +113,9 @@ app.registerExtension({
                 return out;
             };
             const num = (value, title, onChange) => {
-                const x = el("input", "width:52px;text-align:right;cursor:ew-resize"); x.type = "number"; x.min = "0"; x.step = "1"; x.value = String(value);
-                x.classList.add("wx-num");   // no spinner: in a narrow node the row squeezes the box, and the spinner hid the digits (22 read 2)
+                const x = el("input", "fld"); x.inputMode = "numeric"; x.value = String(value);
                 x.title = title + " (drag left / right to change it, click to type)";
-                const commit = () => { const v = Math.max(0, Math.round(+x.value || 0)); x.value = String(v); onChange(v); };
+                const commit = () => { const v = Math.max(0, Math.round(+x.value || 0)); x.value = String(v); x.classList.remove("dflt"); onChange(v); };
                 x.addEventListener("change", commit);
                 // drag sideways: one frame every 6 px, never under 0; a click without moving = type in it
                 let drag = null;
@@ -95,29 +144,76 @@ app.registerExtension({
                 x.addEventListener("pointercancel", end);
                 return x;
             };
-            const render = () => {
-                const list = [...folderClips.map((c) => ({ key: "f:" + c.name, label: c.name, frames: c.frames })),
-                              ...linked().map((k) => ({ key: k, label: k, frames: null }))];
-                root.replaceChildren();
-                list.forEach((c, i) => {
-                    const r = ruleOf(c.key, i);
-                    const box = el("div", `height:${ROW_H - 4}px;padding:2px 6px;border:1px solid #3a3a3a;border-radius:5px;background:#1c1c1c;display:flex;flex-direction:column;justify-content:center;gap:2px`);
-                    const top = el("div", "display:flex;gap:6px;align-items:baseline;font-size:11px;white-space:nowrap");
-                    const nm = el("span", `color:${WX.light};overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0`, `${i + 1}. ${c.label}`); nm.title = c.label;
-                    top.append(nm, el("span", "color:#888", c.frames != null ? `${c.frames} f` : ""));
-                    const bot = el("div", "display:flex;gap:5px;align-items:center;font-size:11px;color:#aaa;white-space:nowrap");
-                    const fIn = num(r.in, "in: frames dropped from the head of this clip", (v) => setSpec(c.key, { in: v }));
-                    const sel = el("select", "background:#222;border:1px solid #444;color:#ddd;border-radius:4px;font:11px sans-serif;padding:1px 2px");
-                    sel.title = "out: drop = frames dropped from the tail of this clip; blend = its last frames mixed with the first ones of the clip after";
-                    for (const o of ["drop", "blend"]) { const op = el("option", "", o); op.value = o; sel.append(op); }
-                    sel.value = r.out;
-                    sel.addEventListener("change", () => setSpec(c.key, { out: sel.value }));
-                    const fOut = num(r.n, "out: how many frames are dropped from the tail, or blended with the clip after", (v) => setSpec(c.key, { n: v }));
-                    bot.append(el("span", "", "in"), fIn, el("span", "margin-left:8px", "out"), sel, fOut);
-                    box.append(top, bot);
-                    root.append(box);
+            const clips = () => [...folderClips.map((c) => ({ key: "f:" + c.name, label: c.name, frames: c.frames })),
+                                 ...linked().map((k) => ({ key: k, label: k, frames: null }))];
+            // the sum of plan() in src/mount.py, band by band: {a, e, bi, bo}; a clip from a cable has no frames before the Run
+            const spans = (L) => {
+                let bo = 0;
+                return L.map((c, i) => {
+                    const r = ruleOf(c.key, i), bi = bo;
+                    bo = r.out === "blend" && i < L.length - 1 ? r.n : 0;
+                    return { r, a: r.in, e: c.frames == null ? null : c.frames - (r.out === "drop" ? r.n : 0), bi, bo };
                 });
-                rows = list.length;
+            };
+            const paintStrip = () => {
+                const L = clips(), S = spans(L);
+                if (!L.length) { strip.replaceChildren(); sum.replaceChildren(); return; }
+                const known = L.filter((c) => c.frames != null), avg = known.length ? known.reduce((t, c) => t + c.frames, 0) / known.length : 48;
+                const all = L.reduce((t, c) => t + (c.frames ?? avg), 0);
+                strip.style.gap = L.length > 30 ? "1px" : "";
+                let total = 0, bad = -1;
+                strip.replaceChildren(...L.map((c, i) => {
+                    const { a, e, bi, bo } = S[i], f = c.frames ?? avg, short = e != null && e - a < bi + bo + 1;
+                    if (e != null) total += Math.max(0, e - a) - bo;
+                    if (short && bad < 0) bad = i;
+                    const b = el("div", `seg${c.frames == null ? " sock" : ""}${short ? " bad" : ""}${i === sel ? " sel" : ""}`);
+                    b.style.flex = `${f} 1 0`;
+                    b.title = c.label + (c.frames != null ? ` · ${c.frames} f` : " · from the cable");
+                    const pc = (x) => Math.min(100, (x / f) * 100).toFixed(1) + "%";
+                    const part = (cls, css) => { const p = el("span", cls); p.style.cssText = css; b.append(p); };
+                    if (a) part("cut", `left:0;width:${pc(a)}`);
+                    if (e != null && c.frames - e) part("cut", `right:0;width:${pc(c.frames - e)}`);
+                    if (bo) part("bl", `width:${pc(bo)}`);
+                    if (bi) part("hd", `left:${pc(a)};width:${pc(bi)}`);
+                    if (f / all > 0.05) b.append(el("span", "n", String(i + 1)));
+                    b.onclick = () => { sel = i; paintStrip(); paintClip(); };
+                    return b;
+                }));
+                const socks = L.length - known.length, t = el("b", "", `${total} f`), left = el("span");
+                left.append(t, socks ? ` + ${socks} from cable${socks > 1 ? "s" : ""}` : "");
+                sum.replaceChildren(left, bad < 0 ? el("span", "", `${L.length} clip${L.length > 1 ? "s" : ""}`) : el("span", "err", `clip ${bad + 1} is too short`));
+                if (bad >= 0) sum.lastChild.title = "Its rules leave too few frames for its blends: the Run stops there.";
+            };
+            const paintClip = () => {
+                const L = clips();
+                if (!L.length) { clip.replaceChildren(); return; }
+                const i = Math.min(sel, L.length - 1), c = L[i], r = ruleOf(c.key, i), o = specs()[c.key] || {};
+                const top = el("div", "top"), nm = el("span", "nm", c.label), bot = el("div", "bot");
+                nm.title = c.label;
+                clip.classList.toggle("sock", c.frames == null);
+                top.append(el("span", "num", String(i + 1)), nm, el("span", "fr", c.frames != null ? `${c.frames} f` : "from the cable"));
+                if (L.length > ARROWS) for (const [text, d, tip] of [["‹", -1, "The clip before"], ["›", 1, "The clip after"]]) {
+                    const g = el("button", "go", text); g.title = tip;
+                    g.onclick = () => { sel = (i + d + L.length) % L.length; paintStrip(); paintClip(); };
+                    top.append(g);
+                }
+                const fIn = num(r.in, "in: frames dropped from the head of this clip", (v) => setSpec(c.key, { in: v }));
+                const kind = el("button", `kind${r.out === "blend" ? " blend" : ""}`, r.out);
+                kind.title = "drop: frames cut from the tail · blend: mixed with the head of the clip after";
+                kind.onclick = () => { setSpec(c.key, { out: r.out === "blend" ? "drop" : "blend" }); paintClip(); };
+                const fOut = num(r.n, r.out === "blend" ? "Frames mixed with the clip after" : "Frames dropped from the tail", (v) => setSpec(c.key, { n: v }));
+                fIn.classList.toggle("dflt", o.in == null);
+                fOut.classList.toggle("dflt", o.n == null);
+                bot.append(el("span", "lbq", "in"), fIn, el("span", "gap"), el("span", "lbq", "out"), kind, fOut);
+                clip.replaceChildren(top, bot);
+            };
+            const render = () => {
+                const L = clips();
+                sel = Math.min(sel, Math.max(0, L.length - 1));
+                rows = L.length;
+                root.classList.toggle("vue", !!LiteGraph.vueNodesMode);
+                root.style.display = rows ? "" : "none";
+                paintStrip(); paintClip();
                 const sz = node.computeSize();
                 node.setSize([Math.max(node.size[0], 210), sz[1]]);
                 node.setDirtyCanvas(true, true);
@@ -142,6 +238,7 @@ app.registerExtension({
                 const o = specs();   // a new folder, new rules: the rows of the old one go
                 for (const k of Object.keys(o)) if (k.startsWith("f:")) delete o[k];
                 wSpecs.value = JSON.stringify(o);
+                sel = 0;
                 loadFolder();
                 return r;
             };

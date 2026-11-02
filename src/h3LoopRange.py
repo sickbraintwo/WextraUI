@@ -3,6 +3,11 @@ import torch
 from .h3_handoff import HANDOFF_DEFAULT, handoff_seconds, silence, tail_from_file
 
 
+def _out(*result):
+    """The outputs, and what the row of the loop reads from them (web/wxLoopRow.js): how many rounds, from which scene."""
+    return {"ui": {"wx_loop": [{"n": result[0], "first": result[1]}]}, "result": result}
+
+
 class H3LoopRange:
     """Turns the scene list into the range the loop should actually run.
 
@@ -73,14 +78,14 @@ class H3LoopRange:
 
         if s.get("previous_from", "loop") == "file":
             clip, audio = tail_from_file(s, start_scene, "H3 Loop Range")
-            return (run_count, start_scene, clip[-1:], clip, audio, True)
+            return _out(run_count, start_scene, clip[-1:], clip, audio, True)
 
         if start_scene == 0:
             frame = first_keyframe if first_keyframe is not None else torch.zeros((1, 64, 64, 3))
             # No previous clip: the "clip" anchor degrades to the keyframe itself
             # (a batch shorter than 5 frames anchors only its first image) and
             # the audio anchor is silence.
-            return (run_count, 0, frame, frame, silence(handoff_seconds(n)), False)
+            return _out(run_count, 0, frame, frame, silence(handoff_seconds(n)), False)
 
         raise ValueError(
             f"H3 Loop Range: start_scene={start_scene}, but scene {start_scene} has previous_from = loop and nothing "

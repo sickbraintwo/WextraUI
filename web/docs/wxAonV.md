@@ -6,9 +6,9 @@ Audio on video: puts a sound on a video file without encoding the picture again.
 - **audio**: the sound to put on the video: the mix of WMixer, the `value1` of the Foley loop's For Loop End, a Load Audio.
 - **video_file**: the video, from ComfyUI's input folder, then from the output folder (marked `[output]`). Videos saved after ComfyUI started show up when you click the node. Not used when a video comes from the cable.
 - **video** (optional): a video from a node (Load Video, for one): when connected it is used instead of the menu. A video made of frames is written out once, so its picture can be copied.
-- **filename_prefix**: where the mp4 is saved, inside ComfyUI's output folder (`Foley/video` by default).
+- **filename_prefix** (`save as` on the row): where the mp4 is saved, inside ComfyUI's output folder (`Foley/video` by default).
 - **bitrate**: the quality of the sound (AAC): how many bits a second it may use. The picture is not touched by it.
-- **length**: how long the file is.
+- **length**: how long the file is. Under the rows two bars, `picture` and `sound`, and the blue bracket of the `file`: what the file does not keep is hatched, the silence added is dashed. Before a Run the bars are a scheme, after it they are the lengths of that Run.
   - **video**: the sound is cut, or padded with silence, to the video.
   - **audio**: the whole sound; a longer video is cut, a shorter one ends first (no picture is made for the rest: most players hold its last frame, some show black).
   - **shortest**: the shorter of the two.

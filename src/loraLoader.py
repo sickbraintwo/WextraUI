@@ -15,6 +15,30 @@ def lora_folders():
     return folders_of("loras")
 
 
+def picked_words(picked):
+    """The words of a `picked` box: a JSON list (what the chip picker writes), or one word per line (a hand-written prompt)."""
+    if not (picked or "").strip():
+        return []
+    try:
+        return [str(w) for w in json.loads(picked) if str(w).strip()]
+    except Exception:
+        return [w.strip() for w in picked.splitlines() if w.strip()]
+
+
+def read_separator(separator):
+    """The separator as typed in its one-line box: the two characters backslash and n stand for a new line."""
+    return (separator if isinstance(separator, str) else ", ").replace("\\n", "\n")
+
+
+def merge_prompt(words, separator, where, prompt):
+    """The words joined by the separator, before (prefix) or after (suffix) the prompt of the cable. Shared with WLoRA Stack."""
+    trig = separator.join(words)
+    user = (prompt or "").strip()
+    if trig and user:
+        return trig + separator + user if where == "prefix" else user + separator + trig
+    return trig or user
+
+
 class LoraLoaderTrigger:
     @classmethod
     def INPUT_TYPES(cls):
@@ -41,8 +65,8 @@ class LoraLoaderTrigger:
                 "rgthree_info": ("BOOLEAN", {"default": True, "label_on": "rgthree info", "label_off": "header only",
                                         "tooltip": "The official trigger words, read from the .rgthree-info.json that rgthree-comfy saves next to the LoRA. Off (and greyed out) when that file is not there: the chips then come from the training tags of the header."}),
                 "where": (["prefix", "suffix"], {"default": "prefix",
-                                                 "tooltip": "prefix = trigger words, then your prompt; suffix = your prompt, then the words."}),
-                "separator": ("STRING", {"default": ", ", "multiline": True, "tooltip": "Between the words, and between the words and your prompt. Multi-line: a newline is a valid separator."}),
+                                                 "tooltip": "Hidden since 0.11.0: the words go before your prompt. A workflow saved with suffix keeps it."}),
+                "separator": ("STRING", {"default": ", ", "multiline": False, "tooltip": "Between the words, and between the words and your prompt, as written. \\n in the box = a new line."}),
                 "picked": ("STRING", {"default": "", "multiline": True, "tooltip": "Words chosen in the chip picker (JSON list, filled by the widget)."}),
                 # `selection` (0.8.0) after the boxes of before, so a workflow saved without it, read by position, still
                 # lines up; the frontend moves its row under `folder`
@@ -75,18 +99,7 @@ class LoraLoaderTrigger:
         if not lora_name:   # no LoRA named (a hand-written API prompt): everything goes through untouched
             return (model, clip, prompt or "", "", "")
         name = clean_name(lora_name)
-        words = []
-        if (picked or "").strip():
-            try:
-                words = [str(w) for w in json.loads(picked) if str(w).strip()]
-            except Exception:
-                words = [w.strip() for w in picked.splitlines() if w.strip()]
-        trig = separator.join(words)
-        user = (prompt or "").strip()
-        if trig and user:
-            merged = trig + separator + user if where == "prefix" else user + separator + trig
-        else:
-            merged = trig or user
+        merged = merge_prompt(picked_words(picked), read_separator(separator), where, prompt)
         if model is not None and (strength_model != 0 or strength_clip != 0):
             model, clip = nodes.LoraLoader().load_lora(model, clip, lora_name, strength_model, strength_clip)
         return (model, clip, merged, name, name)

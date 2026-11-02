@@ -18,3 +18,6 @@ Inside the Foley loop: one window of the plan, the one the For Loop's `index` po
 ## Good to know
 - A long scene is several windows with the same prompt, overlapping by `overlap` seconds: the sound of each is made on its own and cross-faded into the next by WLoop End Foley.
 - The frames are scaled with the same code Comfy's Upscale Image uses (bilinear, centred).
+
+## The row of the loop
+At the bottom of the node, `start`, `window` and `end` on a thread; the arc is the way back, one dash per window. The blue step is this node. During a Run the three nodes of the loop show the same moment: the step at work lights up, the thread towards `end` lights up while the body generates, the dash of the round fills with the sampler's steps and `3/9` counts the rounds. The result stays until the next Run; a Run where nothing changed runs nothing, and the row stays as it is. Interrupt leaves it where it stopped, in orange; an error shows in red. The node never changes size, so no cable moves. The three nodes know each other by the `plan` cable, also through Set/Get.

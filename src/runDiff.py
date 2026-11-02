@@ -255,7 +255,7 @@ class RunDiff:
                 "key": ("STRING", {"default": "auto",
                                    "tooltip": "Which 'previous run' to compare with. auto = the workflow is recognised by its structure "
                                               "(same nodes = same key); or write a name, e.g. the project, to compare across variants."}),
-                "log": ("BOOLEAN", {"default": True, "label_on": "append .log", "label_off": "no log",
+                "log": ("BOOLEAN", {"default": True, "label_on": "append", "label_off": "off",
                                     "tooltip": "Also append every run's changes, with a timestamp, to output/_Wextra/rundiff/<key>.log."}),
                 "tag_max": ("INT", {"default": 60, "min": 10, "max": 200,
                                     "tooltip": "Longest 'tag' (the file-name version of the changes). Beyond it: +N = N more changes."}),
@@ -266,7 +266,7 @@ class RunDiff:
                 "track": ("STRING", {"default": "", "multiline": True,
                                      "tooltip": "Empty = every node of the workflow is tracked. Or only these, by id, separated by commas: 74, 12 "
                                                 "(a single widget: 74.seed): the others leave changes, tag, count and the .log. Select the nodes on "
-                                                "the canvas and press add / remove under this box. ignore still takes nodes or widgets out."}),
+                                                "the canvas and press add / remove in the corner of this box. ignore still takes nodes or widgets out."}),
                 "ignore": ("STRING", {"default": "", "multiline": True,
                                       "tooltip": "Nodes not to track, by id, separated by commas: 74, 12. Or a single widget: 74.seed. "
                                                  "They leave changes, tag, count and the .log, even when they are in track."}),

@@ -314,7 +314,7 @@ class FoleyLoopStart:
         t = lambda f: f"{f / fps:.2f}"
         scene_lines = [f"scene {k} · {t(s['from'])}-{t(s['to'])} s · {s['prompt'][:70]}" for k, s in enumerate(p["spans"])]
         info = "\n".join([head] + scene_lines + [""] + [window_line(w, fps) for w in p["windows"]])
-        return (p, len(p["windows"]), mix, info)
+        return {"ui": {"wx_loop": [{"n": len(p["windows"])}]}, "result": (p, len(p["windows"]), mix, info)}   # the row of the loop (web/wxLoopRow.js)
 
 
 class FoleyLoopWindow:
@@ -406,7 +406,7 @@ class FoleyLoopEnd:
                 if peak > lim:
                     buf *= lim / peak
                     info += f" -> brought down to {ceiling_db:.1f} dB"
-        return ({"waveform": buf.unsqueeze(0), "sample_rate": sr}, info)
+        return {"ui": {"wx_loop": [{"i": w["index"], "n": len(plan["windows"])}]}, "result": ({"waveform": buf.unsqueeze(0), "sample_rate": sr}, info)}
 
 
 def video_choices():

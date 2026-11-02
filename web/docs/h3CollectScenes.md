@@ -5,7 +5,7 @@ Lines up *WScene H3* objects **in socket order** into the list the loop runs ove
 ## The sockets
 - Connect a scene to the last socket and an empty one appears below (up to 20), like the slots of WSwitch.
 - Unplug a scene in the middle and the ones after it move up: the film closes the gap.
-- The **`+`** chip after the label of a scene opens an empty socket right below it, to slip a scene in between; the ones after it move down. It stays until the next unplug.
+- The **`+`** on the row of a scene, quiet until the pointer is on the row, opens an empty socket right below it, to slip a scene in between; the ones after it move down. It stays until the next unplug.
 
 ## Outputs
 - **scenes**: the list. Feed it to *WLoop Start H3*, *WLoop Scene Conditioning H3* and *WLoop End H3*.

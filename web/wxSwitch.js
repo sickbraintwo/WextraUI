@@ -14,11 +14,11 @@
 // its cables, pill and name (the sockets are renamed, wxSlots.js moves them with their cables); `index` counts the new order.
 // Backend: src/wswitch.py.
 import { app } from "../../scripts/app.js";
-import { WX, wxVueInputRows, wxVueDecor, wxVueChip, wxHideWidget, ensureWxStyle } from "./wxStyle.js";
+import { WX, wxVueInputRows, wxVueDecor, wxVueChip, wxHideWidget, ensureWxStyle, wxCollapsedValue } from "./wxStyle.js";
 import { wxCarry } from "./wxCarry.js";
 import { wxReorderInputs, wxReorderOutputs } from "./wxSlots.js";
 
-const MAXS = 20, MAXK = 4, MIN_SLOTS = 2;
+const MAXS = 20, MAXK = 10, MIN_SLOTS = 2;   // MAXK = MAX_PER of src/wswitch.py (10 from 0.11.0)
 const RX = /^in(\d+)_(\d+)$/;
 const IN = (i, k) => "in" + i + "_" + k;
 const PILL = { w: 34, h: 15, gap: 8 }, PEN = { w: 16, gap: 4 }, GRIP = { w: 14, gap: 2 };   // the on/off pill, the pencil, the handle ≡
@@ -115,6 +115,7 @@ app.registerExtension({
             };
             const labelOf = (i) => typedLabel(i) || autoLabel(i);
             node.__wxLabel = () => labelOf(active());   // WSave Image's {#id} of this node, in the preview (web/saveWimage.js)
+            wxCollapsedValue(node, () => labelOf(active()) || String(active() - 1), nodeData.display_name);   // collapsed: `WSwitch · krea`, or the slot number from 0
             const setLabel = (i, text) => {
                 if (!wLab) return;
                 const d = labels(), t = String(text || "").trim();

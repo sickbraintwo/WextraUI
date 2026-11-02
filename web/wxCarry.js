@@ -1,5 +1,5 @@
 // WextraUI — `carry`: the odometer cable between the nodes that walk (WSampler, WScheduler, WCheckpoint,
-// WLoRA, WFloat, WInt🌱, WSwitch). A node on `increment-wrap` turns by itself; each time it comes back from the
+// WLoRA, WLoRA Stack, WFloat, WInt🌱, WSwitch). A node on `increment-wrap` turns by itself; each time it comes back from the
 // last name to the first it sends one beat down its `carry` output, and the node at the other end of the cable moves
 // one step of its own (the next name of its menu; for WFloat / WInt🌱, `value` + `step`). Chain as many as you like:
 // scheduler → sampler → checkpoint = every checkpoint × every sampler × every scheduler. The backend is not in it: the
@@ -21,6 +21,23 @@ import { WX, wxVueOutputRows, wxVueDecor, wxVueChip } from "./wxStyle.js";
 
 const NAME = "carry";
 const MAX_HOPS = 12;
+
+// The `carry` cables never reach the backend (it ignores them anyway): taken out of the API prompt, a carry may go back
+// up the chain of the models without being a loop for the run, e.g. WLoRA Stack → WCheckpoint with the checkpoint's
+// MODEL into the stack = every LoRA with the first checkpoint, then every LoRA with the next one (Sick, 30/10).
+app.registerExtension({
+    name: "WextraUI.carryPrompt",
+    setup() {
+        if (app.__wxCarryPrompt || typeof app.graphToPrompt !== "function") return;
+        app.__wxCarryPrompt = true;
+        const orig = app.graphToPrompt;
+        app.graphToPrompt = async function () {
+            const res = await orig.apply(this, arguments);
+            for (const n of Object.values(res?.output || {})) if (Array.isArray(n?.inputs?.[NAME])) delete n.inputs[NAME];
+            return res;
+        };
+    },
+});
 const CHIP = { h: 16, pad: 6, gap: 4 };
 const ruler = document.createElement("canvas").getContext("2d");
 const isCtl = (w) => Array.isArray(w?.options?.values) && w.options.values.includes("randomize");

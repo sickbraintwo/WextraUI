@@ -7,7 +7,7 @@ A switch with **slots**: several groups of cables come in, one group goes out. A
 - **The order**: drag a slot by its handle `≡` and drop it on another one (that one lights up): it takes that place, the ones between move up or down. Cables, pill and name go with the slot: nothing to unplug. `index` counts the new order.
 - **The outputs**: the slot that is on goes out position by position. `out_1` is the first cable of the slot, `out_2` the second…
 - **`index`** (first output): the number of the slot that is on, counted like an array, 0 = the first slot. Cable it to whatever must follow the same choice (a text, a second switch, a file name). The slot labels carry the same number (`0 · MODEL`, `1 · MODEL`…).
-- **inputs_per_slot**: how many cables a slot holds (1 to 4). Set it **before wiring**: changing it reshapes the slots, and the cables of the positions that disappear are dropped.
+- **inputs_per_slot**: how many cables a slot holds (1 to 10). Set it **before wiring**: changing it reshapes the slots, and the cables of the positions that disappear are dropped.
 
 Connect a cable to the last slot and an empty one appears below (2 to 20 slots).
 
@@ -18,6 +18,9 @@ Connect a cable to the last slot and an empty one appears below (2 to 20 slots).
 - **control**: `fixed`, or after every queued run the slot that is on moves over the slots in use (up to the last one with a cable). `increment` the next, `decrement` the one before, `randomize` any; it comes round at the ends. Queue as many runs as slots and each run takes the next branch.
 - **carry**: the odometer cable, in and out, like every node that walks. Driven by a cable it moves on the beat (its control reads `on carry`); coming round from the last slot to the first it beats the node at the other end of its `carry` output. See *carry* in the README. On the row of the `carry` output, when the switch walks, **`⟲`** puts the first slot on (and every wheel of the chain back to its first place) and **`▶ 3`** does the same and queues the runs of the grid (the slots in use; in a chain, the sizes multiplied). The number goes in the **batch box next to Run** too: the next Run queues the grid again.
 - In WSave Image, `{#id}` of a WSwitch is the name of the slot that is on (above), else its number counted from 0: `from Wnodes on graph` lists it.
+
+## Title
+Collapsed, the node reads its name and the slot that is on: *WSwitch · krea*. The name is the node's own, or the one you typed; the slot that is on follows the pills (the slot's name, or its number from 0). Open it again and the title is the name alone.
 
 ## Good to know
 - **The type of every position is learned from the first cable** you connect there: the same position of every slot and the output take it, the socket gets its colour and refuses another type. Unplug every cable of a position and it goes back to any type.

@@ -10,11 +10,52 @@
 // A video dragged from Windows onto the node is uploaded into the input folder, as Load Video does. The preview is the
 // light copy WMixer makes (a keyframe every 4 frames: it follows the pointer at once), the file itself until it is ready.
 // The pointers live in the hidden widgets `start` / `end` (frames from 0), read by src/extractor.py.
+// The look is restyle C (Mockup/WExtractor, 29/10/2026): the timeline is a film, small frames of the video made once by
+// the backend (/wextraui/extractor_film), the pointers stand on it and, with `multiple`, what is outside the stretch is
+// dimmed; ▶ and ⛶ are glyphs with no box (▶ bigger, and under it ◀| |▶ one frame back / on, Sick 29/10); the upload is Comfy's own button, a row like the others; under the timeline
+// the frame that goes out in light blue, the rest quiet, `144 frames · 6.00 s` on the right.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { WX, ensureWxStyle, wxHideWidget, wxCompactWidgets, wxAddButton } from "./wxStyle.js";
+import { WX, ensureWxStyle, wxHideWidget, wxCompactWidgets } from "./wxStyle.js";
 
-const TL_H = 54, VIDEO_MIN = 120, VIDEO_MAX = 640, WARN_GB = 2;
+const TL_H = 56, VIDEO_MIN = 120, VIDEO_MAX = 640, WARN_GB = 2, TILE_W = 36;
+const svg = (d, fill, px = 10) => `<svg viewBox="0 0 10 10" width="${px}" height="${px}"><path d="${d}" ${fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="1.2"'}/></svg>`;
+const PLAY = svg("M2.5 1.5v7l6-3.5z", true, 14), PAUSE = svg("M2.5 1.5h1.8v7H2.5zM5.7 1.5h1.8v7H5.7z", true, 14);
+const BACK = svg("M1.5 1.5h1.3v7H1.5zM8.5 1.5v7L3.3 5z", true), NEXT = svg("M7.2 1.5h1.3v7H7.2zM1.5 1.5v7L6.7 5z", true);
+const FULL = svg("M1 3.5V1h2.5M6.5 1H9v2.5M9 6.5V9H6.5M3.5 9H1V6.5"), UNFULL = svg("M3.5 1v2.5H1M6.5 1v2.5H9M9 6.5H6.5V9M1 6.5h2.5V9");
+const INK = "221,221,221";   // the text of the DOM parts; the quiet tones are it by transparency
+
+function ensureExStyle() {
+    if (document.getElementById("wx-ex-style")) return;
+    const s = document.createElement("style"); s.id = "wx-ex-style";
+    s.textContent = `
+.wx-ex .ex-ctl{width:26px;height:22px;padding:0;flex-shrink:0;border:0;border-radius:11px;background:transparent;color:rgba(${INK},.62);display:inline-grid;place-items:center;cursor:pointer}
+.wx-ex .ex-ctl:hover{background:rgba(${INK},.09);color:rgb(${INK})}
+.wx-ex .ex-ctl svg{display:block}
+.wx-ex .ex-ctls{display:flex;flex-direction:column;width:44px;flex-shrink:0}
+.wx-ex .ex-ctls .ex-ctl{width:44px;height:20px}
+.wx-ex .ex-ctls .ex-steps{display:flex}
+.wx-ex .ex-ctls .ex-steps .ex-ctl{width:22px;height:14px;border-radius:7px}
+.wx-ex .ex-rail{position:absolute;left:0;right:0;bottom:8px;height:4px;border-radius:2px;background:#333}
+.wx-ex .ex-fill{position:absolute;bottom:8px;height:4px;border-radius:2px;background:${WX.deep};display:none}
+.wx-ex .ex-strip{position:absolute;left:0;right:0;bottom:2px;height:26px;border-radius:4px;overflow:hidden;background:#1a1a1a;display:none}
+.wx-ex .ex-strip canvas{width:100%;height:100%;display:block}
+.wx-ex .ex-shade{position:absolute;bottom:2px;height:26px;background:rgba(0,0,0,.55);pointer-events:none;display:none}
+.wx-ex.film .ex-strip{display:block}
+.wx-ex.film .ex-rail,.wx-ex.film .ex-fill{display:none!important}
+.wx-ex.film.multi .ex-shade{display:block}
+.wx-ex .ex-hd{position:absolute;bottom:0;width:0;height:22px;pointer-events:none}
+.wx-ex .ex-hd i{position:absolute;left:-1.5px;bottom:0;width:3px;height:22px;background:var(--hc);border-radius:1px}
+.wx-ex .ex-hd b{position:absolute;left:-6px;top:-4px;width:12px;height:9px;background:var(--hc);border-radius:3px}
+.wx-ex.film .ex-hd{height:30px}
+.wx-ex.film .ex-hd i{height:30px;width:2px;left:-1px;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+.wx-ex.film .ex-hd b{top:-6px}
+.wx-ex .ex-count{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;font-size:11px;pointer-events:none;font-variant-numeric:tabular-nums}
+.wx-ex.film .ex-count{top:7px;padding:0 5px;border-radius:3px;background:rgba(0,0,0,.62);line-height:15px}
+.wx-ex .ex-labels{display:flex;justify-content:space-between;gap:8px;margin:4px 32px 0 50px;font-size:11px;color:rgba(${INK},.62);white-space:nowrap;font-variant-numeric:tabular-nums}
+.wx-ex .ex-labels .cur{color:${WX.light}}`;
+    document.head.append(s);
+}
 const isVideo = (n) => /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(n);
 
 /** The menu's value -> { name, type }: `sub/clip.mp4 [output]` is in output, a bare name in input. */
@@ -39,6 +80,12 @@ function videoProxy(value) {
         .then((r) => r.json()).then((j) => (j.file ? j.file : null)).catch(() => null));
     return proxies.get(value);
 }
+const films = new Map();
+function videoFilm(value) {   // { file, tiles, w, h } of the film of the timeline, or null
+    if (!films.has(value)) films.set(value, api.fetchApi(`/wextraui/extractor_film?video=${encodeURIComponent(value)}`)
+        .then((r) => r.json()).then((j) => (j.file ? j : Promise.reject(j.error))).catch(() => { films.delete(value); return null; }));
+    return films.get(value);
+}
 const el = (tag, css, text) => { const e = document.createElement(tag); if (css) e.style.cssText = css; if (text !== undefined) e.textContent = text; return e; };
 
 app.registerExtension({
@@ -49,21 +96,22 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function () {
             const r = onCreated?.apply(this, arguments);
             const node = this;
-            ensureWxStyle();
+            ensureWxStyle(); ensureExStyle();
             wxCompactWidgets(node);
             const W = (n) => node.widgets.find((w) => w.name === n);
             const wVideo = W("video"), wMulti = W("multiple"), wStart = W("start"), wEnd = W("end");
             wxHideWidget(wStart, node); wxHideWidget(wEnd, node);
 
-            // ---- the upload button, right under the menu ---------------------------------------------------------------
+            // ---- the upload button, right under the menu: Comfy's own, a row like the others in both renderers ----------
             const picker = el("input"); picker.type = "file"; picker.accept = "video/*"; picker.style.display = "none";
             document.body.append(picker);
-            const wUp = wxAddButton(node, "choose video to upload", () => picker.click());
+            const wUp = node.addWidget("button", "choose video to upload", null, () => picker.click(), { serialize: false });
+            wUp.serialize = false;   // no slot in widgets_values (see wxCompactWidgets)
             node.widgets.splice(node.widgets.indexOf(wUp), 1);
             node.widgets.splice(node.widgets.indexOf(wVideo) + 1, 0, wUp);
 
             // ---- the preview and the timeline ----------------------------------------------------------------------
-            const root = el("div", "display:flex;flex-direction:column;width:100%;height:100%;gap:4px;user-select:none"); root.className = "wx";
+            const root = el("div", "display:flex;flex-direction:column;width:100%;height:100%;gap:4px;user-select:none"); root.className = "wx wx-ex";
             for (const t of ["pointerdown", "pointermove", "pointerup", "mousedown", "mouseup", "wheel", "dblclick", "keydown", "contextmenu"])
                 root.addEventListener(t, (e) => e.stopPropagation());
             // a click anywhere on the preview or the timeline selects the node: the shortcuts follow the node
@@ -80,26 +128,35 @@ app.registerExtension({
             const msg = el("div", "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;color:#888;font-size:11px;pointer-events:none");
             vbox.append(video, msg);
             const tl = el("div", `height:${TL_H}px;flex-shrink:0;outline:none;user-select:none`); tl.tabIndex = 0;
-            const row = el("div", "display:flex;align-items:flex-end;gap:6px;height:32px");
-            const play = el("button", "width:26px;height:22px;padding:0;flex-shrink:0", "▶"); play.className = "wx-btn"; play.title = "Play / pause (space)";
-            const track = el("div", "position:relative;flex:1;height:32px;cursor:pointer;touch-action:none");
-            const rail = el("div", "position:absolute;left:0;right:0;bottom:7px;height:6px;border-radius:3px;background:#333");
-            const fill = el("div", `position:absolute;bottom:7px;height:6px;border-radius:3px;background:${WX.deep};display:none`);
-            const cursor = el("div", "position:absolute;bottom:2px;width:1px;height:16px;background:#fff;display:none;pointer-events:none");
-            const handle = (color) => {
-                const h = el("div", "position:absolute;bottom:0;width:0;height:22px;pointer-events:none");
-                h.append(el("div", `position:absolute;left:-1.5px;bottom:0;width:3px;height:22px;background:${color};border-radius:1px`),
-                         el("div", `position:absolute;left:-6px;top:-4px;width:12px;height:9px;background:${color};border-radius:3px`));
-                return h;
+            const row = el("div", "display:flex;align-items:flex-end;gap:6px;height:34px");
+            const play = el("button"); play.className = "ex-ctl"; play.innerHTML = PLAY; play.title = "Play / pause (space)";
+            // under ▶, one frame back and one on: the pointer you moved last, as ← / → (Shift: ten)
+            const stepBtn = (icon, d, title) => {
+                const b = el("button"); b.className = "ex-ctl"; b.innerHTML = icon; b.title = title;
+                b.addEventListener("pointerdown", (e) => e.stopPropagation());
+                b.onclick = (e) => { e.stopPropagation(); stepBy(d * (e.shiftKey ? 10 : 1)); tl.focus(); };
+                return b;
             };
+            const bBack = stepBtn(BACK, -1, "One frame back (←; Shift: ten)"), bNext = stepBtn(NEXT, 1, "One frame on (→; Shift: ten)");
+            const steps = el("div"); steps.className = "ex-steps"; steps.append(bBack, bNext);
+            const ctls = el("div"); ctls.className = "ex-ctls"; ctls.append(play, steps);
+            const track = el("div", "position:relative;flex:1;height:32px;cursor:pointer;touch-action:none");
+            const rail = el("div"); rail.className = "ex-rail";   // until the film is ready (or when it cannot be made)
+            const fill = el("div"); fill.className = "ex-fill";
+            // the film: small frames of the video, as many as fit (one every ~36 px, up to the tiles the backend made)
+            const strip = el("div"); strip.className = "ex-strip";
+            const filmCv = el("canvas"); strip.append(filmCv);
+            const shadeL = el("div"), shadeR = el("div"); shadeL.className = shadeR.className = "ex-shade";   // outside the stretch
+            const cursor = el("div", "position:absolute;bottom:2px;width:1px;height:16px;background:#fff;display:none;pointer-events:none");
+            const handle = (color) => { const h = el("div"); h.className = "ex-hd"; h.style.setProperty("--hc", color); h.append(el("i"), el("b")); return h; };
             const hA = handle(WX.accent), hB = handle(WX.light);
-            const count = el("div", `position:absolute;top:0;transform:translateX(-50%);white-space:nowrap;font-size:11px;color:${WX.light};pointer-events:none`);
-            track.append(rail, fill, cursor, hB, hA, count);
-            const bFull = el("button", "width:26px;height:22px;padding:0;flex-shrink:0", "⛶"); bFull.className = "wx-btn";
+            const count = el("div"); count.className = "ex-count";
+            track.append(strip, shadeL, shadeR, rail, fill, cursor, hB, hA, count);
+            const bFull = el("button"); bFull.className = "ex-ctl"; bFull.innerHTML = FULL;
             bFull.title = "Full screen: the preview and the timeline on the whole screen (F with the node selected; F or Esc to come back)";
             bFull.onclick = (e) => { e.stopPropagation(); fs ? exitFS() : enterFS(); };
-            row.append(play, track, bFull);
-            const labels = el("div", "display:flex;justify-content:space-between;gap:8px;margin:4px 32px 0 32px;font-size:11px;color:#aaa;white-space:nowrap");
+            row.append(ctls, track, bFull);
+            const labels = el("div"); labels.className = "ex-labels";
             const lA = el("span"), lB = el("span");
             labels.append(lA, lB);
             tl.append(row, labels);
@@ -122,26 +179,59 @@ app.registerExtension({
                 hName.textContent = wVideo.value || "";
                 hMulti.textContent = `multiple: ${multi}`; hMulti.classList.toggle("on", multi);
                 const pct = (i) => (n > 1 ? (i / (n - 1)) * 100 : 0) + "%";
+                root.classList.toggle("multi", multi);
                 hB.style.display = multi ? "" : "none";
                 fill.style.display = multi ? "" : "none";
                 count.style.display = multi && n ? "" : "none";
                 if (!n) { lA.textContent = inf?.error ? "" : "…"; lB.textContent = ""; hA.style.left = "0%"; return; }
-                const a = A(), b = B();
+                const a = A(), b = B(), cur = (i) => `<span class="cur">${i}</span>`;
                 hA.style.left = pct(a);
                 if (multi) {
                     const lo = Math.min(a, b), hi = Math.max(a, b), k = hi - lo + 1;
                     hB.style.left = pct(b);
                     fill.style.left = pct(lo); fill.style.width = `calc(${pct(hi)} - ${pct(lo)})`;
+                    shadeL.style.left = "0"; shadeL.style.width = pct(lo);
+                    shadeR.style.left = pct(hi); shadeR.style.right = "0";
                     const gb = (k * inf.width * inf.height * 3 * 4) / 1e9;
                     count.style.left = `calc((${pct(lo)} + ${pct(hi)}) / 2)`;
                     count.textContent = `${k} frame${k === 1 ? "" : "s"}` + (gb >= WARN_GB ? ` · ≈ ${gb.toFixed(1)} GB of RAM` : "");
                     count.style.color = gb >= WARN_GB ? "#e0a050" : WX.light;
-                    lA.textContent = `from ${lo} · ${t(lo)} s`;
-                    lB.textContent = `to ${hi} · ${t(hi)} s`;
+                    lA.innerHTML = `from ${cur(lo)} · ${t(lo)} s`;
+                    lB.innerHTML = `to ${cur(hi)} · ${t(hi)} s`;
                 } else {
-                    lA.textContent = `frame ${a} · ${t(a)} s`;
-                    lB.textContent = `of ${n} · ${t(n)} s`;
+                    lA.innerHTML = `frame ${cur(a)} · ${t(a)} s`;
+                    lB.textContent = `${n} frames · ${t(n)} s`;
                 }
+            };
+
+            // the film of the timeline: the tiles of the backend's strip, each slot the tile nearest its middle, cut to
+            // fill it (cover); drawn again when the timeline changes width (a wider node, the full screen)
+            let film = null;   // { img, tiles, w, h } of the video shown
+            const paintFilm = () => {
+                if (!film) return;
+                const dpr = window.devicePixelRatio || 1, w = strip.clientWidth, h = strip.clientHeight;
+                if (!w || !h) return;
+                filmCv.width = Math.round(w * dpr); filmCv.height = Math.round(h * dpr);
+                const ctx = filmCv.getContext("2d"), T = film.tiles;
+                const k = Math.max(2, Math.min(T, Math.round(w / TILE_W))), gap = dpr;
+                const sw = (filmCv.width - gap * (k - 1)) / k, sh = filmCv.height;
+                ctx.clearRect(0, 0, filmCv.width, filmCv.height);
+                for (let i = 0; i < k; i++) {
+                    const j = Math.min(T - 1, Math.floor(((i + 0.5) / k) * T));
+                    const s = Math.max(sw / film.w, sh / film.h), cw = sw / s, ch = sh / s;
+                    ctx.drawImage(film.img, j * film.w + (film.w - cw) / 2, (film.h - ch) / 2, cw, ch, i * (sw + gap), 0, sw, sh);
+                }
+            };
+            const filmRO = new ResizeObserver(() => paintFilm());
+            filmRO.observe(strip);
+            const loadFilm = (value) => {
+                film = null; root.classList.remove("film");
+                videoFilm(value).then((f) => {
+                    if (!f || shown !== value) return;
+                    const img = new Image();
+                    img.onload = () => { if (shown !== value) return; film = { img, tiles: f.tiles, w: f.w, h: f.h }; root.classList.add("film"); paintFilm(); };
+                    img.src = viewURL(f.file);
+                });
             };
             const setA = (i) => { wStart.value = clamp(i); last = "A"; if (wMulti.value && wStart.value > B()) wStart.value = B(); seek(wStart.value); draw(); node.setDirtyCanvas(true, false); };
             const setB = (i) => { wEnd.value = clamp(i); last = "B"; if (wEnd.value < A()) wEnd.value = A(); seek(wEnd.value); draw(); node.setDirtyCanvas(true, false); };
@@ -153,7 +243,7 @@ app.registerExtension({
                 const value = wVideo.value;
                 stop();
                 if (!value || value === shown && !fresh) return;
-                shown = value; inf = null; draw();
+                shown = value; inf = null; film = null; root.classList.remove("film"); draw();
                 msg.textContent = "";
                 const j = await videoInfo(value);
                 if (shown !== value) return;
@@ -162,6 +252,7 @@ app.registerExtension({
                 if (fresh) { wStart.value = 0; wEnd.value = N() - 1; fitHeight(); }
                 if (wMulti.value && B() <= A()) wEnd.value = N() - 1;
                 draw();
+                loadFilm(value);
                 video.onerror = () => { msg.textContent = "the preview comes in a moment (making a light copy of the video)…"; };
                 video.src = viewURL(fileOf(value));
                 videoProxy(value).then((p) => {
@@ -208,7 +299,7 @@ app.registerExtension({
                 fs = { layer, parent: root.parentNode, next: root.nextSibling, css: root.style.cssText, full: false };
                 document.body.append(layer); layer.append(root);
                 root.style.width = "100%"; root.style.height = "100%";
-                head.style.display = "flex"; bFull.textContent = "🗗"; draw(); layer.focus({ preventScroll: true });
+                head.style.display = "flex"; bFull.innerHTML = UNFULL; draw(); layer.focus({ preventScroll: true });
                 try { await layer.requestFullscreen(); if (fs) fs.full = true; } catch { /* refused: the layer still covers the window */ }
             }
             function exitFS() {
@@ -217,7 +308,7 @@ app.registerExtension({
                 if (document.fullscreenElement === f.layer) document.exitFullscreen().catch(() => { });
                 if (f.parent) f.parent.insertBefore(root, f.next && f.next.parentNode === f.parent ? f.next : null);
                 root.style.cssText = f.css; f.layer.remove();
-                head.style.display = "none"; bFull.textContent = "⛶"; draw();
+                head.style.display = "none"; bFull.innerHTML = FULL; draw();
                 node.setDirtyCanvas(true, true);
             }
             const onFsChange = () => { if (fs && fs.full && document.fullscreenElement !== fs.layer) exitFS(); };   // Esc of the browser
@@ -247,10 +338,16 @@ app.registerExtension({
                 if (k === "KeyF") { if (!e.repeat) fs ? exitFS() : enterFS(); return; }
                 if (k === "Escape") { exitFS(); return; }
                 if (!N()) return;
+                if (k === "ArrowLeft" || k === "ArrowRight") { stepBy((k === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 10 : 1)); return; }
                 stop();
-                const step = e.shiftKey ? 10 : 1, onB = last === "B" && wMulti.value, cur = onB ? B() : A(), set = onB ? setB : setA;
-                set(k === "ArrowLeft" ? cur - step : k === "ArrowRight" ? cur + step : k === "Home" ? 0 : N() - 1);
+                (last === "B" && wMulti.value ? setB : setA)(k === "Home" ? 0 : N() - 1);
             };
+            function stepBy(d) {   // the pointer moved last goes d frames (the keys ← / → and the buttons under ▶)
+                if (!N()) return;
+                stop();
+                const onB = last === "B" && wMulti.value;
+                (onB ? setB : setA)((onB ? B() : A()) + d);
+            }
             window.addEventListener("keydown", onKey, true);
             window.addEventListener("keyup", onKey, true);
 
@@ -271,7 +368,7 @@ app.registerExtension({
             function toggle() {
                 if (playing) { stop(); return; }
                 if (!N()) return;
-                playing = true; play.textContent = "❚❚";
+                playing = true; play.innerHTML = PAUSE;
                 const from = wMulti.value ? Math.min(A(), B()) : (A() >= N() - 1 ? 0 : A());
                 video.currentTime = (from + 0.5) / inf.fps;
                 cursor.style.display = wMulti.value ? "" : "none";
@@ -280,7 +377,7 @@ app.registerExtension({
             }
             function stop() {
                 if (!playing) return;
-                playing = false; play.textContent = "▶"; cancelAnimationFrame(raf); video.pause(); cursor.style.display = "none";
+                playing = false; play.innerHTML = PLAY; cancelAnimationFrame(raf); video.pause(); cursor.style.display = "none";
                 if (!wMulti.value) setA(Math.floor(video.currentTime * inf.fps)); else seek(last === "B" ? B() : A());
                 node.setDirtyCanvas(true, false);
             }
@@ -325,7 +422,7 @@ app.registerExtension({
                     const name = (j.subfolder ? j.subfolder + "/" : "") + j.name;
                     const vals = wVideo.options.values;
                     if (Array.isArray(vals) && !vals.includes(name)) vals.unshift(name);
-                    infos.delete(name); proxies.delete(name);
+                    infos.delete(name); proxies.delete(name); films.delete(name);
                     wVideo.value = name; shown = "";
                     msg.textContent = "";
                     load(true);
@@ -349,7 +446,7 @@ app.registerExtension({
             node.onConfigure = function () { const rr = onConf?.apply(this, arguments); shown = ""; setTimeout(() => load(false), 0); return rr; };
             const onRm = node.onRemoved;
             node.onRemoved = function () {
-                stop(); exitFS(); document.removeEventListener("fullscreenchange", onFsChange);
+                stop(); exitFS(); filmRO.disconnect(); document.removeEventListener("fullscreenchange", onFsChange);
                 window.removeEventListener("keydown", onKey, true); window.removeEventListener("keyup", onKey, true);
                 video.removeAttribute("src"); video.load(); picker.remove();
                 return onRm?.apply(this, arguments);

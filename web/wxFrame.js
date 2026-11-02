@@ -1,9 +1,12 @@
 // WextraUI — WFrame: a stack of actions (crop · pad · resize) under the node, in the order you put them. Each one is a
 // coloured rectangle in the preview, the same colour as its row: click a rectangle (or its row) to open its settings,
 // drag it to move it, pull a corner or a side to size it. The final frame is red. The `ops` box holds the stack as JSON.
+// Restyle D (Sick 29/10, Mockup/WFrame): every row and every rectangle carries the number of its action, in its colour,
+// outlined, full for the action opened last (also once its row closes); `+ crop`, `+ pad`, `+ resize` add, the ✕ of a row
+// removes it; the file name (what `info` says) sits in the bottom-right corner of the preview, opposite the size that comes in.
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { ensureWxStyle, wxHideWidget, wxCompactWidgets, wxOnRedraw } from "./wxStyle.js";
+import { WX, ensureWxStyle, wxHideWidget, wxCompactWidgets, wxOnRedraw } from "./wxStyle.js";
 
 const RED = "#e85050", MASK = "#ff2bd6";   // the final frame; the pad mask in the `mask` view (fuchsia on black)
 const PALETTE = ["#5aaaff", "#ffb347", "#7ed957", "#d98cff", "#4dd9d9", "#ffe14d", "#ff8ac2", "#c0c0c0"];
@@ -167,7 +170,47 @@ export function upstreamPicture(node) {   // WReso (wxReso.js) reads the picture
 }
 
 const stop = (el) => { for (const t of ["pointerdown", "pointerup", "mousedown", "mouseup", "click", "dblclick", "keydown", "keyup", "wheel"]) el.addEventListener(t, (e) => e.stopPropagation()); };
-const INPUT_CSS = "background:#222;border:1px solid #444;color:#ddd;border-radius:4px;padding:1px 4px;font:11px sans-serif;min-width:0;width:100%";
+const INPUT_CSS = "height:20px;box-sizing:border-box;background:rgba(0,0,0,.26);border:1px solid transparent;color:inherit;border-radius:5px;padding:0 6px;font:11.5px 'Segoe UI',system-ui,sans-serif;min-width:0;width:100%";
+// the stack's look (restyle D): quiet tones from the text colour by transparency, the action's colour in --col
+function ensureFrameStyle() {
+    if (document.getElementById("wx-frame-style")) return;
+    const st = document.createElement("style"); st.id = "wx-frame-style";
+    st.textContent = `
+      .wx-fr { --quiet: color-mix(in srgb, currentColor 62%, transparent); --faint: color-mix(in srgb, currentColor 40%, transparent);
+        --line: color-mix(in srgb, currentColor 18%, transparent); --hover: color-mix(in srgb, currentColor 6%, transparent);
+        color: #ddd; font: 12px/16px "Segoe UI", system-ui, sans-serif; }
+      .wx-fr .fr-bar { display: flex; gap: 4px; align-items: center; }
+      .wx-fr .fr-add { height: 20px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--quiet);
+        font: 11.5px "Segoe UI", system-ui, sans-serif; cursor: pointer; }
+      .wx-fr .fr-add b { font-weight: 400; color: ${WX.light}; margin-right: 3px; }
+      .wx-fr .fr-add:hover:not(:disabled) { border-color: ${WX.accent}; color: currentColor; }
+      .wx-fr .fr-add:disabled { opacity: .35; cursor: default; }
+      .wx-fr.vue .fr-add { height: 24px; border: 0; border-radius: 6px; background: rgba(255,255,255,.07); color: #f2f2f2; padding: 0 11px; }
+      .wx-fr .fr-row { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 4px 0 7px; border-radius: 5px; cursor: pointer; }
+      .wx-fr .fr-row:hover { background: var(--hover); }
+      .wx-fr .fr-row.open { background: color-mix(in srgb, var(--col) 13%, transparent); box-shadow: inset 2px 0 0 var(--col); }
+      .wx-fr .fr-row.drop { box-shadow: 0 -2px 0 ${WX.accent}; }
+      .wx-fr .fr-tag { flex: none; min-width: 15px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 3px; color: var(--col);
+        box-shadow: inset 0 0 0 1.2px var(--col); font: 700 10px/14px "Segoe UI", system-ui, sans-serif; text-align: center; }
+      .wx-fr .fr-row.hot .fr-tag { background: var(--col); color: #101010; box-shadow: none; }
+      .wx-fr .fr-txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .wx-fr .fr-txt .nc { color: var(--faint); }
+      .wx-fr .fr-x { width: 18px; height: 18px; border: 0; border-radius: 50%; background: transparent; color: var(--faint); font-size: 10px; padding: 0;
+        opacity: .7; cursor: pointer; }
+      .wx-fr .fr-row:hover .fr-x, .wx-fr .fr-row.open .fr-x { opacity: 1; }
+      .wx-fr .fr-x:hover { background: var(--hover); color: currentColor; }
+      .wx-fr .fr-grip { color: var(--faint); padding: 0 3px; cursor: grab; opacity: .7; }
+      .wx-fr .fr-row:hover .fr-grip, .wx-fr .fr-row.open .fr-grip { opacity: 1; color: var(--quiet); }
+      .wx-fr .fr-hint { color: var(--quiet); font-size: 11px; padding: 2px 6px; }
+      .wx-fr .fr-panel { margin: 1px 0 3px 7px; padding: 4px 2px 4px 9px; box-shadow: inset 2px 0 0 var(--col); }
+      .wx-fr .fr-panel .wx-hint { color: var(--quiet); font-size: 10.5px; }
+      .wx-fr .fr-panel input:focus, .wx-fr .fr-panel select:focus { outline: none; border-color: ${WX.accent}; }
+      .wx-fr .fr-panel input[type=number] { cursor: ew-resize; appearance: textfield; -moz-appearance: textfield; }
+      .wx-fr .fr-panel input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+      .wx-fr .fr-panel select option { background: #222; color: #ddd; }
+    `;
+    document.head.appendChild(st);
+}
 const PIPETTE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1-4 9-9 3 3-9 9-4 1z"/><path d="M13 8l3-3a2.1 2.1 0 0 1 3 3l-3 3"/></svg>';
 const hex2 = (n) => n.toString(16).padStart(2, "0");
 
@@ -179,13 +222,15 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function () {
             const r = onCreated?.apply(this, arguments);
             const node = this;
-            ensureWxStyle();
+            ensureWxStyle(); ensureFrameStyle();
             const W = (n) => node.widgets.find((w) => w.name === n);
             const wOps = W("ops"), wMethod = W("method");
             if (wOps) wxHideWidget(wOps, node);   // the stack's JSON: kept in the file, not shown
 
             // ---- the state: the stack, read from / written to the ops box ----------------------------------------
             let ops = [], lastJSON = null, sel = -1;
+            let hotOp = null;   // the action opened last: its number stays full when its row closes (Sick 29/10)
+            const hot = () => { if (sel >= 0 && ops[sel]) hotOp = ops[sel]; return ops.includes(hotOp) ? hotOp : null; };
             const read = () => {
                 let lst = [];
                 try { lst = JSON.parse(String(wOps?.value ?? "[]")); } catch (e) { lst = []; }
@@ -245,23 +290,19 @@ app.registerExtension({
             node.__wxInfo = infoText;
 
             // ---- the DOM: the stack (toolbar, rows, the open action's settings) and the preview under it ----------
-            const wrap = document.createElement("div"); wrap.className = "wx";
+            const wrap = document.createElement("div"); wrap.className = "wx wx-fr";
             wrap.style.cssText = "padding:2px 8px 4px;display:flex;flex-direction:column;gap:4px";
             const stack = document.createElement("div"); stack.style.cssText = "display:flex;flex-direction:column;gap:3px";
-            const nameLine = document.createElement("div");   // above everything: what `info` says, the text a WSave Image part gets
-            nameLine.style.cssText = "font:11px/1.3 monospace;color:#bbb;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;user-select:text";
-            nameLine.title = "what a WSave Image part bound to this node says: the steps as the run will do them";
-            const bar = document.createElement("div"); bar.style.cssText = "display:flex;gap:4px;align-items:center";
-            const kind = document.createElement("select"); kind.style.cssText = INPUT_CSS + ";width:auto;flex:1";
-            for (const [v, t] of [["crop", "the box that stays"], ["pad", "a bigger (or smaller) canvas"], ["resize", "aspect kept"]]) { const o = document.createElement("option"); o.value = v; o.textContent = v; o.title = t; kind.appendChild(o); }
-            kind.title = "the action that + adds: crop = the box that stays · pad = a bigger (or smaller) canvas · resize = aspect kept";
-            kind.value = "crop";   // the menu opens on crop (Sick, 09/10); a new node has no action until + is pressed
-            const btn = (t, title, fn) => { const b = document.createElement("button"); b.className = "wx-btn"; b.textContent = t; b.title = title; b.style.cssText = "padding:1px 7px;min-width:24px"; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
-            const bAdd = btn("+", "add the action of the menu after the open one", () => add(kind.value));
-            const bDel = btn("−", "remove the open action", () => { if (sel < 0) return; ops.splice(sel, 1); sel = Math.min(sel, ops.length - 1); commit(); rebuild(); });
-            bar.append(kind, bAdd, bDel);
+            // one chip per action: it adds after the open action (at the end when none is open); a new node has no action
+            const bar = document.createElement("div"); bar.className = "fr-bar";
+            const adders = [["crop", "the box that stays"], ["pad", "a bigger (or smaller) canvas"], ["resize", "aspect kept"]].map(([t, what]) => {
+                const b = document.createElement("button"); b.className = "fr-add"; b.innerHTML = `<b>+</b>${t}`;
+                b.title = `add a ${t} (${what}) after the open action; at the end when none is open`;
+                b.onclick = (e) => { e.stopPropagation(); add(t); };
+                bar.appendChild(b); return b;
+            });
             const rows = document.createElement("div"); rows.style.cssText = "display:flex;flex-direction:column;gap:2px";
-            stack.append(nameLine, bar, rows);
+            stack.append(bar, rows);
             const cv = document.createElement("canvas");
             cv.tabIndex = 0;   // the arrow keys move the open rectangle: the drawing takes the focus on a click
             cv.style.cssText = `display:block;width:100%;height:${PREVIEW_H}px;border-radius:6px;background:#161616;cursor:default;flex:none;outline:none`;
@@ -283,6 +324,12 @@ app.registerExtension({
                 const at = sel < 0 ? ops.length : sel + 1;
                 const [iw, ih] = at > 0 ? (() => { const g = geo(); return g && g.items[at - 1] ? [g.items[at - 1].outW, g.items[at - 1].outH] : [0, 0]; })() : (() => { const s = source(); return s ? [s.w, s.h] : [0, 0]; })();
                 ops.splice(at, 0, newOp(t, iw, ih)); sel = at; commit(); rebuild();
+            };
+            const remove = (i) => {   // the ✕ of a row: that action goes; the open one closes if it was that one
+                if (i < 0 || i >= ops.length) return;
+                ops.splice(i, 1);
+                if (i < sel) sel--; else if (i === sel) sel = -1;
+                commit(); rebuild();
             };
             const moveTo = (a, b) => { if (a < 0 || b < 0 || a === b || a >= ops.length || b >= ops.length) return; const [op] = ops.splice(a, 1); ops.splice(b, 0, op); sel = sel === a ? b : sel; commit(); rebuild(); };
 
@@ -323,7 +370,7 @@ app.registerExtension({
             };
             const grid = (cols) => { const g = document.createElement("div"); g.style.cssText = `display:grid;grid-template-columns:repeat(${cols},1fr);gap:3px 6px`; return g; };
             const panelFor = (op, i) => {
-                const p = document.createElement("div"); p.style.cssText = `border-left:3px solid ${PALETTE[i % PALETTE.length]};padding:3px 0 3px 8px;margin-left:5px`;
+                const p = document.createElement("div"); p.className = "fr-panel"; p.style.setProperty("--col", PALETTE[i % PALETTE.length]);
                 const [iw, ih] = inAt(i);
                 if (op.t === "resize") {
                     const g = grid(3), box = String(op.mode).includes("box");
@@ -349,13 +396,13 @@ app.registerExtension({
                     const g2 = grid(3);
                     const cRow = document.createElement("div"); cRow.style.cssText = "display:flex;gap:3px;align-items:center;min-width:0";
                     const c = document.createElement("input"); c.type = "color"; c.value = normColor(op.color);
-                    c.style.cssText = "flex:1;min-width:0;height:20px;padding:0;border:1px solid #555;border-radius:4px;background:#222;cursor:pointer";
+                    c.style.cssText = INPUT_CSS + ";flex:1;padding:0 2px;cursor:pointer";
                     c.oninput = () => { op.color = c.value; commit(); };
                     live.push([c, () => normColor(op.color)]);
                     // the pipette (Sick, 08/10): the colour from the screen (the browser's EyeDropper: the picture up the cable, a
                     // node's preview, anything on it); where the browser has none, from the picture in the drawing, at a click
-                    const pipette = document.createElement("button"); pipette.className = "wx-btn"; pipette.innerHTML = PIPETTE;
-                    pipette.style.cssText = "flex:none;height:20px;min-width:22px;padding:0 4px;display:flex;align-items:center;justify-content:center";
+                    const pipette = document.createElement("button"); pipette.innerHTML = PIPETTE;
+                    pipette.style.cssText = "flex:none;width:22px;height:20px;padding:0;display:grid;place-items:center;border:0;border-radius:5px;background:rgba(0,0,0,.26);color:var(--quiet);cursor:pointer";
                     pipette.title = window.EyeDropper ? "pick the colour from the screen: the picture up the cable, a node's preview, anything on it (Esc to leave)" : "pick the colour from the picture in the drawing: click a point of it (Esc to leave)";
                     pipette.onclick = async (e) => {
                         e.stopPropagation(); e.preventDefault();
@@ -391,30 +438,35 @@ app.registerExtension({
             const rowEls = [];
             const rebuild = () => {
                 rows.replaceChildren(); rowEls.length = 0; live.length = 0;
+                wrap.classList.toggle("vue", !!LiteGraph.vueNodesMode);
                 if (!ops.length) {
-                    const e = document.createElement("div"); e.className = "wx-hint"; e.style.padding = "2px 4px";
-                    e.textContent = "no action: the picture passes through. Pick one in the menu and press +";
+                    const e = document.createElement("div"); e.className = "fr-hint";
+                    e.textContent = "No action: the picture passes through. Add one above.";
                     rows.appendChild(e);
                 }
+                const h = hot();
                 ops.forEach((op, i) => {
                     const row = document.createElement("div");
-                    row.style.cssText = `display:flex;align-items:center;gap:6px;padding:2px 6px;border-radius:4px;cursor:pointer;background:${i === sel ? "#2a2f36" : "transparent"}`;
-                    const dot = document.createElement("span"); dot.style.cssText = `width:10px;height:10px;border-radius:50%;background:${PALETTE[i % PALETTE.length]};flex:none`;
-                    const txt = document.createElement("span"); txt.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-                    const chev = document.createElement("span"); chev.className = "wx-hint"; chev.textContent = i === sel ? "⌃" : "⌄";
-                    const grip = document.createElement("span"); grip.className = "wx-hint"; grip.textContent = "≡"; grip.style.cssText = "cursor:grab;font-size:12px;padding:0 2px"; grip.title = "drag to move the action in the stack";
-                    row.append(dot, txt, chev, grip);
+                    row.className = "fr-row" + (i === sel ? " open" : "") + (op === h ? " hot" : "");
+                    row.style.setProperty("--col", PALETTE[i % PALETTE.length]);
+                    row.title = "click to open its settings (again to close); drag by ≡ to move it";
+                    const tag = document.createElement("span"); tag.className = "fr-tag"; tag.textContent = String(i + 1);   // the same number as on its rectangle
+                    const txt = document.createElement("span"); txt.className = "fr-txt";
+                    const x = document.createElement("button"); x.className = "fr-x"; x.textContent = "✕"; x.title = "remove this action";
+                    x.onclick = (e) => { e.stopPropagation(); remove(i); };
+                    const grip = document.createElement("span"); grip.className = "fr-grip"; grip.textContent = "≡"; grip.title = "drag to move the action in the stack";
+                    row.append(tag, txt, x, grip);
                     row.onclick = (e) => { e.stopPropagation(); sel = i === sel ? -1 : i; rebuild(); };
                     row.draggable = true;   // the handle: drag the row to another place of the stack
                     row.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", String(i)); row.style.opacity = ".4"; });
                     row.addEventListener("dragend", () => { row.style.opacity = ""; });
-                    row.addEventListener("dragover", (e) => { e.preventDefault(); row.style.boxShadow = "0 -2px 0 #1464b3"; });
-                    row.addEventListener("dragleave", () => { row.style.boxShadow = ""; });
-                    row.addEventListener("drop", (e) => { e.preventDefault(); row.style.boxShadow = ""; moveTo(Number(e.dataTransfer.getData("text/plain")), i); });
+                    row.addEventListener("dragover", (e) => { e.preventDefault(); row.classList.add("drop"); });
+                    row.addEventListener("dragleave", () => { row.classList.remove("drop"); });
+                    row.addEventListener("drop", (e) => { e.preventDefault(); row.classList.remove("drop"); moveTo(Number(e.dataTransfer.getData("text/plain")), i); });
                     rows.appendChild(row); rowEls.push(txt);
                     if (i === sel) rows.appendChild(panelFor(op, i));
                 });
-                bDel.disabled = sel < 0; bAdd.disabled = ops.length >= MAX_OPS;
+                for (const b of adders) b.disabled = ops.length >= MAX_OPS;
                 syncRows(); node._wxPrevSig = null; fit();
             };
             const syncRows = () => {   // the row texts and the inputs follow the values (after a drag, a typed number, a new picture)
@@ -422,14 +474,15 @@ app.registerExtension({
                 ops.forEach((op, i) => {
                     const it = g?.items[i];
                     const t = it ? it.step : op.t === "resize" ? `resize ${op.mode} ${String(op.mode).includes("box") ? `${op.w}×${op.h}` : op.v}` : `${op.t} ${op.w || "·"}×${op.h || "·"}`;
-                    if (rowEls[i]) rowEls[i].textContent = `${i + 1} · ${t}` + (it && it.changed === false ? "  (no change)" : "");
+                    if (!rowEls[i]) return;
+                    rowEls[i].textContent = t;
+                    if (it && it.changed === false) { const nc = document.createElement("span"); nc.className = "nc"; nc.textContent = "  no change"; rowEls[i].appendChild(nc); }
                 });
                 for (const [inp, get] of live) { if (document.activeElement === inp) continue; const v = String(get()); if (inp.value !== v) inp.value = v; }
-                const t = infoText() || "(no change)"; if (nameLine.textContent !== t) nameLine.textContent = t;
             };
 
             // ---- the preview -----------------------------------------------------------------------------------------
-            let lastG = null, map = null;   // the last chain and the source → screen map (the pointer reads them)
+            let lastG = null, map = null, tags = [];   // the last chain, the source → screen map and the numbers drawn (the pointer reads them)
             const paint = () => {
                 const cw = cv.clientWidth, chh = cv.clientHeight;
                 if (!cw || !chh) return;
@@ -536,7 +589,7 @@ app.registerExtension({
                     if (it.op.t === "resize" || i === sel) return;
                     ctx.strokeStyle = color(i); ctx.lineWidth = 1.2; ctx.strokeRect(...R(it.canvas));
                 });
-                ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.strokeRect(...R(g.final));
+                { const [fx, fy, fw, fh] = R(g.final); ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.strokeRect(fx - 3, fy - 3, fw + 6, fh + 6); }   // outside: the last rectangle stays visible
                 if (selIt && selIt.op.t !== "resize") {
                     const [bx, by, bw, bh] = R(selIt.canvas);
                     ctx.strokeStyle = color(sel); ctx.lineWidth = 2.2; ctx.strokeRect(bx, by, bw, bh);
@@ -549,10 +602,26 @@ app.registerExtension({
                     ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.strokeText(t, x, y);
                     ctx.fillStyle = col; ctx.fillText(t, x, y);
                 };
+                // the number of each rectangle, at its top-left corner in its colour (one beside the other when they meet):
+                // outlined, full for the action opened last; a click on it opens the action, even under another rectangle
+                tags = [];
+                const h = hot();
+                g.items.forEach((it, i) => {
+                    if (it.op.t === "resize") return;
+                    let x = X(it.canvas.x) + 3; const y = Y(it.canvas.y) + 3;
+                    for (const t of tags) if (Math.abs(t.x - x) < 17 && Math.abs(t.y - y) < 15) x = t.x + 17;
+                    const t = { x, y, w: 15, h: 13, i }; tags.push(t);
+                    const full = it.op === h;
+                    ctx.beginPath(); ctx.roundRect(t.x, t.y, t.w, t.h, 3);
+                    if (full) { ctx.fillStyle = color(i); ctx.fill(); }
+                    else { ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fill(); ctx.strokeStyle = color(i); ctx.lineWidth = 1.2; ctx.stroke(); }
+                    ctx.fillStyle = full ? "#101010" : color(i); ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
+                    ctx.fillText(String(i + 1), t.x + t.w / 2, t.y + t.h / 2 + 0.5);
+                });
                 label(`${g.fw}×${g.fh}`, X(g.final.x + g.final.w) - 3, Y(g.final.y + g.final.h) - 8, RED, "right");
                 if (selIt && selIt.op.t !== "resize") {
                     const c = selIt.canvas;
-                    label(`${selIt.outW}×${selIt.outH}`, X(c.x) + 3, Y(c.y) + 8, color(sel), "left");
+                    label(`${selIt.outW}×${selIt.outH}`, X(c.x) + 22, Y(c.y) + 9.5, color(sel), "left");
                     if (selIt.op.t === "pad") {
                         const prev = sel > 0 ? g.items[sel - 1].canvas : { x: 0, y: 0, w: g.W, h: g.H }, S = selIt.sides, C = selIt.cut, s = selIt.sx, sy = selIt.sy;
                         if (S[0] > 0) label(String(S[0]), X(c.x + S[0] / s / 2), Y(c.y + c.h / 2), "#fff");
@@ -565,7 +634,16 @@ app.registerExtension({
                         if (C[3] > 0) label(`−${C[3]}`, X(prev.x + prev.w / 2), Y(prev.y + prev.h - C[3] / sy / 2), color(sel));
                     }
                 }
-                if (g.vis0.w < g.W || g.vis0.h < g.H) label(`${g.W}×${g.H}`, X(0) + 3, Y(0) - 7 < 4 ? Y(0) + 8 : Y(0) - 7, "#9a9a9a", "left");
+                if (g.vis0.w < g.W || g.vis0.h < g.H) label(`${g.W}×${g.H}`, X(0) + 3, Y(0) - 10 < 4 ? Y(0) + 8 : Y(0) - 10, "#9a9a9a", "left");
+                // the file name (what `info` says, the text a WSave Image part gets), in the corner opposite the size that comes
+                // in, aligned right; a long one loses its head, the tail (the last action) stays
+                const name = infoText() || "(no change)";
+                ctx.font = "11px sans-serif"; ctx.textAlign = "right";
+                let nm = name;
+                while (nm.length > 4 && ctx.measureText(nm).width > cw * 0.7) nm = nm.slice(1);
+                if (nm !== name) nm = "…" + nm.slice(1);
+                ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.strokeText(nm, cw - 4, chh - 6);
+                ctx.fillStyle = "#9a9a9a"; ctx.fillText(nm, cw - 4, chh - 6);
                 // 6. the buttons top right: the mask (fuchsia = the pixels the pads add), and the zoom (on = only the open action,
                 //    or the final frame, fills the drawing)
                 const button = (z, on, t) => {
@@ -589,6 +667,7 @@ app.registerExtension({
             const inside = (b, x, y) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
             const hitAt = (mx, my) => {
                 if (!lastG || !map) return null;
+                for (const t of tags) if (inside(t, mx, my)) return { kind: "tag", i: t.i };
                 const selIt = lastG.items[sel];
                 if (selIt && selIt.op.t !== "resize") {
                     const [bx, by, bw, bh] = map.R(selIt.canvas);
@@ -602,7 +681,7 @@ app.registerExtension({
                 }
                 return null;
             };
-            const cursorFor = (h) => h ? ({ n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize" })[h.h] || "move" : "default";
+            const cursorFor = (h) => h?.kind === "tag" ? "pointer" : h ? ({ n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize" })[h.h] || "move" : "default";
             let drag = null;
             const local = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * cv.clientWidth, (e.clientY - r.top) / r.height * cv.clientHeight]; };
             // ---- the pipette: a colour for a pad. setColor writes it; armPick waits for a click on the picture in the drawing
@@ -634,6 +713,7 @@ app.registerExtension({
                 if (onMaskBtn(mx, my)) { node._wxMask = !node._wxMask; node._wxPrevSig = null; paint(); return; }
                 const h = hitAt(mx, my);
                 if (!h) return;
+                if (h.kind === "tag") { sel = h.i === sel ? -1 : h.i; rebuild(); return; }   // its number: open the action, or close it
                 if (h.i !== sel) { sel = h.i; rebuild(); }
                 const it = lastG.items[h.i];
                 drag = { ...h, x: e.clientX, y: e.clientY, box: { ...it.box }, inW: it.inW, inH: it.inH, sx: it.sx, sy: it.sy, moved: false };
@@ -700,6 +780,11 @@ app.registerExtension({
             node.onConfigure = function (info) {
                 node._wxFromFile = true;
                 const rr = onConf?.apply(this, arguments);
+                // a node saved before 0.11: the `mask` input is gone (it came out nowhere), `width` and `height` come out
+                const mi = (node.inputs || []).findIndex((i) => i.name === "mask");
+                if (mi >= 0) node.removeInput(mi);
+                for (const name of ["width", "height"])
+                    if (!(node.outputs || []).some((o) => o.name === name)) node.addOutput(name, "INT");
                 const old = legacyOps(info);   // a workflow saved with the WFrame of before: its boxes become a stack
                 if (old) { if (wOps) wOps.value = JSON.stringify(old.ops); if (wMethod && old.method) wMethod.value = old.method; }
                 read(); sel = -1; rebuild();   // a node from a file opens folded: click a row or a rectangle to open an action

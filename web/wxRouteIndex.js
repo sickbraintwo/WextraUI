@@ -1,7 +1,9 @@
 // WextraUI — WRoute Index: one input, up to 20 outputs; the value goes out of `out<index>`. The outputs shown are the
 // ones in use plus one empty (never fewer than 2), like the slots of WSwitch: connect the last one and another appears.
-// The schema declares all 20 (src/route.py); a saved workflow keeps the outputs of its file.
+// The schema declares all 20 (src/route.py); a saved workflow keeps the outputs of its file. The wire from `value` to
+// the output of `index` is drawn by wxRouteWire.js.
 import { app } from "../../scripts/app.js";
+import { wxRouteWire, wxRouteChoice } from "./wxRouteWire.js";
 
 const MAX_OUTS = 20, MIN_OUTS = 2;
 
@@ -29,6 +31,7 @@ app.registerExtension({
             const origConfigure = node.onConfigure;
             node.onConfigure = function () { const rr = origConfigure?.apply(this, arguments); setTimeout(layout, 0); return rr; };
             layout();
+            wxRouteWire(node, () => { const v = Number(wxRouteChoice(node, "index")); return Number.isFinite(v) ? Math.max(0, Math.min(MAX_OUTS - 1, Math.round(v))) : null; });
             return r;
         };
     },

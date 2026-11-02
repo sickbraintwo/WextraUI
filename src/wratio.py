@@ -2,7 +2,11 @@
 of its own, «ho bisogno dei 2 valori del ratio come output»). A width and a height in, the boxes or two cables; out the two
 numbers of the ratio written large on the node (web/wxRatio.js): a known ratio when it is exact or within 1% (1480 × 832
 is ≈ 16:9: out 16 and 9), else the reduced fraction (1100 × 700: 11 and 7). A known ratio with a decimal goes out made
-whole: 1.85:1 is 37 and 20, 19.5:9 is 13 and 6, the same ratio. They fit WReso's `custom` ratio as they are."""
+whole: 1.85:1 is 37 and 20, 19.5:9 is 13 and 6, the same ratio. They fit WReso's `custom` ratio as they are.
+`aspect_ratio` (Sick, 28/10/2026) goes out for the `aspect_ratio` menu of WReso: the name of the known ratio, turned as the
+picture is (`16:9`, or `9:16` for an upright one), else `custom`. The menu has the landscape ratios only (upright is
+`invert`), but a value from a cable is not checked against the list (only the type is, and the type is the list itself)
+and WReso reads `9:16` upright as it is."""
 from fractions import Fraction
 from math import log
 
@@ -31,6 +35,25 @@ def find_ratio(width, height):
     return f.numerator, f.denominator
 
 
+def aspect_name(width, height):
+    """The name in WReso's menu of the known ratio of width × height (exact or within 1%), turned as the picture is:
+    1920 × 1088 -> `16:9`, 1088 × 1920 -> `9:16`, 1000 × 1370 -> `1:1.37`; `custom` when it is no known ratio, or a
+    side is 0 (WReso then takes the two numbers of `ratio_width` / `ratio_height` on its custom boxes)."""
+    w, h = max(0, int(width or 0)), max(0, int(height or 0))
+    if not (w and h):
+        return "custom"
+    r, best, dist = w / h, None, float("inf")
+    for t in RATIOS:
+        if t == "custom":
+            continue
+        a, b = t.split(":")
+        for name, x, y in ((t, a, b), (f"{b}:{a}", b, a)):
+            d = abs(log(r / (float(x) / float(y))))
+            if d < dist:
+                best, dist = name, d
+    return best if dist < NEAR else "custom"
+
+
 class WRatio:
     @classmethod
     def INPUT_TYPES(cls):
@@ -42,19 +65,22 @@ class WRatio:
             },
         }
 
-    RETURN_TYPES = ("INT", "INT")
-    RETURN_NAMES = ("ratio_width", "ratio_height")
+    RETURN_TYPES = ("INT", "INT", RATIOS)   # the list itself: the cable fits the `aspect_ratio` menu of WReso
+    RETURN_NAMES = ("ratio_width", "ratio_height", "aspect_ratio")
     OUTPUT_TOOLTIPS = ("The first number of the ratio written on the node (16 of 16:9; a decimal one made whole: 37 of 1.85:1 = 37:20).",
-                       "The second number of the ratio written on the node (9 of 16:9).")
+                       "The second number of the ratio written on the node (9 of 16:9).",
+                       "For the aspect_ratio of WReso: the known ratio by its name, turned as the picture is (16:9, 9:16 for an "
+                       "upright one: WReso reads it upright, no invert), else custom (then ratio_width and ratio_height on its "
+                       "custom boxes).")
     FUNCTION = "find"
     OUTPUT_NODE = True   # it runs with nothing on its outputs, like a Preview: the line fills at every Run
     CATEGORY = "WextraUI"
     DESCRIPTION = ("The ratio of a size. A width and a height in; their ratio written large (16:9 when it is exact, ≈ 16:9 "
                    "within 1%, the reduced fraction otherwise), the fraction and the decimal small under it, and the nearest "
                    "sizes that are that ratio exactly with both sides multiples of 8. Out, the two numbers of the ratio as INT, "
-                   "ready for the custom ratio of WReso.")
+                   "ready for the custom ratio of WReso, and aspect_ratio for its ratio menu (9:16 for an upright picture).")
 
     def find(self, width=0, height=0):
         w, h = max(0, int(width or 0)), max(0, int(height or 0))
         a, b = find_ratio(w, h)
-        return {"ui": {"wx_ratio": [[w, h, a, b]]}, "result": (a, b)}
+        return {"ui": {"wx_ratio": [[w, h, a, b]]}, "result": (a, b, aspect_name(w, h))}

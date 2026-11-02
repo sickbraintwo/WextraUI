@@ -87,16 +87,17 @@ class WReso:
             "required": {},
             "optional": {
                 "image": ("IMAGE", {"tooltip": "Read: a picture; its width and height go out (the two numbers below are then left aside)."}),
-                "width": ("INT", {"forceInput": True, "min": 0, "max": 1 << 24,
-                                  "tooltip": "Read: the width, from any INT output (a resolution node, a WInt🌱), when there is no picture."}),
-                "height": ("INT", {"forceInput": True, "min": 0, "max": 1 << 24,
-                                   "tooltip": "Read: the height, from any INT output, when there is no picture."}),
+                # typed or by cable since 28/10 (Sick: «con la possibilità di inserire a mano i valori»; a cable only before)
+                "width": ("INT", {"default": 0, "min": 0, "max": 1 << 24, "step": 1,
+                                  "tooltip": "Read: the width, typed or from any INT output (a resolution node, a WInt🌱), when there is no picture."}),
+                "height": ("INT", {"default": 0, "min": 0, "max": 1 << 24, "step": 1,
+                                   "tooltip": "Read: the height, typed or from any INT output, when there is no picture."}),
                 "section": (SECTIONS, {"default": "reading",
                                        "tooltip": "Which section gives the outputs: the one open, or the last one opened."}),
                 "define_width": side("The width you know. Leave it at 0 when you know the height: it is the side worked out."),
                 "define_height": side("The height you know. Leave it at 0 when you know the width: it is the side worked out."),
                 "aspect_ratio": (RATIOS, {"default": "16:9",
-                                          "tooltip": "Width : height. `custom`: two numbers of your own. For the upright frame, `invert`."}),
+                                          "tooltip": "Width : height. `custom`: two numbers of your own. For the upright frame, `invert`. From the aspect_ratio of a WRatio an upright ratio comes as it is (9:16)."}),
                 "custom_width": ("INT", {"default": 16, "min": 1, "max": BIG, "step": 1, "tooltip": "The first number of a custom ratio (width)."}),
                 "custom_height": ("INT", {"default": 9, "min": 1, "max": BIG, "step": 1, "tooltip": "The second number of a custom ratio (height)."}),
                 "multiple": ("INT", {"default": 8, "min": 1, "max": 64, "step": 1,
@@ -116,8 +117,9 @@ class WReso:
     FUNCTION = "read"
     OUTPUT_NODE = True   # it runs with nothing on its outputs, like a Preview: the line must fill even when the node is the end of the cable
     CATEGORY = "WextraUI"
-    DESCRIPTION = ("The size of a picture, three sections, one open at a time. Read: the size of the picture "
-                   "on the image cable, else of the two numbers on width and height, written large. Define: "
+    DESCRIPTION = ("The size of a picture, three sections, one chosen at a time (a double click on the choice folds the "
+                   "node to the size alone). Read: the size of the picture on the image cable, else of width and height, "
+                   "typed or by cable, written large. Define: "
                    "one side and a ratio give the other side (to the nearest multiple you pick), `invert` turns it upright. "
                    "Multiply: a width and a height times a number (1.5, 0.5). "
                    "The outputs are the numbers of the section open. The ratio of a size: WRatio.")

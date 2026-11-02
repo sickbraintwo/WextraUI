@@ -46,9 +46,12 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 | [WPrompt Rows](#wprompt-rows) | the prompt as rows you switch on and off | [WScene Composer H3](#wscene-composer-h3) | storyboard → time-coded prompt |
 | [WRoute](#wroute--wroute-index) | the *if* that picks an output | [WScene H3](#wscene-h3) | one scene as one object |
 | [WRoute Index](#wroute--wroute-index) | same, by number | [WScenes Collection H3](#wscenes-collection-h3) | the scenes, in order |
+| [Wif](#wif--windex) | the *if* that picks an input, up to 20 pairs on one boolean, lazy | | |
+| [WIndex](#wif--windex) | same, by number | | |
 | [WDifference](#wdifference) | what changed since the last run | [WLoop Start H3](#wloop-start-h3) | which scenes this Run renders |
 | [WLoRA](#wlora) | LoRA + trigger words, in line | [WLoop Scene Conditioning H3](#wloop-scene-conditioning-h3) | the loop body |
-| [WFrame](#wframe) | crop · resize · place, for outpaint | [WLoop End H3](#wloop-end-h3) | the hand-off to the next scene |
+| [WLoRA Stack](#wlora-stack) | up to twenty LoRAs loaded together, blocks that fold | [WLoop End H3](#wloop-end-h3) | the hand-off to the next scene |
+| [WFrame](#wframe) | crop · resize · place, for outpaint | | |
 | [WReso](#wreso) | read, define or multiply a size | | |
 | [WRatio](#wratio) | the ratio of a size, its two numbers out | | |
 | [WFloat](#wfloat) | a float that walks, run after run | | |
@@ -69,13 +72,13 @@ The nodes work on the classic canvas (the default) and with the **Nodes 2.0** re
 
 ## Utilities
 
-Sixteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution, WRatio its ratio). Menu **WextraUI**.
+Eighteen nodes for any workflow, image or video, whatever the model: the ones that walk run after run (checkpoint, LoRA, sampler, scheduler, seed, float, switch, frame), the `carry` cable that makes a grid of them, and the ones that read (WSave Image names the file after what made it, WDifference says what changed, WReso shows the resolution, WRatio its ratio). Menu **WextraUI**. Collapse a node that holds a value (WCheckpoint, WLoRA, WSampler, WScheduler, WInt🌱, WFloat, WSwitch, WReso, WRatio) and its title reads the name and the value: `WSampler · euler`, `WReso · 1920 × 1080`; open it again and the name is alone.
 
 ### WSave Image
 
-Saves the PNGs and writes into the name of every file what made it. The name is **composed from parts**: folder, subject, any string or number from the graph, a counter of chosen width; the usual ComfyUI metadata go inside. The `preview` box shows the name before you run, linked fields included. `images` is optional: unplugged, the node only composes the name for other savers (video, JSON). The `images` output passes the batch through, so the save sits inside the chain instead of at a dead end.
+Saves the PNGs and writes into the name of every file what made it. The name is **composed from parts**: folder, subject, any string or number from the graph, a counter of chosen width; the usual ComfyUI metadata go inside. The node shows the name as it goes on disk before you run, linked fields included, and **the name is the editor**: click a part (each part in a dashed box) to pick it, blue, and open it below in its three rows `text` / `type` / `value`, with their sockets for a cable; click it again to shut it. The rows `folder` and `subject` stay under the name. `images` is optional: unplugged, the node only composes the name for other savers (video, JSON). The `images` output passes the batch through, so the save sits inside the chain instead of at a dead end.
 
-Above each part a slim bar (`part 1`, `part 2`…) has a handle `≡` and two chips: drag the handle to move the part, `−` removes it, `+` opens an empty one right below; values and cables follow. The **write batch** switch appends `_B{batch}{index}`: how many images the run made and which one this is (`_B41`, `_B42`…); the same placeholders work in any text field.
+A part not open is one row: the handle `≡` (drag it onto another part to move it), one box `text · type · value` (click the text or the value to type it, the type to turn it int → float → bool → string), `−` removes the part, `+` opens an empty one right below; values and cables follow. A field on a cable keeps its socket on the row and says the node it comes from. Under the name three chips: the counter `‹ _01 ›` (0 to 8 digits, 0 = none), **batch**, which appends `_B{batch}{index}`: how many images the run made and which one this is (`_B41`, `_B42`…; the same placeholders work in any text field), and **thumbnails**, the saved images inside the node.
 
 **`{#id}`** in any text is the value that WextraUI node used in this run (WSampler, WScheduler, WCheckpoint, WLoRA, WFloat, WInt🌱, WSwitch), no cable. **`from Wnodes on graph`** lists the nodes of the workflow by type, the ones that walk already ticked, in the order of the carry chain (drag to change it), and makes one part for each (`_sa_euler` in the name, `_C_` for a WCheckpoint, `_L_` for a WLoRA, `_S_` for a WInt🌱 on a seed, `_st_` on steps, `_cfg_` for a WFloat on a cfg; value locked to the node). A grid of trials, and every file telling on its own what made it.
 
@@ -83,24 +86,30 @@ Above each part a slim bar (`part 1`, `part 2`…) has a handle `≡` and two ch
 
 ### WPrompt Rows
 
-The prompt as **rows**. Each one is a text area that grows with the text, with an **on/off** chip and a socket on the left for an external string (trigger words, another prompt) that the same chip switches. **+** adds a row, **−** removes one. The rows that are on come out joined by `, `, a space, a new line or nothing.
+The prompt as **rows**. Each one is a text area that grows with the text, with an **on/off** chip and a socket on the left for an external string (trigger words, another prompt) that the same chip switches. **+** adds a row, **−** removes one. The rows that are on come out joined by `, `, a space, a new line or nothing. Drag a row by its **≡** to move it; plug a text into `prompt_to_divide` and **Divide Input Prompt** turns it into rows, one per phrase between commas; while no row has text that text comes out as it is. **Reset** brings the node back to new.
 
 <img src="images/WPromptRows.png" width="420" alt="WPrompt Rows">
 
 ### WRoute · WRoute Index
 
-The **if the other way round**: one input, two outputs, a boolean decides which output carries the value. The branch not chosen **does not run at all**, Save nodes included. `WRoute Index` does the same with a number: up to twenty outputs, counted from 0, shown as you use them. The `index` of WSwitch fits as it is.
+The **if the other way round**: one input, two outputs, a boolean decides which output carries the value. The branch not chosen **does not run at all**, Save nodes included. `WRoute Index` does the same with a number: up to twenty outputs, counted from 0, shown as you use them. The `index` of WSwitch fits as it is. A line inside the node goes from `value` to the output it goes out of, red and dashed (with **nothing runs** under `value`) when that output has no cable.
 
 <img src="images/WRoute.png" width="300" alt="WRoute"> <img src="images/WRouteIndex.png" width="300" alt="WRoute Index">
 
 <details><summary>Why it exists, and how to join the branches again</summary>
 
-Nearly every switch in the ecosystem picks an *input*, because ComfyUI is pull-based; this one picks the *output* (`ExecutionBlocker` on the branch not taken). To join the branches back into one Save node use a **lazy** switch fed by the same boolean (core *If/Else Switch*, Easy-Use *if-else*). A non-lazy if (ComfyUI-Logic *If*) evaluates both inputs, meets the blocker and is skipped with everything after it: no error, no file.
+Nearly every switch in the ecosystem picks an *input*, because ComfyUI is pull-based; this one picks the *output* (`ExecutionBlocker` on the branch not taken). To join the branches back into one Save node use a **lazy** switch fed by the same boolean (*Wif*, core *If/Else Switch*, Easy-Use *if-else*). A non-lazy if (ComfyUI-Logic *If*) evaluates both inputs, meets the blocker and is skipped with everything after it: no error, no file.
 </details>
+
+### Wif · WIndex
+
+The mirror of WRoute: a boolean decides which input goes out, as Easy-Use *If else*; `count` (1 to 20) gives it as many `true` / `false` pairs, each with its own output, all driven by the same `if`. The inputs are **lazy**: only the branch chosen runs. `WIndex` does the same with a number, as Easy-Use *Any Index Switch*: up to twenty inputs, counted from 0, shown as you use them. A line inside the node goes from each input chosen to its output, red and dashed (with **nothing runs** under the output) when that input has no cable: nothing downstream runs, no error. Both are born as narrow as they can.
+
+<img src="images/Wif.png" width="260" alt="Wif"> <img src="images/WIndex.png" width="260" alt="WIndex">
 
 ### WDifference
 
-Tells you **what you changed since the previous run** of this workflow: seeds, prompts, widget values, rewiring, nodes added or removed. As text, one line per change, and as a file-name-safe `tag`. Every node, or only the ones in `track`: select them on the canvas and press `add` (`remove` takes them out); `ignore` silences a node or a single widget (`74.seed`). A week later the file still says what that run changed.
+Tells you **what you changed since the previous run** of this workflow: seeds, prompts, widget values, rewiring, nodes added or removed. As text, one line per change, and as a file-name-safe `tag`. Every node, or only the ones in `track`: select them on the canvas and press `add` (`remove` takes them out), each one becomes a chip with the node's title; `ignore` silences a node or a single widget (`74 KSampler.seed`). A week later the file still says what that run changed.
 
 <img src="images/WDifference.png" width="300" alt="WDifference">
 
@@ -111,34 +120,42 @@ It reads the hidden PROMPT that every Save node embeds in the file, keeps the pr
 
 ### WLoRA
 
-Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. The words come from the `<lora>.rgthree-info.json` that rgthree-comfy saves next to a LoRA (the official words, `rgthree_info` switch) and from the training tags inside the file: click the chips, drag to reorder.
+Loads the LoRA **and** puts the trigger words you click into your prompt, in one node, in line: the prompt cable goes in on one side and comes out on the other with the words already in it. The words come from the `<lora>.rgthree-info.json` that rgthree-comfy saves next to a LoRA (the official words, `rgthree_info` switch) and from the training tags inside the file: click the chips, drag to reorder. They go in front of the prompt, with the `separator` between them (`, ` to start; type `\n` for a new line).
 
 Above the name, **`folder`** narrows the LoRA menu to one folder (any depth) and shows where you are in it (`folder · 3/12` = runs to queue); under it, the **selection** drop-down of [WSampler](#wsampler--wscheduler) (`all · 12`, or tick the LoRAs you want, drag them into order, and it reads `custom · 3`: from then on the menu and the walk only meet those). Under the name, the seed-style **control after generate** (`increment` / `decrement` / `randomize`) walks the LoRAs of that folder, or of the selection, across queued runs. For a strength that walks, cable a [WFloat](#wfloat) on `strength_model` (and on `strength_clip`). The walk lives in the node, but `folder` is a real input (in `object_info`, optional), so a script reading the saved workflow sees the same values you see.
 
 <img src="images/WLoRA.png" width="400" alt="WLoRA">
 
+### WLoRA Stack
+
+Up to **twenty LoRAs loaded together in one run**, as twenty LoRA loaders in a row. One **`folder`** and one **selection** on top narrow the LoRA menu of every block (the LoRAs already chosen stay where they are); while the selection reads `all`, a button between them loads every LoRA of the folder into the blocks, up to twenty. Under them, **`step`** is how much the arrows move every strength (`0.50` to start, two decimals); the **`control`** of each block (`fixed`, `increment`, `decrement`) walks its two strengths by that step after every queued run. Each block has the rows of WLoRA: the name, the two strengths, `rgthree info`, the chip picker. The words picked in the blocks go in front of your prompt, in the order of the blocks, with the **`separator`** between them (`, ` to start; type `\n` for a new line). `loras` says how many blocks show and load.
+
+The head row of a block has the handle **`≡`** (drag it onto another block: it takes that place and the ones between move, with their values, words and cables), the **on / off** switch (off: not loaded, its words left out), the block's number and the fold button: a click on the row folds the block without `rgthree info` and the tags, or down to **one line** with its name, strengths and words in columns. A block not folded to one line is a card, a shade darker than the node, and each block folds by itself. `name` gives the names of the blocks that are on, joined by ` + `, for WSave Image. Under every block, **`solo`** walks one LoRA at a time: after every queued run only the next block is on (`increment`, `decrement`, `randomize`, `increment-wrap`), so five queued runs try five LoRAs one by one, while the blocks under a lock stay on in every run: `▶ 5` on the row of `carry` queues them from the first block, and the `carry` cable chains the stack with the other nodes that walk.
+
+<img src="images/WLoRAStack.png" width="400" alt="WLoRA Stack">
+
 ### WCheckpoint
 
-The core Load Checkpoint with the same three things as the LoRA loader. **`folder`** above the name: the folders of your checkpoint list at any depth, and the label shows where you are (`folder · 3/12` = runs to queue). The **selection** drop-down under it: tick the checkpoints of that folder you want, drag them into order, and the menu and the walk only meet those. The seed-style **control after generate** under the name: `increment` / `decrement` / `randomize` walk the checkpoints of that folder, or of the selection, across queued runs. Same load as the core node (`MODEL`, `CLIP`, `VAE`, same caching), plus **`name`** as a string for [WSave Image](#wsave-image): one prompt, one seed, every model of a family in one go, and each file says which model made it. `folder` is a real input (optional, in `object_info`); a folder that is gone never stops a run.
+The core Load Checkpoint with the same three things as the LoRA loader. **`folder`** above the name: the folders of your checkpoint list at any depth, and the label of the name shows where you are (`ckpt_name · 3/12` = runs to queue). The **selection** under it is a road: the checkpoint of now in the middle, the ones before and after it on the sides, a notch per checkpoint on the foot; open it and tick the checkpoints of that folder you want, drag them into order, and the menu and the walk only meet those. The seed-style **control after generate** under the name: `increment` / `decrement` / `randomize` walk the checkpoints of that folder, or of the selection, across queued runs. Same load as the core node (`MODEL`, `CLIP`, `VAE`, same caching), plus **`name`** as a string for [WSave Image](#wsave-image): one prompt, one seed, every model of a family in one go, and each file says which model made it. `folder` is a real input (optional, in `object_info`); a folder that is gone never stops a run.
 
 <img src="images/WCheckpoint.png" width="380" alt="WCheckpoint">
 
 ### WSampler · WScheduler
 
-The `sampler_name` and `scheduler` menus as nodes of their own. Each has a **selection** drop-down above the name (`all`, or tick the names you want, drag them into order, and it reads `custom · n`: from then on the menu, the arrows and the walk only meet those names) and the seed-style **control after generate** under it. Turn the KSampler's `sampler_name` (or `scheduler`) into an input and cable the node into it: queue several runs with `increment` and each one takes the next name of the list. Both give the name as a string too, for [WSave Image](#wsave-image): one prompt, one seed, every sampler, and each file says what made it.
+The `sampler_name` and `scheduler` menus as nodes of their own. Each has a **selection** row above the name that reads where the walk is: the name of now in the middle, the one before and the one after on its sides, the side the control goes to lit. A click opens the drop-down: tick the names you want, drag them into order, and from then on the menu, the arrows and the walk only meet those names and the seed-style **control after generate** under it. Turn the KSampler's `sampler_name` (or `scheduler`) into an input and cable the node into it: queue several runs with `increment` and each one takes the next name of the list. Both give the name as a string too, for [WSave Image](#wsave-image): one prompt, one seed, every sampler, and each file says what made it.
 
 <img src="images/WSampler.png" width="280" alt="WSampler"> <img src="images/WScheduler.png" width="280" alt="WScheduler"> <img src="images/WScheduler_selection.png" width="280" alt="WScheduler: the selection drop-down">
 
 ### WFrame
 
-One node for the outpaint prep and every framing job: a **stack of actions** done in order, as many as the job needs. **crop** = the box that stays (a size or an aspect, an anchor, a shift); **pad** = the picture on a bigger (or smaller) canvas, what is missing padded with a colour, what sticks out cut; **resize** = aspect kept, by a side, a percent, or fit / cover a box. Crop a detail, then pad it to `1:1`; resize, then pad for the outpaint. Out come the picture and the pad **mask** feathered inward (ready for outpaint); what was done goes in a WSave Image name with `from Wnodes on graph` (`c800x800_p112x0`). Under the stack, a **preview**: the final frame in red, every action a rectangle in the colour of its row, the added border in the pad colour with its width on each side, what is cut outside; click a rectangle to open its action, drag it to move it, pull a corner to size it, nudge it with the arrow keys; a `mask` button shows the pad mask; the number boxes slide. Above the stack, what was done, as it goes in the file name.
+One node for the outpaint prep and every framing job: a **stack of actions** done in order, as many as the job needs. **crop** = the box that stays (a size or an aspect, an anchor, a shift); **pad** = the picture on a bigger (or smaller) canvas, what is missing padded with a colour, what sticks out cut; **resize** = aspect kept, by a side, a percent, or fit / cover a box. Crop a detail, then pad it to `1:1`; resize, then pad for the outpaint. Out come the picture, the pad **mask** feathered inward (ready for outpaint) and the picture's width and height (with no action, those that came in); what was done goes in a WSave Image name with `from Wnodes on graph` (`c800x800_p112x0`). Under the stack, a **preview**: the final frame in red, every action a rectangle in the colour of its row with the row's number on it (full for the action opened last), the added border in the pad colour with its width on each side, what is cut outside; click a rectangle to open its action, drag it to move it, pull a corner to size it, nudge it with the arrow keys; a `mask` button shows the pad mask; the number boxes slide; in its bottom-right corner, what was done, as it goes in the file name. `+ crop`, `+ pad`, `+ resize` add an action, the `✕` of a row removes it.
 
 <img src="images/WFrame.png" width="260" alt="WFrame"> <img src="images/WFrame_mask.png" width="260" alt="WFrame: the mask view">
 
 ### WReso
 
-The size of a picture, in **three sections** with a ▸ / ▾ head, one open at a time; the outputs (`width`, `height`) are the numbers of the section open, or of the last one opened, written large at the foot of the node. Every number of the node takes a cable.
-- **Read**: plug a picture, or two INT cables (`width`, `height` from a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
+The size of a picture, in **three sections** on a switch of three, `Read · Define · Multiply`, one chosen at a time; the outputs (`width`, `height`) are the numbers of the section chosen, written large at the foot of the node. A click on the chosen section folds the node to the size alone. Every number of the node takes a cable.
+- **Read**: plug a picture, or type a width and a height (or wire two INT cables: a resolution node, a WInt🌱, a Primitive), and read `1024 × 1024` at a glance. The line follows the graph as you wire (a picture shown up the cable, the widget at the far end of a cable, a menu that reads `1024 x 1024` split in two); what the graph cannot tell reads `?` until the run, then the line shows what the node used. No convert-to-string, no concatenate, no Show node.
 - **Define**: one side and a ratio give the other side. Type the width **or** the height, pick the ratio (every landscape one in use, from `1:1` to `32:9`: photo, screens, cinema; or `custom` and two numbers of your own): a height of 832 at 16:9 reads `1480 × 832`. The side worked out is rounded to the nearest multiple of 8; while one side is above 0 the box of the other one is greyed out. **invert** turns the result round (`832 × 1480`): the upright frame. `multiple` is 1, 2, 4, 8, 16, 32 or 64, in a number box that takes a cable: a number in between goes to the nearest of them.
 - **Multiply**: a width and a height times a number with one decimal (`multiply by`, 1.0 to start): 1024 × 576 at 1.5 reads `1536 × 864`, each side to the nearest pixel.
 
@@ -148,19 +165,19 @@ A WReso saved with 0.8.0 opens with Read and works as before; one saved on the R
 
 ### WRatio
 
-The ratio of a size, and its **two numbers out**. A width and a height, typed or by cable; their ratio written large: `16:9` when it is exact, `≈ 16:9` when it is within 1%, the reduced fraction otherwise; small under it, the fraction and the decimal (`185:104 | 1.78:1`); on the right, the nearest sizes that are that ratio exactly with both sides multiples of 8, one bigger (↑) and one smaller (↓). Out, `ratio_width` and `ratio_height`: 16 and 9 for 16:9 or ≈ 16:9; a ratio with a decimal made whole, the same ratio (`1.85:1` is 37 and 20). The two outputs fit the `custom` ratio of WReso as they are: the ratio of one picture, the size of another. It runs with nothing on its outputs, like a Preview.
+The ratio of a size, and its **two numbers out**. A width and a height, typed or by cable; their ratio written large, inside a rectangle of that ratio drawn to scale: `16:9` when it is exact, `≈ 16:9` when it is within 1%, the reduced fraction otherwise; small under it, the fraction and the decimal (`185:104 | 1.78:1`); on the right, the nearest sizes that are that ratio exactly with both sides multiples of 8, one bigger (↑) and one smaller (↓). Out, `ratio_width` and `ratio_height`: 16 and 9 for 16:9 or ≈ 16:9; a ratio with a decimal made whole, the same ratio (`1.85:1` is 37 and 20). The two outputs fit the `custom` ratio of WReso as they are: the ratio of one picture, the size of another. A third output, `aspect_ratio`, fits WReso's ratio menu: `16:9`, `9:16` for an upright picture (read upright, no `invert`), `custom` for a ratio not in the menu. It runs with nothing on its outputs, like a Preview.
 
 <img src="images/WRatio.png" width="260" alt="WRatio">
 
 ### WFloat
 
-A float with a seed-style control: `fixed`, or `increment` / `decrement` by `step` after every queued run, with no arrival and no floor (negative values are legitimate). The label of `control` shows the step and its direction (`+0.1/run` / `−0.1/run`). For any FLOAT input: a strength through Set/Get, a denoise, a CFG. With a [`carry`](#carry-the-odometer-cable) cable in or out it is a wheel, from the value you set to `until`; without a cable `until` does nothing.
+A float with a seed-style control: `fixed`, or `increment` / `decrement` by `step` after every queued run, with no arrival and no floor (negative values are legitimate). The row `selection` under `value` reads where the walk is: the value of now in the middle, the ones before and after on its sides (`0.8 0.9 [1] › 1.1 1.2`). For any FLOAT input: a strength through Set/Get, a denoise, a CFG. With a [`carry`](#carry-the-odometer-cable) cable in or out it is a wheel, from the value you set to `until`; without a cable `until` does nothing and stays out of the view. Numbers that are not one after the other go in the **selection** under `value`: type them (`0.5, 0.75, 1, 1.2`), drag them into order, and the wheel goes through those instead, from the first one at the first run (on `fixed`, the first one).
 
 <img src="images/WFloat.png" width="260" alt="WFloat">
 
 ### WInt🌱
 
-WFloat on an integer, with `randomize` too: a seed that walks by `step` (1 by default) after every queued run, for the KSampler's `seed` turned into an input or any INT. On `increment-wrap` it is a wheel from the value you set to `until`, round and round, no cable needed; with a [`carry`](#carry-the-odometer-cable) cable the same wheel beats the next node: four seeds for every sampler, the seeds inside. Seeds that are not one after the other go in the **selection** under `value`: type them (`1, 3, 6, 90, 1234`), drag them into order, and the wheel goes through those instead, from the first one at the first run. Drop a PNG saved by ComfyUI on the node and the seed that made it joins the list.
+WFloat on an integer, with `randomize` too: a seed that walks by `step` (1 by default) after every queued run, for the KSampler's `seed` turned into an input or any INT. On `increment-wrap` it is a wheel from the value you set to `until`, round and round, no cable needed; with a [`carry`](#carry-the-odometer-cable) cable the same wheel beats the next node: four seeds for every sampler, the seeds inside. Seeds that are not one after the other go in the **selection** under `value`: type them (`1, 3, 6, 90, 1234`), drag them into order, and the wheel goes through those instead, from the first one at the first run (on `fixed`, the first one). Drop a PNG saved by ComfyUI on the node and the seed that made it joins the list.
 
 <img src="images/WInt.png" width="260" alt="WInt">
 
@@ -176,7 +193,7 @@ WSwitch walks too: with `control` on `increment` the slot that is on moves to th
 
 ### carry: the odometer cable
 
-Every node that walks (WSampler, WScheduler, WCheckpoint, WLoRA, WFloat, WInt🌱, WSwitch) has a **`carry`** input and output. Two of them, one inside the other: `carry` out of the fast one, into the slow one. Put the fast node on `increment-wrap`: each time it comes back from the last name to the first it sends one beat down the cable, and the slow node moves one step of its own (its control reads `on carry`; leave it on `fixed`). Like the digits of an analogue counter.
+Every node that walks (WSampler, WScheduler, WCheckpoint, WLoRA, WLoRA Stack, WFloat, WInt🌱, WSwitch) has a **`carry`** input and output. Two of them, one inside the other: `carry` out of the fast one, into the slow one. Put the fast node on `increment-wrap`: each time it comes back from the last name to the first it sends one beat down the cable, and the slow node moves one step of its own (its control reads `on carry`; leave it on `fixed`). Like the digits of an analogue counter.
 
 Chain as many as you like. WScheduler → WSampler → WCheckpoint is every checkpoint of a folder × every sampler × every scheduler of a selection, and the label of the input counts the runs: `carry · 3 × 4 = 12 runs`. Put 12 in the queue and the grid makes itself, with `name` of each node in the file name so every image says what made it. A WFloat on the cfg driven by the sampler: every sampler at 5, then every sampler at 5.5. A WInt🌱 with `until` as the first wheel: four seeds for every sampler.
 
@@ -195,25 +212,25 @@ Each **WScene H3** says how it joins the previous one: `handoff_frames` (last N 
 
 ### WSimple Prompt H3
 
-The H3 prompt **without time-codes**: what we see, what happens in order, then the things an H3 prompt must always carry. One camera idea (a still camera said in full), the sound born with the picture, what stays fixed, what moves, the final state, up to three things to avoid. The order of the sentences is the timeline.
+The H3 prompt **without time-codes**: what we see, what happens in order, then the things an H3 prompt must always carry. One camera idea (a still camera said in full), the sound born with the picture, what stays fixed, what moves, the final state, up to three things to avoid. Each one is a row with its name inside, as tall as its text. The order of the sentences is the timeline.
 
 <img src="images/WSimplePrompt_H3.png" width="420" alt="WSimple Prompt H3">
 
 ### WScene Composer H3
 
-Turns a storyboard into a **MiniMax H3 prompt with a time-code per beat**, so sound and picture are written together and land where you want them in the clip. Beats can be locked or scaled to the total duration; it also outputs the timing table and the real frame count.
+Turns a storyboard into a **MiniMax H3 prompt with a time-code per beat**, so sound and picture are written together and land where you want them in the clip. Beats can be locked or scaled to the total duration; a bar of the clip shows them on their real seconds, and an edge of it drags. It also outputs the timing table and the real frame count.
 
 <img src="images/WSceneComposer_H3.png" width="420" alt="WScene Composer H3">
 
 ### WScene H3
 
-**One scene as a single object**: the prompt, its duration, the seed, where the clip starts and lands, an optional mid-clip guide, the references, and how it joins the previous scene.
+**One scene as a single object**: the prompt, its duration, the seed, where the clip starts and lands, an optional mid-clip guide, the references, and how it joins the previous scene. A strip on the node shows it all on the time of the scene.
 
 <img src="images/WScene_H3.png" width="280" alt="WScene H3">
 
 ### WScenes Collection H3
 
-Lines up the scenes **in socket order** into the list the loop runs over: the label of a socket is the number the loop gives that scene (`0 · scene`, `1 · scene`…). That order is the film. The sockets grow as you connect, like the slots of WSwitch: unplug a scene in the middle and the ones after it move up; the `+` chip on a row opens an empty socket right below it, to slip a scene in between.
+Lines up the scenes **in socket order** into the list the loop runs over: the label of a socket is the number the loop gives that scene (`0 · scene`, `1 · scene`…). That order is the film. The sockets grow as you connect, like the slots of WSwitch: unplug a scene in the middle and the ones after it move up; the `+` on a row opens an empty socket right below it, to slip a scene in between.
 
 <img src="images/WScenesCollection_H3.png" width="300" alt="WScenes Collection H3">
 
@@ -241,25 +258,25 @@ Nine nodes for the part of the job that comes after the generation: pick a frame
 
 ### WExtractor
 
-One frame of a video, or every frame between two. Pick the video (the input folder, then the output one, or upload one, or drag it onto the node), move the pointer on the **timeline** under the preview: the frame where you leave it goes out of `images`, with its number and its fps. Arrow keys for one frame (Shift: ten), space to play, F for the full screen. With **multiple** on, a second pointer, and every frame from the first to the second goes out, their number written between them (and how much memory they take when it is a lot). The frame picked is the frame that goes out: both are counted from the video's own timestamps.
+One frame of a video, or every frame between two. Pick the video (the input folder, then the output one, or upload one, or drag it onto the node), move the pointer on the **timeline** under the preview, a film of small frames of the video: the frame where you leave it goes out of `images`, with its number and its fps. Arrow keys for one frame (Shift: ten), space to play, F for the full screen. With **multiple** on, a second pointer, and every frame from the first to the second goes out, their number written between them (and how much memory they take when it is a lot). The frame picked is the frame that goes out: both are counted from the video's own timestamps.
 
 <img src="images/WExtractor.png" width="300" alt="WExtractor">
 
 ### WMount
 
-Videos joined into one mp4: the clips of a **folder** of ComfyUI's input or output, in the order of their names, then the connected ones (a video or frames; the last socket connected makes a new one, up to 32). **Every clip has its own row of rules**: `in`, frames dropped from its head (22 by default, the frames a scene continued from the one before repeats); `out`, `drop` n frames from its tail (a loop that ends on its first picture: `drop 1`), or `blend` n frames into the first ones of the clip after, the sound fading across the same stretch. The frames go through one at a time, from the clips to the new file: a long 1080p mount does not fill the memory. The preview plays in the node.
+Videos joined into one mp4: the clips of a **folder** of ComfyUI's input or output, in the order of their names, then the connected ones (a video or frames; the last socket connected makes a new one, up to 32). **A strip shows the clips**, one band each as long as its frames, what the rules take off hatched, the blends in blue, and under it the frames that will come out; a click on a band opens **the rules of that clip**: `in`, frames dropped from its head (22 by default, the frames a scene continued from the one before repeats); `out`, `drop` n frames from its tail (a loop that ends on its first picture: `drop 1`), or `blend` n frames into the first ones of the clip after, the sound fading across the same stretch. The frames go through one at a time, from the clips to the new file: a long 1080p mount does not fill the memory. The preview plays in the node.
 
-<img src="images/WMount.png" width="300" alt="WMount">
+<img src="images/WMount.png" width="260" alt="WMount">
 
 ### WCutScene
 
-Where the shot changes. The frames go in, **the start of every scene comes out**, one time per line, and on the node a **sheet** with the first, middle and last frame of each scene: a cut that was missed shows as two shots in one cell, a cut too many as the same shot in two. A cut is a sudden jump of the picture, much larger than the frames around it, so fast motion, a flash and a fade from black are not cuts; a cross-dissolve never jumps and is not found: write its time in the **cuts** box, where the found cuts are written after the Run and can be fixed by hand (add a line, delete one; empty the box to find them again). The **beats** box is for times where the shot goes on but the sound changes (a drop falls): written by hand, they make a scene of their own, marked `+`, which the Foley nodes fade in slowly instead of cutting.
+Where the shot changes. The frames go in, **the start of every scene comes out**, one time per line, and on the node a **sheet** with the first, middle and last frame of each scene: a cut that was missed shows as two shots in one cell, a cut too many as the same shot in two. A cut is a sudden jump of the picture, much larger than the frames around it, so fast motion, a flash and a fade from black are not cuts; a cross-dissolve never jumps and is not found: write its time in the **cuts** box, where the found cuts are written after the Run and can be fixed by hand (add a line, delete one; empty the box to find them again). Under the boxes a **strip** shows the scenes in proportion to their length as you type, and says at once a time that is wrong. The **beats** box is for times where the shot goes on but the sound changes (a drop falls): written by hand, they make a scene of their own, marked `+`, which the Foley nodes fade in slowly instead of cutting.
 
 <img src="images/WCutScene.png" width="300" alt="WCutScene">
 
 ### WAudio Prompts
 
-The sound prompt of every scene, written by **Qwen3-VL** (a Load CLIP, as Comfy's own Generate Text uses it: nothing outside ComfyUI) looking at a few frames of each scene, with the rules of a foley prompt built in: only sounds whose source is seen, material and timbre, what changes on screen, no invented events, no speech, no music. After WCutScene: its `cuts` say where each scene starts; out comes the **timeline** `time | prompt` for WLoop Start Foley. The text goes into the **prompts** box after the Run, where it can be fixed by hand; empty a line to have just that scene written again, another seed for another text. The **custom** box takes prompts of your own: a scene with a line there is not asked to the model. On the node, each scene's middle frame with its prompt.
+The sound prompt of every scene, written by **Qwen3-VL** (a Load CLIP, as Comfy's own Generate Text uses it: nothing outside ComfyUI) looking at a few frames of each scene, with the rules of a foley prompt built in: only sounds whose source is seen, material and timbre, what changes on screen, no invented events, no speech, no music. After WCutScene: its `cuts` say where each scene starts; out comes the **timeline** `time | prompt` for WLoop Start Foley. After the Run **one row per scene** shows the text that will go out: type in it to fix it, empty it to have just that scene written again, another seed for another text. **mine?** makes a scene yours and the model skips it. The two boxes behind the rows, **prompts** and **custom**, open with `text`, for pasting. On the node, each scene's middle frame with its prompt.
 
 <img src="images/WAudioPrompts.png" width="300" alt="WAudio Prompts">
 
@@ -283,7 +300,7 @@ At the end of the loop body: the sound just made goes **into the mix at its plac
 
 ### WMixer
 
-A **timeline mixer inside the node**, as the layers of After Effects. Every track is an audio file of the input or output folder (or dragged onto the node), with its volume, offset, mute and solo; on each track the **clips** that play, with a fade in and a fade out on their top corners; a **volume line** drawn with the mouse, with dips and curves. It **plays live** while you edit (Web Audio), with the video next to it, muted, in step; the cuts of a WLoop Start Foley in the same graph are on the ruler, and the clips snap to them, to a **beat grid** (bpm, first beat) and to each other. Double-click makes a clip filling the scene, Ctrl+click cuts it, Alt+click deletes it; the mixer has its own undo. Space plays, F is the full screen, `?` in the bar is the card with every gesture. Run makes the same mix in Python and gives it as AUDIO, under a ceiling.
+A **timeline mixer inside the node**, as the layers of After Effects. Every track is an audio file of the input or output folder (or dragged onto the node), with its volume, offset, mute and solo; on each track the **clips** that play, each the room under its **roof**: the fades are its two slopes, the volume over time, with points and curves, is its top, and the waveform stands in that room. A **map** of the whole mix over the ruler says where you are when you zoom. It **plays live** while you edit (Web Audio), with the video next to it, muted, in step; the cuts of a WLoop Start Foley in the same graph are on the ruler, and the clips snap to them, to a **beat grid** (bpm, first beat) and to each other. Double-click makes a clip filling the scene, Ctrl+click cuts it, Alt+click deletes it; the mixer has its own undo. Space plays, F is the full screen, `?` in the bar is the card with every gesture. Run makes the same mix in Python and gives it as AUDIO, under a ceiling.
 
 <img src="images/WMixer.png" width="860" alt="WMixer">
 
@@ -305,7 +322,7 @@ A ~77 s music video, video and audio generated together shot by shot with MiniMa
 ## Security
 
 What the pack touches, for whoever reviews it:
-- **Files:** only under `ComfyUI/output`, `ComfyUI/input` and `ComfyUI/temp` (`src/wxPaths.py` is the single gate for the first two: relative paths are resolved there, absolute paths are accepted only inside them, `..` is dropped; the video and audio nodes resolve their files the same way). WSave Image writes under `output/`, WDifference keeps its diaries in `output/_Wextra/rundiff`, WMount and WAonV write their mp4 under `output/`, WCutScene and WAudio Prompts their sheets under `temp/`. WExtractor and WMixer read videos and audio files of `input/` and `output/` and keep a light copy (a small proxy, the sound as flac) under `temp/`, made once per version of the file; a file dragged onto them is uploaded through ComfyUI's own `/upload/image`. WCheckpoint loads the checkpoint through the core node's code, by a name ComfyUI itself lists. WLoRA reads LoRA files, their header and — read-only, when there is one — the `.rgthree-info.json` next to them, through `folder_paths` only, in the model folders ComfyUI itself lists; nothing is written back next to the LoRA. WAudio Prompts runs the vision model through ComfyUI's own CLIP loader: nothing is downloaded.
+- **Files:** only under `ComfyUI/output`, `ComfyUI/input` and `ComfyUI/temp` (`src/wxPaths.py` is the single gate for the first two: relative paths are resolved there, absolute paths are accepted only inside them, `..` is dropped; the video and audio nodes resolve their files the same way). WSave Image writes under `output/`, WDifference keeps its diaries in `output/_Wextra/rundiff`, WMount and WAonV write their mp4 under `output/`, WCutScene and WAudio Prompts their sheets under `temp/`. WExtractor and WMixer read videos and audio files of `input/` and `output/` and keep a light copy (a small proxy, the sound as flac) under `temp/`, made once per version of the file; a file dragged onto them is uploaded through ComfyUI's own `/upload/image`. WCheckpoint loads the checkpoint through the core node's code, by a name ComfyUI itself lists. WLoRA and WLoRA Stack read LoRA files, their header and — read-only, when there is one — the `.rgthree-info.json` next to them, through `folder_paths` only, in the model folders ComfyUI itself lists; nothing is written back next to the LoRA. WAudio Prompts runs the vision model through ComfyUI's own CLIP loader: nothing is downloaded.
 - **Network:** none. The pack makes no outbound request of any kind. Its HTTP routes (`/wextraui/lora_tags`, `media_files`, `video_audio`, `video_proxy`, `extractor_info`, `extractor_files`, `mount_clips`, `mount_folders`), all GET and served by ComfyUI itself, answer only about files in the folders above, from data already on disk.
 - **Code:** no `eval`/`exec`, no `subprocess`, no runtime `pip`, nothing obfuscated; the video and audio work is done in-process by the PyAV that ComfyUI ships. `comfy node validate` passes; `python tools/selftest.py` is the pre-push check.
 

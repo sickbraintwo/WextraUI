@@ -1,15 +1,18 @@
 // WextraUI — WMixer: the timeline of a mixer inside the node, as the layers of After Effects (Sick, 17/10/2026). Every
 // track is an audio file of ComfyUI's input or output folder: on the left its name, volume (dB), offset (s), M(ute),
-// S(olo), ✕; on the right its waveform, and over it the stretches that play (clips), each with a fade in and a fade out.
-// Over everything: the ruler, the cuts between the scenes (read from the timeline of a WLoop Start Foley in the same
-// graph), the beat grid (bpm, and where the first beat falls), the playhead. It plays live (Web Audio) while you edit,
-// with the video next to it, muted, in step; Run makes the same mix in Python (src/mixer.py) and gives it as AUDIO.
+// S(olo), V(olume), ✕; on the right its waveform, and over it the stretches that play (clips). A clip is the room under
+// its roof: the roof climbs with the fade in, falls with the fade out, and between them it is the volume line of the track.
+// Over everything: the map of the whole mix, with the frame of the part in view, the ruler, the cuts between the scenes
+// (read from the timeline of a WLoop Start Foley in the same graph), the beat grid (bpm, and where the first beat
+// falls), the playhead. It plays live (Web Audio) while you edit, with the video next to it, muted, in step; Run makes
+// the same mix in Python (src/mixer.py) and gives it as AUDIO.
 // Mouse on a track: double-click on empty = a clip filling the scene under the mouse, on a clip or on the name = that
 // track over the whole room of the tracks (again = back) · drag a clip = move · drag its edges =
-// trim · drag the small squares at its top corners = the fades · Ctrl+click = cut the clip there · Alt+click = delete
+// trim · drag the white circles on the roof = the fades · Ctrl+click = cut the clip there · Alt+click = delete
 // it · middle button + drag = move the whole track with its clips · Shift+drag = slide the sound under the clips (the
-// offset). Ctrl+Z / Ctrl+Y = the mixer's own undo / redo. Edges snap to the scene cuts, the beats and the
-// other clips (the two chips in the bar). Tracks come from the `+ track…` menu (the input folder, then output, each in
+// offset). V on opens the roof of that track: drag it = the volume of that stretch, click = a point, and the points
+// show; V off, the roof is only the shape of the clip. Ctrl+Z / Ctrl+Y = the mixer's own undo / redo. Edges snap to the
+// scene cuts, the beats and the other clips (the two switches in the bar). Tracks come from the `+ track…` menu (the input folder, then output, each in
 // alphabetical order) or from audio files dragged from Windows onto the node; the video to watch from the `video` menu or
 // dragged the same way (a dragged file is uploaded into the input folder first). A video with a sound brings it as the
 // first track, `🎬 video sound` (ComfyUI takes it out into a flac of its temp folder): a track like the others, ✕ takes
@@ -18,17 +21,99 @@
 // without sound (a tap = one frame), the up arrow the start. Clicking in the mixer selects the node. Every number box
 // (dB, offset, length, bpm, first beat) also changes by dragging the mouse up and down on it (Shift: finer); while
 // dragging the pointer is held (Pointer Lock), so the drag does not stop at the edge of the screen. `?` in the bar
-// opens a card with all of this. The ruler: wheel = zoom around the mouse, middle button = drag the view, two
-// yellow handles = the play range (only what is between them plays; the Run renders the whole mix). The waveform is drawn at the track's volume: full height = 0 dB, red = over it. The state lives in the hidden widget
-// `mix_state` (JSON, read by the backend).
+// opens a card with all of this. The ruler: wheel = zoom around the mouse (on the tracks too), middle button = drag the
+// view, two yellow handles = the play range (only what is between them plays; the Run renders the whole mix). The map:
+// drag the frame = slide the view, its ends = zoom, a click outside it = the view there, double-click = the whole mix.
+// The waveform stands in the room under the roof, at the track's dB: a peak at 0 dB touches it, and the roof goes red
+// where the sound goes over 0 dB. The state lives in the hidden widget `mix_state` (JSON, read by the backend).
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { WX, ensureWxStyle, wxHideWidget, wxCompactWidgets } from "./wxStyle.js";
 
-const HEAD_W = 270, LANE_H = 48, RULER_H = 24, BAR_H = 30, VIDEO_H = 180, VIDEO_MIN = 80, VIDEO_MAX = 900, GRIP_H = 8, FOOT_H = 20, GAP = 2;
+const HEAD_W = 200, LANE_H = 48, RULER_H = 24, MAP_H = 16, MAP_GAP = 3, BAR_H = 30, VIDEO_H = 180, VIDEO_MIN = 80, VIDEO_MAX = 900, GRIP_H = 8, FOOT_H = 20, GAP = 2;
 const PEAKS_PER_S = 100, SNAP_PX = 8, MIN_CLIP = 0.05, NEW_FADE = 0.3;
 const COLORS = ["#4a90d9", "#d9a54a", "#5cb85c", "#c76bd6", "#d95c5c", "#4ac0c0", "#b8b84a", "#8a8ad9"];
-const HINT = "Double-click: a clip filling the scene · drag: move · edges: trim · top squares: fades · Ctrl+click: cut · Alt+click: delete · Shift+drag: slide the track";
+const HINT = "Double-click on a track: a clip filling the scene · ? for every move";
+const UI_FONT = `"Segoe UI", system-ui, sans-serif`;
+const CHEV = `<svg class="chv" viewBox="0 0 10 10" width="10" height="10"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const PLAY = `<svg viewBox="0 0 10 10" width="9" height="9"><path d="M2.6 1.2v7.6L8.8 5z" fill="currentColor"/></svg>`;
+const PAUSE = `<svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 1.4h2.2v7.2H2zM5.8 1.4H8v7.2H5.8z" fill="currentColor"/></svg>`;
+/** The colour of a track, k of the way to white (0..1). */
+const tint = (hex, k) => { const n = parseInt(hex.slice(1), 16); return "#" + [n >> 16, (n >> 8) & 255, n & 255].map((x) => Math.round(x + (255 - x) * k).toString(16).padStart(2, "0")).join(""); };
+
+// the look of the mixer: a value is written, the box arrives when you touch it. The greys come from the text colour by
+// transparency, so they follow the theme; a single blue, on the play and on the playhead; the tracks' colours are data
+function ensureMixerStyle() {
+    if (document.getElementById("wx-mx-style")) return;
+    const st = document.createElement("style"); st.id = "wx-mx-style";
+    st.textContent = `
+      .wx.wx-mixer { --ink: var(--input-text, #ddd); --quiet: color-mix(in srgb, var(--ink) 60%, transparent); --faint: color-mix(in srgb, var(--ink) 38%, transparent);
+        --line: color-mix(in srgb, var(--ink) 18%, transparent); --well: color-mix(in srgb, var(--ink) 7%, transparent); --head: color-mix(in srgb, var(--ink) 5%, transparent);
+        font: 12px/1.3 ${UI_FONT}; color: var(--ink); }
+      .wx-mx-fs .wx.wx-mixer { --ink: #ddd; }
+      .wx-mixer .lab, .wx-mixer .unit { color: var(--quiet); font-size: 11px; white-space: nowrap; }
+      .wx.wx-mixer input[type=number], .wx.wx-mixer input:not([type]) { height: 20px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px;
+        background: var(--well); color: var(--ink); font: 12px ${UI_FONT}; font-variant-numeric: tabular-nums; min-width: 0; }
+      .wx.wx-mixer input[type=number] { -moz-appearance: textfield; appearance: textfield; text-align: right; }
+      .wx.wx-mixer input[type=number]::-webkit-inner-spin-button, .wx.wx-mixer input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+      .wx.wx-mixer input::placeholder { color: var(--faint); }
+      .wx.wx-mixer input:hover { border-color: var(--line); }
+      .wx.wx-mixer input:focus { outline: none; border-color: ${WX.accent}; cursor: text !important; }
+      .wx.wx-mixer button { padding: 0; border: 0; background: none; color: var(--quiet); font: inherit; }
+      .wx.wx-mixer button:focus-visible, .wx.wx-mixer select:focus-visible { outline: 2px solid ${WX.accent}; outline-offset: 1px; }
+      .wx-mixer .fld { display: inline-flex; align-items: center; gap: 5px; }
+      .wx-mixer .pick { position: relative; display: inline-flex; align-items: center; height: 20px; border-radius: 4px; background: var(--well); border: 1px solid transparent; }
+      .wx-mixer .pick:hover { border-color: var(--line); }
+      .wx-mixer .pick:focus-within { border-color: ${WX.accent}; }
+      .wx-mixer .pick select { appearance: none; -webkit-appearance: none; height: 18px; border: 0; background: transparent; color: var(--ink); font: inherit; padding: 0 22px 0 7px; cursor: pointer; outline: none; }
+      .wx-mixer .pick select option, .wx-mixer .pick select optgroup { background: var(--comfy-menu-bg, #1b1b1b); color: var(--ink); }
+      .wx-mixer .pick .chv { position: absolute; right: 6px; top: 4px; color: var(--quiet); pointer-events: none; }
+      .wx-mixer .sep { width: 1px; height: 14px; background: var(--line); margin: 0 4px; flex: none; }
+      .wx.wx-mixer .tog { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px; border-radius: 4px; }
+      .wx-mixer .tog i { width: 8px; height: 8px; border-radius: 2px; box-shadow: inset 0 0 0 1.25px var(--faint); }
+      .wx.wx-mixer .tog:hover { background: var(--well); }
+      .wx.wx-mixer .tog.on { color: var(--ink); }
+      .wx-mixer .tog.on i { background: ${WX.light}; box-shadow: none; }
+      .wx.wx-mixer .ib { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 3px; border-radius: 4px; font-size: 12px; }
+      .wx.wx-mixer .ib:hover, .wx.wx-mixer .ib.on { background: var(--well); color: var(--ink); }
+      .wx.wx-mixer .play { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: ${WX.accent}; color: #fff; }
+      .wx.wx-mixer .play:hover { background: #1a72c9; }
+      .wx-mixer .clock { font: 12px ${UI_FONT}; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+      .wx-mixer .clock .of { color: var(--faint); font-size: 11px; }
+      .wx-mixer .gripbar { width: 60px; height: 3px; border-radius: 2px; background: var(--line); }
+      .wx-mixer .maprow { display: flex; flex: none; height: ${MAP_H}px; margin-bottom: ${MAP_GAP}px; }
+      .wx-mixer .mapl { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 4px; color: var(--quiet); font-size: 11px; white-space: nowrap; overflow: hidden; }
+      .wx.wx-mixer .mapl button { height: 16px; padding: 0 4px; border-radius: 3px; color: ${WX.light}; }
+      .wx.wx-mixer .mapl button:hover { background: var(--well); }
+      .wx-mixer .hd { position: relative; flex: none; display: flex; align-items: stretch; padding-right: 4px; background: var(--head); border-radius: 3px; }
+      .wx-mixer .hd.off .hc { opacity: .45; }
+      .wx-mixer .hg { width: 14px; flex: none; margin-left: 3px; display: flex; align-items: center; justify-content: center; cursor: grab; color: var(--faint); font-size: 13px; touch-action: none; }
+      .wx-mixer .hg:hover { color: var(--ink); }
+      .wx-mixer .hc { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+      .wx-mixer .r1, .wx-mixer .r2 { display: flex; align-items: center; gap: 4px; }
+      .wx.wx-mixer .nm { flex: 1 1 auto; width: 0; background: transparent; font-weight: 600; text-align: left; padding: 0 5px; }
+      .wx.wx-mixer .nm:hover { background: var(--well); }
+      .wx.wx-mixer .x { color: var(--faint); opacity: 0; }
+      .wx.wx-mixer .hd:hover .x, .wx.wx-mixer .x:focus-visible { opacity: 1; }
+      .wx.wx-mixer .x:hover { color: var(--ink); }
+      .wx-mixer .sv { display: inline-flex; align-items: baseline; gap: 2px; margin-left: 4px; }
+      .wx.wx-mixer .sv input { padding: 0 3px; background: transparent; }
+      .wx.wx-mixer .sv input:hover { background: var(--well); }
+      .wx-mixer .msv { display: inline-flex; gap: 3px; margin-left: auto; }
+      .wx.wx-mixer .sq { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line); font: 600 10.5px ${UI_FONT}; }
+      .wx.wx-mixer .sq:hover { box-shadow: inset 0 0 0 1px var(--quiet); color: var(--ink); }
+      .wx.wx-mixer .sq.on { background: ${WX.deep}; box-shadow: none; color: #eaf3fd; }
+      .wx-mixer .hint { color: var(--quiet); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+      .wx-mixer .card { position: absolute; right: 6px; z-index: 5; display: none; overflow: auto; padding: 8px 12px; border-radius: 6px; background: var(--comfy-menu-bg, #1b1b1b);
+        border: 1px solid var(--line); box-shadow: 0 4px 16px rgba(0,0,0,.6); font: 12px/1.45 ${UI_FONT}; color: var(--ink); user-select: text; }
+      .wx-mixer .card .h { margin: 8px 0 2px; font-size: 11px; font-weight: 600; color: var(--quiet); }
+      .wx-mixer .card .h:first-child { margin-top: 0; }
+      .wx-mixer .card .grid { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; }
+      .wx-mixer .card .k { color: ${WX.light}; white-space: nowrap; }
+      @media (prefers-reduced-motion: no-preference) { .wx.wx-mixer .sq, .wx-mixer .tog i, .wx.wx-mixer .ib, .wx.wx-mixer .x { transition: background-color .12s, color .12s, opacity .12s, box-shadow .12s; } }
+    `;
+    document.head.appendChild(st);
+}
 
 // ---- files, decoding, peaks (shared by every WMixer) -----------------------------------------------------------------
 let files = null, filesAt = 0, actx = null;
@@ -100,7 +185,6 @@ function clipEnv(c, t) {
     if (c.fo > 0 && t > c.e - c.fo) g *= Math.cos(((t - (c.e - c.fo)) / c.fo) * Math.PI / 2);
     return Math.max(0, g);
 }
-const trackEnv = (tr, t) => Math.min(1, tr.clips.reduce((a, c) => a + clipEnv(c, t), 0));
 // the volume line of a track: points { t, v, c } in time order. v is the height on the lane (0 = silence, 1 = +6 dB,
 // V0 = 0 dB: the gain is 2·v²); c bends the stretch from the point to the next one (0 = straight; the stretch goes as
 // u^(2^c)). Before the first point and after the last the line stays at their height; no points = 0 dB.
@@ -117,7 +201,7 @@ function envV(tr, t) {
     return p[p.length - 1].v;
 }
 const envGain = (tr, t) => { const v = envV(tr, t); return 2 * v * v; };
-const fmtDb = (v) => (v <= 0.0005 ? "−∞ dB" : `${(20 * Math.log10(2 * v * v)).toFixed(1)} dB`);
+const fmtDb = (v) => { if (v <= 0.0005) return "−∞ dB"; const d = 20 * Math.log10(2 * v * v); return `${(Math.abs(d) < 0.05 ? 0 : d).toFixed(1)} dB`; };
 
 /** The scene cuts from the timeline of the first WLoop Start Foley of the graph: [{ t, k }]. */
 function sceneMarks(graph) {
@@ -149,6 +233,7 @@ app.registerExtension({
             const r = onCreated?.apply(this, arguments);
             const node = this;
             ensureWxStyle();
+            ensureMixerStyle();
             wxCompactWidgets(node);
             const wState = node.widgets.find((w) => w.name === "mix_state");
             wxHideWidget(wState, node);
@@ -231,7 +316,7 @@ app.registerExtension({
 
             // the bar
             const bar = el("div", `display:flex;align-items:center;gap:6px;height:${BAR_H}px;flex:none;padding:0 4px;white-space:nowrap;overflow:hidden`);
-            const btn = (txt, title, fn) => { const b = el("button", "min-width:26px", txt); b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
+            const btn = (txt, title, fn) => { const b = el("button", "", txt); b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
             /** A number box that also follows the mouse: drag up = more, down = less, `perPx` per pixel (Shift = ten
              *  times finer); a click without dragging is a click (the box takes the keyboard as before). `live(v)` while
              *  dragging, `done()` once let go. */
@@ -272,26 +357,33 @@ app.registerExtension({
                 dragNum(i, step, (v) => { set(v); redraw(); }, () => save());
                 return i;
             };
-            const lab = (t) => el("span", "color:#999;font-size:11px", t);
-            const chip = (txt, title, get, set) => {
-                const c = el("span", "", txt); c.className = "wx-chip"; c.title = title;
+            /** A span of the mixer's own style. */
+            const cls = (tag, name, txt) => { const e = el(tag, "", txt); e.className = name; return e; };
+            const lab = (t) => cls("span", "lab", t);
+            /** A label and what it names, side by side. */
+            const fld = (label, ...kids) => { const f = cls("span", "fld"); f.append(lab(label), ...kids); return f; };
+            /** A menu without its box: the name, a small arrow. */
+            const pick = (sel, w) => { sel.style.width = w + "px"; const p = cls("span", "pick"); p.append(sel); p.insertAdjacentHTML("beforeend", CHEV); return p; };
+            const tog = (txt, title, get, set) => {
+                const c = cls("button", "tog"); c.title = title; c.append(el("i"), txt);
                 const paint = () => c.classList.toggle("on", !!get());
                 c.onclick = (e) => { e.stopPropagation(); set(!get()); paint(); save(); redraw(); };
                 paint(); return c;
             };
-            const bPlay = btn("▶", "Play / pause (from the playhead)", () => (playing ? pause() : play(false)));
-            const bHome = btn("⏮", "Back to the start", () => seek(0));
-            const tLab = el("span", `font:12px ui-monospace,Consolas,monospace;color:${WX.light};white-space:nowrap`);
-            const iDur = num("Length of the mix in seconds. Empty = the video's, or the longest track's.", 58, 0.1, () => S.duration, (v) => (S.duration = Math.max(0, v)), "auto");
-            const iBpm = num("Beats per minute of the grid (0 = no grid).", 50, 0.5, () => S.bpm, (v) => (S.bpm = Math.max(0, v)));
-            const iBeat = num("Where the first beat falls, in seconds: moves the whole grid.", 52, 0.01, () => S.beat, (v) => (S.beat = v));
-            const cScene = chip("snap scenes", "Edges snap to the cuts between the scenes of WLoop Start Foley.", () => S.snapScene, (v) => (S.snapScene = v));
-            const cBeat = chip("snap beats", "Edges snap to the beats of the grid.", () => S.snapBeat, (v) => (S.snapBeat = v));
-            const sVideo = el("select", "max-width:200px"); sVideo.title = "The video to watch while it plays (muted).";
+            const bPlay = btn("", "Play / pause (from the playhead)", () => (playing ? pause() : play(false)));
+            bPlay.className = "play"; bPlay.innerHTML = PLAY;
+            const bHome = btn("⏮", "Back to the start", () => seek(0)); bHome.className = "ib";
+            const tNow = el("span"), tOf = cls("span", "of"), tLab = cls("span", "clock"); tLab.append(tNow, tOf);
+            const iDur = num("Length of the mix in seconds. Empty = the video's, or the longest track's.", 74, 0.1, () => S.duration, (v) => (S.duration = Math.max(0, v)), "auto");
+            const iBpm = num("Beats per minute of the grid; empty = no grid.", 40, 0.5, () => S.bpm, (v) => (S.bpm = Math.max(0, v)), "off");
+            const iBeat = num("Where the first beat falls, in seconds: moves the whole grid.", 44, 0.01, () => S.beat, (v) => (S.beat = v), "0.00");
+            const cScene = tog("scenes", "Edges snap to the cuts between the scenes of WLoop Start Foley.", () => S.snapScene, (v) => (S.snapScene = v));
+            const cBeat = tog("beats", "Edges snap to the beats of the grid.", () => S.snapBeat, (v) => (S.snapBeat = v));
+            const sVideo = el("select"); sVideo.title = "The video to watch while it plays (muted).";
             const bFull = btn("⛶", "Full screen: the whole mixer on the whole screen (F with the node selected; F or Esc to come back)", () => (fs ? exitFS() : enterFS()));
+            bFull.className = "ib";
             // ? = a small card with the keys and the mouse moves; closed by ? again, a click outside it or Esc
-            const help = el("div", "position:absolute;right:6px;z-index:5;display:none;background:#1e1e1e;border:1px solid " + WX.accent +
-                ";border-radius:6px;padding:8px 12px;box-shadow:0 4px 16px rgba(0,0,0,.6);overflow:auto;font:12px/1.45 sans-serif;color:#ddd;user-select:text");
+            const help = cls("div", "card");
             help.style.top = BAR_H + "px";
             const HELP = [
                 ["Keys (node selected, or full screen)", [
@@ -299,29 +391,31 @@ app.registerExtension({
                     ["← / →", "back / forward without sound: a tap = one frame, held = faster and faster"], ["↑", "back to the start"]]],
                 ["On a track", [
                     ["double-click on empty", "a clip filling the scene (between the orange cuts)"], ["double-click on a clip or the name", "the track over the whole room (again: back)"], ["drag a clip", "move it"],
-                    ["drag an edge", "trim it"], ["drag a white square", "its fade in / fade out"], ["Ctrl + click", "cut the clip in two there"],
+                    ["drag an edge", "trim it"], ["drag a white circle", "its fade in / fade out: the slope of the roof"], ["Ctrl + click", "cut the clip in two there"],
                     ["Alt + click", "delete the clip"], ["middle button on a clip + drag", "that clip alone, with its piece of sound (when the track has more clips)"], ["middle button on empty, on the only clip, or Shift + middle", "the whole track with its clips (off follows)"], ["Shift + drag", "slide the sound under the clips, the clips stay (off)"]]],
-                ["Volume line (V on: the clips stay put)", [
-                    ["click on the line", "a point"], ["drag a point", "when and how loud (it sticks to 0 dB, to the cuts and the beats)"],
-                    ["drag the line between two points", "both up / down"], ["drag on empty", "a dip from where you start to where you let go, as low as the mouse"],
+                ["The roof of a clip (its volume)", [
+                    ["V on the track", "opens the roof: its points and its drag; shut, the mouse moves the clips"],
+                    ["drag the roof", "the volume of that stretch, between two points or the whole top of the clip"], ["click on the roof", "a point"],
+                    ["drag a point", "when and how loud (it sticks to 0 dB, to the cuts and the beats)"],
                     ["drag a small circle", "bend the stretch into a curve"], ["double-click a point / circle", "remove it / straight again"],
-                    ["double-click on empty", "the track over the whole room (again: back)"]]],
-                ["Numbers (dB, off, len, bpm, beat 1 at)", [
+                    ["a red roof", "there the sound goes over 0 dB"]]],
+                ["Numbers (dB, s, length, bpm, beat 1)", [
                     ["drag up / down", "more / less, past the edge of the screen"], ["Shift + drag", "ten times finer"],
                     ["click", "type the number, Enter to confirm"]]],
                 ["Ruler (the time bar)", [
-                    ["click / drag", "move the playhead (playing: it stops, and plays on where you let go)"], ["wheel", "zoom, around the mouse"], ["middle button + drag", "slide the view"],
+                    ["click / drag", "move the playhead (playing: it stops, and plays on where you let go)"], ["wheel, here or on a track", "zoom, around the mouse"], ["middle button + drag", "slide the view"],
                     ["drag a yellow handle", "the play range: only what is between them plays"], ["double-click a handle", "the whole mix again"]]],
+                ["Map (the strip over the ruler)", [
+                    ["drag the frame", "slide the view"], ["drag its ends", "zoom"], ["click outside it", "the view there"], ["drag on the whole mix", "a frame, from where you start to where you let go"], ["double-click", "the whole mix"]]],
                 ["Files", [
                     ["+ track…", "add an audio file as a track"],
                     ["drag files onto the node", "audio = a new track, video = the video to watch"], ["video menu", "the video to watch (its sound comes as 🎬 video sound)"],
-                    ["≡ + drag", "the order of the tracks"], ["V", "the volume line of the track (below)"], ["M / S / ✕", "mute / solo / remove the track"], ["⛶ / 🗗", "full screen in / out"]]],
+                    ["≡ + drag", "the order of the tracks"], ["M / S / V / ✕", "mute / solo / the roof of the track / remove it"], ["⛶ / 🗗", "full screen in / out"]]],
             ];
             for (const [title, rows] of HELP) {
-                const h5 = el("div", `margin:6px 0 2px;font-size:10px;font-weight:600;color:${WX.accent};text-transform:uppercase;letter-spacing:.04em`, title);
-                const tb = el("div", "display:grid;grid-template-columns:auto 1fr;column-gap:12px");
-                for (const [k, v] of rows) tb.append(el("span", `color:${WX.light};font-family:ui-monospace,Consolas,monospace;white-space:nowrap`, k), el("span", "", v));
-                help.append(h5, tb);
+                const tb = cls("div", "grid");
+                for (const [k, v] of rows) tb.append(cls("span", "k", k), el("span", "", v));
+                help.append(cls("div", "h", title), tb);
             }
             // the card hangs from the button: its top right corner under the button's bottom right corner (positions in the
             // root's own pixels, so the zoom of the canvas does not move it)
@@ -336,12 +430,12 @@ app.registerExtension({
             };
             const helpOpen = () => help.style.display !== "none";
             const bHelp = btn("?", "Keys and mouse: what does what", () => showHelp(!helpOpen()));
-            bHelp.style.marginLeft = "auto";
+            bHelp.className = "ib"; bHelp.style.marginLeft = "auto";
             root.addEventListener("pointerdown", (e) => { if (helpOpen() && !help.contains(e.target) && e.target !== bHelp) showHelp(false); }, true);
             // play, back to the start and the time sit over the names of the tracks, beside the ruler (Sick, 17/10)
-            const transport = el("div", `height:${RULER_H}px;flex:none;display:flex;align-items:center;gap:4px;padding:0 2px`);
+            const transport = el("div", `height:${RULER_H}px;flex:none;display:flex;align-items:center;gap:6px;padding:0 4px`);
             transport.append(bPlay, bHome, tLab);
-            bar.append(lab("video"), sVideo, lab("len"), iDur, lab("bpm"), iBpm, lab("beat 1 at"), iBeat, cScene, cBeat, bHelp, bFull);
+            bar.append(fld("video", pick(sVideo, 168)), cls("i", "sep"), fld("length", iDur), fld("bpm", iBpm), fld("beat 1", iBeat), cls("i", "sep"), lab("snap"), cScene, cBeat, bHelp, bFull);
 
             // the video
             const vWrap = el("div", `height:${VIDEO_H}px;flex:none;background:#000;display:none;justify-content:center;align-items:center;border-radius:4px;margin:2px 0`);
@@ -366,10 +460,10 @@ app.registerExtension({
             const vH = () => Math.min(vMax(), Math.max(VIDEO_MIN, Number(node.properties?.[vKey()]) || (fs ? Math.round(window.innerHeight * 0.45) : VIDEO_H)));
             const grip = el("div", `height:${GRIP_H}px;flex:none;display:none;cursor:ns-resize;align-items:center;justify-content:center`);
             grip.title = "Drag up or down: the room given to the video";
-            const gripBar = el("div", "width:60px;height:3px;border-radius:2px;background:#666");
+            const gripBar = cls("div", "gripbar");
             grip.append(gripBar);
             grip.addEventListener("pointerenter", () => (gripBar.style.background = WX.accent));
-            grip.addEventListener("pointerleave", () => { if (!gDrag) gripBar.style.background = "#666"; });
+            grip.addEventListener("pointerleave", () => { if (!gDrag) gripBar.style.background = ""; });
             let gDrag = null;
             grip.addEventListener("pointerdown", (e) => { gDrag = { y: e.clientY, h: vH() }; grip.setPointerCapture(e.pointerId); });
             grip.addEventListener("pointermove", (e) => {
@@ -380,7 +474,7 @@ app.registerExtension({
                 if (!fs && node.properties.wxMixH > 0) node.properties.wxMixH += vH() - was;   // the tracks keep their room
                 vWrap.style.height = vH() + "px"; if (!fs) fit();
             });
-            const gEnd = () => { if (!gDrag) return; gDrag = null; gripBar.style.background = "#666"; checkState(); };
+            const gEnd = () => { if (!gDrag) return; gDrag = null; gripBar.style.background = ""; checkState(); };
             grip.addEventListener("pointerup", gEnd); grip.addEventListener("pointercancel", gEnd);
 
             // the timeline: headers on the left, ruler + lanes on the right (scrolls sideways when zoomed)
@@ -400,18 +494,24 @@ app.registerExtension({
             const headR = el("div", PLAYHEAD);
             transport.style.width = HEAD_W + "px";
             rWrap.append(ruler, headR); rRow.append(transport, rWrap);
+            // the map, over the ruler: the whole mix in a strip, with the frame of the part in view; beside it how much is in view
+            const mapRow = cls("div", "maprow"), mapL = cls("div", "mapl"), mapText = el("span"), bWhole = btn("whole", "The whole mix in view", () => setView(0, dur()));
+            mapL.style.width = HEAD_W + "px"; mapL.append(mapText, bWhole);
+            const mapW = el("div", "flex:1 1 auto;min-width:0;overflow:hidden");
+            const map = el("canvas", `height:${MAP_H}px;display:block;cursor:crosshair`);
+            mapW.append(map); mapRow.append(mapL, mapW);
 
             // the foot: add a track, the hint / what is being dragged
             const foot = el("div", `display:flex;align-items:center;gap:6px;height:${FOOT_H}px;flex:none;padding:0 4px`);
-            const sAdd = el("select", "max-width:260px"); sAdd.title = "Add a track: an audio file of the input or output folder.";
-            const hint = el("span", "color:#888;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis", HINT);
-            foot.append(sAdd, hint);
-            root.append(bar, vWrap, grip, rRow, body, foot, help);
+            const sAdd = el("select"); sAdd.title = "Add a track: an audio file of the input or output folder.";
+            const hint = cls("span", "hint", HINT);
+            foot.append(pick(sAdd, 190), hint);
+            root.append(bar, vWrap, grip, mapRow, rRow, body, foot, help);
 
             // the mixer's height on the node with k tracks in sight (the video at its height on the node, also while the
             // mixer is full screen: the node keeps its own measures meanwhile)
             const vHnode = () => Math.min(VIDEO_MAX, Math.max(VIDEO_MIN, Number(node.properties?.wxVideoH) || VIDEO_H));
-            const height = (k) => BAR_H + (S.video ? vHnode() + 4 + GRIP_H : 0) + RULER_H + GAP + k * (LANE_H + GAP) + FOOT_H + 12;
+            const height = (k) => BAR_H + (S.video ? vHnode() + 4 + GRIP_H : 0) + MAP_H + MAP_GAP + RULER_H + GAP + k * (LANE_H + GAP) + FOOT_H + 18;   // 18: the margin the canvas keeps around a DOM widget, so the last track shows whole
             // the node stretches up and down (Sick, 17/10): from one track in sight (the others scroll) to all of them
             const widget = node.addDOMWidget("wx_mixer", "custom", root, {
                 serialize: false, hideOnZoom: false, getValue: () => undefined, setValue: () => {},
@@ -481,7 +581,7 @@ app.registerExtension({
                 // the new track is the last one: brought into view, and its header lights up for a moment
                 body.scrollTop = body.scrollHeight;
                 const hd = lanes[lanes.length - 1]?.hd;
-                if (hd) { hd.style.transition = "background .8s"; hd.style.background = WX.accent; setTimeout(() => (hd.style.background = "#222"), 350); }
+                if (hd) { hd.style.transition = "background .8s"; hd.style.background = WX.accent; setTimeout(() => (hd.style.background = ""), 350); }
                 hint.textContent = `added ${name}: the last track`;
             };
             const useVideo = (f) => { S.video = f ? { name: f.name, type: f.type } : null; video.dataset.k = ""; setVideo(); save(); build(); fillPickers(); syncVideoTrack(); };
@@ -553,7 +653,7 @@ app.registerExtension({
             let lanes = [];
             // one track as tall as the whole room of the tracks (double-click on a clip or on its name; again = back)
             let big = null;
-            // the tracks whose volume line is in hand (V on): a matter of the view, in memory only
+            // the tracks whose roof is open (V on): a matter of the view, in memory only
             const vEdit = new Set();
             const bigH = () => Math.max(LANE_H, (body.clientHeight || LANE_H) - 4);
             const laneH = (t) => (big === t ? bigH() : LANE_H);
@@ -602,39 +702,38 @@ app.registerExtension({
                 const solo = S.tracks.some((t) => t.solo);
                 S.tracks.forEach((t, idx) => {
                     const col = COLORS[t.color ?? idx % COLORS.length];
-                    const h = el("div", `height:${LANE_H}px;flex:none;display:flex;align-items:stretch;padding:0 4px 0 0;` +
-                        `background:#222;border-left:3px solid ${col};border-radius:3px;opacity:${t.mute || (solo && !t.solo) ? 0.5 : 1}`);
-                    const hg = el("div", "width:14px;flex:none;display:flex;align-items:center;justify-content:center;cursor:grab;color:#777;font-size:13px", "≡");
+                    const h = el("div", `height:${LANE_H}px;border-left:3px solid ${col}`); h.className = "hd" + (t.mute || (solo && !t.solo) ? " off" : "");
+                    const hg = cls("div", "hg", "≡");
                     hg.title = "Drag up / down: the order of the tracks";
                     if (big) hg.style.visibility = "hidden";
                     wireGrip(hg, idx);
-                    const hc = el("div", "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px");
+                    const hc = cls("div", "hc");
                     h.append(hg, hc);
-                    const r1 = el("div", "display:flex;gap:4px;align-items:center"), r2 = el("div", "display:flex;gap:4px;align-items:center");
-                    const nm = el("input", "flex:1 1 auto;width:0;font-weight:600"); nm.value = t.name || ""; nm.title = t.source === "video" ? "The sound of the video (" + (S.video?.name || "") + ")" : t.file?.name || "";
+                    const r1 = cls("div", "r1"), r2 = cls("div", "r2");
+                    const nm = cls("input", "nm"); nm.spellcheck = false; nm.value = t.name || ""; nm.title = t.source === "video" ? "The sound of the video (" + (S.video?.name || "") + ")" : t.file?.name || "";
                     nm.onchange = () => { t.name = nm.value; save(); };
-                    const x = el("button", "padding:0 5px", "✕"); x.title = "Remove the track";
+                    const x = cls("button", "ib x", "✕"); x.title = "Remove the track";
                     x.onclick = (e) => { e.stopPropagation(); if (t.source === "video") S.videoTrackOff = fkey(S.video); S.tracks.splice(idx, 1); save(); build(); };
                     r1.append(nm, x);
-                    const g = el("input", "width:60px"); g.type = "number"; g.step = 0.5; g.value = t.gain; g.title = "Volume of the track, dB";
+                    const g = el("input", "width:34px"); g.type = "number"; g.step = 0.5; g.value = t.gain;
                     g.onchange = () => { t.gain = Number(g.value) || 0; save(); redraw(); if (playing) play(); };
-                    g.title += ": 0 = as it is, -6 about half, +6 about double. Drag up / down to change it (Shift: finer)";
                     dragNum(g, 0.25, (v) => { t.gain = v; liveGain(t); redraw(); }, () => save());
-                    const o = el("input", "width:62px"); o.type = "number"; o.step = 0.01; o.value = t.offset; o.title = "Offset: the track slides by these seconds under its clips (Shift+drag on the lane does the same)";
+                    const o = el("input", "width:40px"); o.type = "number"; o.step = 0.01; o.value = t.offset;
                     o.onchange = () => { t.offset = Number(o.value) || 0; save(); redraw(); if (playing) play(); };
-                    o.title += ". Drag up / down to change it (Shift: finer)";
                     dragNum(o, 0.01, (v) => { t.offset = v; redraw(); }, () => { save(); if (playing) play(); });
-                    const m = el("span", "", "M"); m.className = "wx-chip" + (t.mute ? " on" : ""); m.title = "Mute";
-                    m.onclick = (e) => { e.stopPropagation(); t.mute = !t.mute; save(); build(); if (playing) play(); };
-                    const so = el("span", "", "S"); so.className = "wx-chip" + (t.solo ? " on" : ""); so.title = "Solo";
-                    so.onclick = (e) => { e.stopPropagation(); t.solo = !t.solo; save(); build(); if (playing) play(); };
-                    const vl = el("span", "", "V"); vl.className = "wx-chip" + (vEdit.has(t) ? " on" : "");
-                    vl.title = "Volume line: on = the mouse draws the volume of this track over time (points, dips, curves); the clips stay put meanwhile";
-                    vl.onclick = (e) => { e.stopPropagation(); vEdit.has(t) ? vEdit.delete(t) : vEdit.add(t); build(); };
-                    r2.append(lab("dB"), g, lab("off"), o, m, so, vl);
+                    /** A number and its unit, with no box until the mouse comes on it. */
+                    const sv = (inp, unit, title) => { const l = cls("label", "sv"); l.title = title + " Drag up / down to change it (Shift: finer)."; l.append(inp, cls("span", "unit", unit)); return l; };
+                    /** One of the three small squares after the numbers. */
+                    const sq = (txt, on, title, fn) => { const b = cls("button", "sq" + (on ? " on" : ""), txt); b.title = title; b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
+                    const msv = cls("span", "msv");
+                    msv.append(sq("M", t.mute, "Mute", () => { t.mute = !t.mute; save(); build(); if (playing) play(); }),
+                        sq("S", t.solo, "Solo", () => { t.solo = !t.solo; save(); build(); if (playing) play(); }),
+                        sq("V", vEdit.has(t), "Volume: opens the roof of this track, with its points; shut, the mouse moves the clips", () => { vEdit.has(t) ? vEdit.delete(t) : vEdit.add(t); build(); }));
+                    r2.append(sv(g, "dB", "Volume of the track: 0 = as it is, -6 about half, +6 about double."),
+                        sv(o, "s", "Offset: the track slides by these seconds under its clips (Shift+drag on the lane does the same)."), msv);
                     hc.append(r1, r2);
                     heads.append(h);
-                    h.addEventListener("dblclick", (e) => { if (!/^(INPUT|BUTTON|SELECT)$/.test(e.target.tagName) && !e.target.classList.contains("wx-chip")) toggleBig(t); });
+                    h.addEventListener("dblclick", (e) => { if (!e.target.closest("input,button,select,label")) toggleBig(t); });
                     h.title = "Double-click: this track over the whole room of the tracks (again: back)";
                     if (big && big !== t) h.style.display = "none";
                     h.style.height = laneH(t) + "px";
@@ -724,14 +823,15 @@ app.registerExtension({
                 g.fillStyle = "#222"; g.fillRect(0, 0, w, RULER_H);
                 grid(g, RULER_H, false);
                 const step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120].find((s) => s * p >= 56) || 300;
-                g.fillStyle = "#aaa"; g.font = "10px sans-serif"; g.textBaseline = "top";
+                g.fillStyle = "#aaa"; g.font = `10px ${UI_FONT}`; g.textBaseline = "alphabetic";
                 for (let t = Math.ceil(a / step - 1e-9) * step; t <= z + 1e-6; t += step) {
                     const x = Math.round(X(t));
                     g.fillRect(x, RULER_H - 6, 1, 6);
-                    g.fillText(step < 1 ? t.toFixed(step < 0.5 ? 2 : 1) : fmt(t).replace(/\.00$/, ""), x + 3, 2);
+                    g.fillText(step < 1 ? t.toFixed(step < 0.5 ? 2 : 1) : fmt(t).replace(/\.00$/, ""), x < 12 ? x + 12 : x + 3, 10);   // 0:00 clear of the yellow handle
                 }
-                g.fillStyle = "#e68c28"; g.font = "bold 10px sans-serif";
-                for (const m of marks) if (m.t >= a && m.t <= z) g.fillText(String(m.k), Math.round(X(m.t)) + 3, 12);
+                // the scenes: the number of the cut in the lower half, where the times are not
+                g.fillStyle = "#e68c28"; g.font = `bold 10px ${UI_FONT}`;
+                for (const m of marks) if (m.k && m.t >= a && m.t <= z) g.fillText(String(m.k), Math.round(X(m.t)) + 4, 22);
                 outside(g, RULER_H);
                 // the two handles of the play range: [ at the in point, ] at the out point
                 for (const [t, dir] of [[rIn(), 1], [rOut(), -1]]) {
@@ -743,32 +843,91 @@ app.registerExtension({
                     g.beginPath(); g.moveTo(x, RULER_H); g.lineTo(x + dir * 9, RULER_H); g.lineTo(x, RULER_H - 9); g.closePath(); g.fill();
                 }
             };
-            // the volume line on a lane: height v from the bottom (silence) to the top (+6 dB), EP pixels of margin
+            // the map: the clips of every track as small dashes, the cuts, the play range, the playhead, the frame of the view
+            const MX = (t) => (t / dur()) * VW();
+            const MT = (x) => (x / VW()) * dur();
+            const zoomed = () => span() < dur() - 1e-6;
+            const drawMap = () => {
+                const g = prep(map, MAP_H), w = VW(), D = dur(), n = Math.max(1, S.tracks.length), rh = (MAP_H - 2) / n;
+                const solo = S.tracks.some((t) => t.solo);
+                g.clearRect(0, 0, w, MAP_H);
+                g.fillStyle = "#141414"; g.beginPath(); g.roundRect(0, 0, w, MAP_H, 2); g.fill();
+                S.tracks.forEach((t, i) => {
+                    g.fillStyle = COLORS[t.color ?? i % COLORS.length]; g.globalAlpha = t.mute || (solo && !t.solo) ? 0.2 : 0.6;
+                    for (const c of t.clips) g.fillRect(MX(c.s), 1 + i * rh, Math.max(1, MX(c.e) - MX(c.s)), Math.max(1, rh - 1));
+                });
+                g.fillStyle = "#e68c28"; g.globalAlpha = 0.8;
+                for (const m of marks) if (m.k) g.fillRect(Math.round(MX(m.t)), 0, 1, MAP_H);
+                g.globalAlpha = 1;
+                if (range) {
+                    g.fillStyle = "rgba(0,0,0,.5)";
+                    if (rIn() > 0) g.fillRect(0, 0, MX(rIn()), MAP_H);
+                    if (rOut() < D) g.fillRect(MX(rOut()), 0, w - MX(rOut()), MAP_H);
+                }
+                g.fillStyle = WX.accent; g.fillRect(MX(pos), 0, 1, MAP_H);
+                if (zoomed()) {
+                    g.beginPath(); g.roundRect(MX(v0()) + 0.5, 0.5, MX(span()) - 1, MAP_H - 1, 2);
+                    g.fillStyle = "rgba(255,255,255,.08)"; g.fill(); g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 1; g.stroke();
+                }
+                const say = zoomed() ? `zoom ${(D / span()).toFixed(1)}×` : `whole mix · ${D.toFixed(2)} s`;
+                if (mapText.textContent !== say) mapText.textContent = say;
+                bWhole.style.display = zoomed() ? "" : "none";
+            };
+            // the roof of a clip on a lane: height v from the bottom (silence) to the top (+6 dB), EP pixels of margin
             const EP = 5;
             const Yv = (v, H) => EP + (1 - v) * (H - 2 * EP);
             const vY = (y, H) => Math.min(1, Math.max(0, 1 - (y - EP) / (H - 2 * EP)));
+            // the gain of a clip is 2·v²·fade, so the height that says it is v·√fade: the fades are the two slopes of the roof,
+            // and between them the roof is the volume line
+            const roofV = (t, c, tt) => envV(t, tt) * Math.sqrt(clipEnv(c, tt));
+            const flatTop = (c) => [c.s + c.fi, c.e - c.fo];
+            const inFlat = (p, c) => { const [a, b] = flatTop(c); return p.t > a + 1e-6 && p.t < b - 1e-6; };
+            /** The stretch of the roof under time tt: between the two points around it, or the flat top of the clip. */
+            const roofStretch = (t, c, tt) => {
+                let [a, b] = flatTop(c);
+                for (const p of (t.env || []).filter((q) => inFlat(q, c))) { if (p.t <= tt) a = p.t; else { b = p.t; break; } }
+                return [a, b];
+            };
+            /** The roof of a clip in view, one [x, y] per pixel. */
+            const roofPts = (t, c, H) => {
+                const x0 = X(c.s), x1 = X(c.e), pts = [[x0, Yv(roofV(t, c, c.s), H)]];
+                for (let x = Math.max(0, Math.ceil(x0)); x <= Math.min(VW(), x1); x++) pts.push([x, Yv(roofV(t, c, Math.min(c.e, Math.max(c.s, T(x)))), H)]);
+                pts.push([x1, Yv(roofV(t, c, c.e), H)]);
+                return pts;
+            };
+            /** The handles of the two fades, on the roof at the top of their slopes; a clip too short for two has one. */
+            const knobs = (t, c, H) => {
+                const x0 = X(c.s), x1 = X(c.e), at = (tt) => Yv(roofV(t, c, tt), H);
+                if (x1 - x0 < 20) return [{ m: "both", x: (x0 + x1) / 2, y: at((c.s + c.e) / 2) }];
+                return [{ m: "fi", x: X(c.s + c.fi) + (c.fi ? 0 : 5), y: at(c.s + c.fi) }, { m: "fo", x: X(c.e - c.fo) - (c.fo ? 0 : 5), y: at(c.e - c.fo) }];
+            };
             // the small circle that bends a stretch: halfway in time, on the line; only where the stretch rises or falls
             const curveAt = (tr, i) => {
                 const a = tr.env[i], b = tr.env[i + 1];
                 if (!b || Math.abs(b.v - a.v) < 0.02 || (X(b.t) - X(a.t)) < 16) return null;
                 const tm = (a.t + b.t) / 2; return { t: tm, v: envV(tr, tm) };
             };
-            const drawEnv = (g, t, H, ed) => {
-                const pts = t.env || [], w = VW();
-                if (!ed && !pts.length) return;
-                if (ed) {   // 0 dB, for reference
-                    g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.setLineDash([3, 4]);
-                    g.beginPath(); g.moveTo(0, Math.round(Yv(V0, H)) + 0.5); g.lineTo(w, Math.round(Yv(V0, H)) + 0.5); g.stroke(); g.setLineDash([]);
+            // V on: 0 dB for reference, the points and the circles of the track; where the line is not on a roof (over the
+            // fades, between the clips) it shows faint, so a point out there is seen and can be taken
+            const drawOpen = (g, t, H, hv) => {
+                const pts = t.env || [], w = VW(), y0 = Math.round(Yv(V0, H)) + 0.5;
+                g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.setLineDash([3, 4]);
+                g.beginPath(); g.moveTo(0, y0); g.lineTo(w, y0); g.stroke(); g.setLineDash([]);
+                if (!pts.length) return;
+                g.strokeStyle = "rgba(255,255,255,.3)"; g.beginPath();
+                let pen = false;
+                for (let x = 0; x <= w; x += 2) {
+                    const tt = T(x);
+                    if (t.clips.some((c) => tt >= c.s + c.fi && tt <= c.e - c.fo)) { pen = false; continue; }
+                    const y = Yv(envV(t, tt), H);
+                    pen ? g.lineTo(x, y) : g.moveTo(x, y); pen = true;
                 }
-                g.strokeStyle = ed ? "#fff" : "rgba(255,255,255,.4)"; g.lineWidth = ed ? 1.5 : 1;
-                g.beginPath();
-                for (let x = 0; x <= w; x += 2) { const y = Yv(envV(t, T(x)), H); x ? g.lineTo(x, y) : g.moveTo(x, y); }
                 g.stroke();
-                if (!ed) return;
                 for (let i = 0; i < pts.length; i++) {
-                    const p = pts[i], x = X(p.t);
+                    const p = pts[i], x = Math.round(X(p.t)), y = Math.round(Yv(p.v, H));
                     if (x < -8 || x > w + 8) continue;
-                    g.fillStyle = "#fff"; g.fillRect(Math.round(x) - 3, Math.round(Yv(p.v, H)) - 3, 7, 7);
+                    g.fillStyle = "#fff"; g.fillRect(x - 3, y - 3, 7, 7);
+                    if (hv?.mode === "ept" && hv.i === i) { g.strokeStyle = WX.accent; g.lineWidth = 2; g.strokeRect(x - 5.5, y - 5.5, 12, 12); }
                     const q = curveAt(t, i);
                     if (q) {
                         g.beginPath(); g.arc(X(q.t), Yv(q.v, H), 3.5, 0, Math.PI * 2);
@@ -777,58 +936,78 @@ app.registerExtension({
                 }
             };
             const drawLane = (L) => {
-                const { t, cv, col } = L, H = laneH(t);
+                const { t, cv, col } = L, H = laneH(t), FL = H - 1.5;
                 if (cv.style.height !== H + "px") { cv.style.height = H + "px"; L.hd.style.height = H + "px"; }
-                const g = prep(cv, H), p = pps(), w = VW();
+                const g = prep(cv, H), w = VW(), open = vEdit.has(t);
                 const solo = S.tracks.some((x) => x.solo), off = !!(t.mute || (solo && !t.solo));
                 g.fillStyle = "#181818"; g.fillRect(0, 0, w, H);
                 grid(g, H, true);
-                const e = src(t) ? buffers.get(fkey(src(t))) : null;
-                if (e?.peaks) {
-                    const pk = e.peaks, mid = H / 2, vol = Math.pow(10, (t.gain || 0) / 20);   // the waveform drawn at the track's volume
+                const e = src(t) ? buffers.get(fkey(src(t))) : null, pk = e?.peaks, vol = Math.pow(10, (t.gain || 0) / 20);
+                /** The highest peak of the file under pixel x, with the sound shifted by so; -1 past its ends. */
+                const peak = (x, so) => {
+                    const ta = T(x) - so, tb = T(x + 1) - so;
+                    if (tb <= 0 || ta >= e.buf.duration) return -1;
+                    let i0 = Math.max(0, Math.floor(ta * PEAKS_PER_S)), i1 = Math.min(pk.length, Math.max(i0 + 1, Math.ceil(tb * PEAKS_PER_S))), m = 0;
+                    for (let i = i0; i < i1; i++) if (pk[i] > m) m = pk[i];
+                    return m;
+                };
+                if (pk) {   // outside the clips the file is there but silent: grey, as it would stand at 0 dB
+                    const y0 = Yv(V0, H), yc = (y0 + FL) / 2, half = (FL - y0) / 2;
                     for (let x = 0; x < w; x++) {
-                        // under a clip, the sound that clip carries (its own shift on top of the track's)
-                        const tx = T(x + 0.5), cx = t.clips.findLast((c) => tx >= c.s && tx <= c.e), so = (t.offset || 0) + (cx?.o || 0);
-                        const ta = T(x) - so, tb = T(x + 1) - so;
-                        if (tb <= 0 || ta >= e.buf.duration) continue;
-                        let i0 = Math.max(0, Math.floor(ta * PEAKS_PER_S)), i1 = Math.min(pk.length, Math.max(i0 + 1, Math.ceil(tb * PEAKS_PER_S))), m = 0;
-                        for (let i = i0; i < i1; i++) if (pk[i] > m) m = pk[i];
-                        // full height = 0 dB; what the volume pushes over it is cut, and drawn red
-                        const env = trackEnv(t, T(x + 0.5)), lvl = m * vol * envGain(t, T(x + 0.5)), a = Math.min(1, lvl) * (H / 2 - 3);
-                        g.fillStyle = env > 0 ? (lvl > 1 ? "#ff4a4a" : col) : (lvl > 1 ? "#6a3030" : "#3a3a3a");
-                        g.globalAlpha = env > 0 ? 0.3 + 0.7 * env : 1;
-                        g.fillRect(x, mid - a, 1, Math.max(1, 2 * a));
+                        const tx = T(x + 0.5);
+                        if (t.clips.some((c) => tx >= c.s && tx <= c.e)) continue;
+                        const m = peak(x, t.offset || 0);
+                        if (m < 0) continue;
+                        const lvl = m * vol, a = Math.min(1, lvl) * half;
+                        g.fillStyle = lvl > 1 ? "#6a3030" : "#3a3a3a";
+                        g.fillRect(x, yc - a, 1, Math.max(1, 2 * a));
                     }
-                    g.globalAlpha = 1;
                 } else {
-                    g.fillStyle = e?.err ? "#e08080" : "#777"; g.font = "11px sans-serif"; g.textBaseline = "middle";
+                    g.fillStyle = e?.err ? "#e08080" : "#777"; g.font = `11px ${UI_FONT}`; g.textBaseline = "middle";
                     g.fillText(e?.err ? "cannot read " + (src(t)?.name || "") : "loading…", 8, H / 2);
                 }
-                const ed = vEdit.has(t);   // the volume line in hand: the clips step back
+                const hv = L.hov, wv = tint(col, 0.25);
                 for (const c of t.clips) {
                     const x0 = X(c.s), x1 = X(c.e);
                     if (x1 < -10 || x0 > w + 10) continue;
-                    g.strokeStyle = col; g.lineWidth = 1.5; g.strokeRect(x0 + 0.5, 1.5, Math.max(1, x1 - x0 - 1), H - 3);
-                    g.fillStyle = col; g.globalAlpha = 0.1; g.fillRect(x0, 1, x1 - x0, H - 2); g.globalAlpha = ed ? 0.25 : 1;
-                    g.strokeStyle = "rgba(255,255,255,.75)"; g.lineWidth = 1; g.beginPath();
-                    g.moveTo(x0, H - 2); g.lineTo(X(c.s + c.fi), 3); g.lineTo(X(c.e - c.fo), 3); g.lineTo(x1, H - 2); g.stroke();
-                    g.fillStyle = "#fff";
-                    g.fillRect(X(c.s + c.fi) - 3, 1, 7, 7); g.fillRect(X(c.e - c.fo) - 3, 1, 7, 7);
-                    g.globalAlpha = 1;
+                    const on = hv && hv.c === c ? hv.mode : "", pts = roofPts(t, c, H);
+                    const room = () => { g.beginPath(); g.moveTo(x0, FL); for (const [x, y] of pts) g.lineTo(x, y); g.lineTo(x1, FL); g.closePath(); };
+                    const line = (from, to) => { g.beginPath(); pts.forEach(([x, y], i) => { if (x >= from && x <= to) i && x > from ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); };
+                    room(); g.fillStyle = col; g.globalAlpha = on === "move" ? 0.3 : 0.2; g.fill(); g.globalAlpha = 1;
+                    // the sound stands in the room: a peak at 0 dB touches the roof, and what goes over 0 dB turns the roof red
+                    const over = new Set();
+                    if (pk) {
+                        g.save(); room(); g.clip(); g.fillStyle = wv;
+                        for (let x = Math.max(0, Math.floor(x0)); x < Math.min(w, x1); x++) {
+                            const tx = Math.min(c.e, Math.max(c.s, T(x + 0.5))), m = peak(x, (t.offset || 0) + (c.o || 0));
+                            if (m < 0) continue;
+                            if (m * vol * envGain(t, tx) * clipEnv(c, tx) > 1) over.add(x);
+                            const y = Yv(roofV(t, c, tx), H), a = Math.min(1, m * vol) * (FL - y) / 2;
+                            g.fillRect(x, (y + FL) / 2 - a, 1, Math.max(1, 2 * a));
+                        }
+                        g.restore();
+                    }
+                    g.strokeStyle = open ? col : tint(col, 0.1); g.globalAlpha = open ? 0.95 : 0.55; g.lineWidth = open ? 1.5 : 1;
+                    line(x0, x1); g.globalAlpha = 1;
+                    if (over.size) {
+                        g.strokeStyle = "#ff4a4a"; g.lineWidth = 2; g.beginPath();
+                        pts.forEach(([x, y], i) => { const q = pts[i + 1]; if (q && over.has(Math.floor(x))) { g.moveTo(x, y); g.lineTo(q[0], q[1]); } });
+                        g.stroke();
+                    }
+                    // what the mouse would take lights up
+                    if (on === "eseg") { const [a, b] = roofStretch(t, c, hv.t); g.strokeStyle = "#fff"; g.lineWidth = 2.5; line(X(a) - 0.5, X(b) + 0.5); }
+                    if (on === "move") { room(); g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke(); }
+                    if (on === "l" || on === "r") {
+                        const l = on === "l", xb = l ? x0 : x1 - 3, xt = l ? x0 : x1 - 10;
+                        g.fillStyle = "#fff"; g.fillRect(xb, 1, 3, H - 2); g.fillRect(xt, 1, 10, 3); g.fillRect(xt, H - 4, 10, 3);
+                    }
+                    for (const k of knobs(t, c, H)) {
+                        g.beginPath(); g.arc(k.x, k.y, 3.5, 0, Math.PI * 2);
+                        g.fillStyle = "#fff"; g.fill(); g.strokeStyle = "rgba(0,0,0,.5)"; g.lineWidth = 1; g.stroke();
+                        if (on === k.m || (k.m === "both" && (on === "fi" || on === "fo"))) { g.beginPath(); g.arc(k.x, k.y, 6.5, 0, Math.PI * 2); g.strokeStyle = WX.accent; g.lineWidth = 2; g.stroke(); }
+                    }
                 }
-                // what the mouse would take: the piece lights up; an edge gets a bracket, [ for the start, ] for the end
-                const hv = !ed && L.hov && t.clips.includes(L.hov.c) ? L.hov : null;
-                if (hv) {
-                    const c = hv.c, x0 = X(c.s), x1 = X(c.e);
-                    g.fillStyle = "rgba(255,255,255,.13)"; g.fillRect(x0, 1, x1 - x0, H - 2);
-                    g.fillStyle = "#fff";
-                    if (hv.mode === "l" || hv.mode === "r") {
-                        const l = hv.mode === "l", xb = l ? x0 : x1 - 3, xt = l ? x0 : x1 - 10;
-                        g.fillRect(xb, 1, 3, H - 2); g.fillRect(xt, 1, 10, 3); g.fillRect(xt, H - 4, 10, 3);
-                    } else if (hv.mode === "move") { g.strokeStyle = "#fff"; g.lineWidth = 2; g.strokeRect(x0 + 1, 2, x1 - x0 - 2, H - 4); }
-                    else { const xs = X(hv.mode === "fi" ? c.s + c.fi : c.e - c.fo); g.strokeStyle = WX.accent; g.lineWidth = 2; g.strokeRect(xs - 5, -1, 11, 11); }
-                }
-                drawEnv(g, t, H, ed);
+                if (open) drawOpen(g, t, H, hv);
                 outside(g, H);
                 if (off) { g.fillStyle = "rgba(0,0,0,.5)"; g.fillRect(0, 0, w, H); }
             };
@@ -841,7 +1020,13 @@ app.registerExtension({
             const placeHead = () => {
                 const x = X(pos);
                 for (const h of [head, headR]) { h.style.display = x < 0 || x > VW() ? "none" : ""; h.style.left = Math.round(x) + "px"; }
-                tLab.textContent = `${fmt(pos)} / ${fmt(dur())}`;
+                tNow.textContent = fmt(pos);
+                const of = ` / ${fmt(dur())}`;
+                if (tOf.textContent !== of) tOf.textContent = of;
+                // where the length comes from, said in its box: the video, the longest track
+                const ph = !videoDur && !S.tracks.length ? "auto" : `${dur().toFixed(2)} · ${videoDur ? "video" : "longest"}`;
+                if (iDur.placeholder !== ph) iDur.placeholder = ph;
+                drawMap();
             };
 
             // ---- mouse on a lane ------------------------------------------------------------------------------------
@@ -850,13 +1035,19 @@ app.registerExtension({
                 // what the mouse would take: first the clip the mouse is inside (so at a cut between two clips the side
                 // of the cut decides: left of it = the end of the left clip, right of it = the start of the right one),
                 // then an edge just outside a clip
+                /** The white circle of a fade under the mouse. */
+                const knob = (x, y) => {
+                    const cs = L.t.clips, H = laneH(L.t);
+                    for (let i = cs.length - 1; i >= 0; i--) for (const k of knobs(L.t, cs[i], H))
+                        if (Math.hypot(x - k.x, y - k.y) <= 7) return { c: cs[i], mode: k.m === "both" ? (x < k.x ? "fi" : "fo") : k.m };
+                    return null;
+                };
                 const hit = (x, y) => {
-                    const cs = L.t.clips;
+                    const cs = L.t.clips, k = knob(x, y);
+                    if (k) return k;
                     for (let i = cs.length - 1; i >= 0; i--) {
                         const c = cs[i], x0 = X(c.s), x1 = X(c.e);
                         if (x < x0 || x > x1) continue;
-                        if (y < 12 && Math.abs(x - X(c.s + c.fi)) <= 6) return { c, mode: "fi" };
-                        if (y < 12 && Math.abs(x - X(c.e - c.fo)) <= 6) return { c, mode: "fo" };
                         const edge = Math.min(6, (x1 - x0) / 3);
                         if (x - x0 <= edge) return { c, mode: "l" };
                         if (x1 - x <= edge) return { c, mode: "r" };
@@ -871,47 +1062,63 @@ app.registerExtension({
                 };
                 // the mouse over a clip: what it would take lights up (see drawLane)
                 const hover = (h) => {
-                    const k = h ? h.mode + L.t.clips.indexOf(h.c) : "";
+                    const c = h?.c, k = h ? h.mode + L.t.clips.indexOf(c) + (h.i ?? "") + (h.mode === "eseg" ? roofStretch(L.t, c, h.t)[0] : "") : "";
                     if (k === (L.hovK || "")) return;
                     L.hov = h; L.hovK = k; drawLane(L);
-                    const c = h?.c, at = c ? ` (${c.s.toFixed(2)} → ${c.e.toFixed(2)} s)` : "";
+                    const at = c ? ` (${c.s.toFixed(2)} → ${c.e.toFixed(2)} s)` : "";
                     hint.textContent = !h ? HINT : `${L.t.name} · ` + ({
                         l: `the START of this clip${at}: drag to trim it`, r: `the END of this clip${at}: drag to trim it`,
                         move: `this clip${at}: drag = the window over the sound · ` +
                             (L.t.clips.length > 1 ? "middle = the clip with its sound · Shift+middle = the whole track" : "middle = the whole track"),
-                        fi: `its fade in: drag it`, fo: `its fade out: drag it` })[h.mode];
+                        fi: `its fade in: drag it`, fo: `its fade out: drag it`,
+                        eseg: `the roof: drag = the volume of this stretch (${c ? fmtDb(roofV(L.t, c, h.t)) : ""}) · click = a point`,
+                        ept: `a point of the volume: drag it, double-click removes it`, ecurve: `drag = bend this stretch, double-click = straight again` })[h.mode];
                 };
                 cv.addEventListener("pointerleave", () => { if (!drag) hover(null); });
-                // the volume line (V on): what is under the mouse
+                // the roof, with V on: what is under the mouse. A point or a circle wherever it stands; the roof only on the
+                // flat top of a clip (the slopes are the fades, the empty lane is for a new clip)
                 const hitEnv = (x, y) => {
-                    const H = laneH(L.t), pts = L.t.env || [];
+                    const t = L.t, H = laneH(t), pts = t.env || [], cs = t.clips, tt = T(x);
                     for (let i = pts.length - 1; i >= 0; i--) if (Math.abs(x - X(pts[i].t)) <= 5 && Math.abs(y - Yv(pts[i].v, H)) <= 5) return { mode: "ept", i };
                     for (let i = 0; i < pts.length - 1; i++) {
-                        const q = curveAt(L.t, i);
+                        const q = curveAt(t, i);
                         if (q && Math.abs(x - X(q.t)) <= 5 && Math.abs(y - Yv(q.v, H)) <= 5) return { mode: "ecurve", i };
                     }
-                    if (Math.abs(y - Yv(envV(L.t, T(x)), H)) <= 5) return { mode: "eseg" };
-                    return { mode: "erect" };
+                    for (let i = cs.length - 1; i >= 0; i--) {
+                        const [a, b] = flatTop(cs[i]);
+                        if (tt >= a - 1e-6 && tt <= b + 1e-6 && Math.abs(y - Yv(roofV(t, cs[i], tt), H)) <= 5) return { mode: "eseg", c: cs[i], t: tt };
+                    }
+                    return null;
                 };
-                const ENV_CURSOR = { ept: "move", ecurve: "ns-resize", eseg: "pointer", erect: "crosshair" };
+                /** What the mouse takes: the circle of a fade, then with V on the roof, then the clip. */
+                const take = (x, y) => knob(x, y) || (vEdit.has(L.t) && hitEnv(x, y)) || hit(x, y);
+                const CURSOR = { ept: "move", ecurve: "ns-resize", eseg: "ns-resize", move: "grab" };
                 cv.addEventListener("pointermove", (e) => {
                     if (drag) return;
-                    if (vEdit.has(L.t)) { hover(null); cv.style.cursor = ENV_CURSOR[hitEnv(e.offsetX, e.offsetY).mode]; return; }
-                    const h = hit(e.offsetX, e.offsetY);
+                    const h = take(e.offsetX, e.offsetY);
                     hover(e.shiftKey ? null : h);
-                    cv.style.cursor = e.shiftKey ? "ew-resize" : !h ? "default" : h.mode === "move" ? "grab" : "col-resize";
+                    cv.style.cursor = e.shiftKey ? "ew-resize" : !h ? "default" : CURSOR[h.mode] || "col-resize";
                 });
                 let drag = null;
+                // a roof with no points of its own: one at each end of its flat top. Past the last point the line goes on at
+                // its height, so where another clip of the track would go up or down with this one, a point holds the line
+                // at the height it had, just outside this clip
+                const openRoof = () => {
+                    const t = L.t, c = drag.c, [a, b] = flatTop(c), was = { env: t.env.map((p) => ({ ...p })) };
+                    const pa = { t: a, v: envV(was, a), c: 0 }, pb = { t: b, v: envV(was, b), c: 0 }, add = [pa, pb];
+                    const ta = c.fi > 0.02 ? c.s : a - 0.01, tb = c.fo > 0.02 ? c.e : b + 0.01, others = t.clips.filter((k) => k !== c);
+                    if (ta > 0 && others.some((k) => k.s < a)) add.push({ t: ta, v: envV(was, ta), c: 0 });
+                    if (tb < dur() && others.some((k) => k.e > b)) add.push({ t: tb, v: envV(was, tb), c: 0 });
+                    t.env.push(...add); t.env.sort((p, q) => p.t - q.t);
+                    Object.assign(drag, { bare: false, ids: [t.env.indexOf(pa), t.env.indexOf(pb)], o: t.env.map((p) => ({ ...p })) });
+                };
                 const envMove = (e) => {
-                    const H = laneH(L.t), o = drag.o, x = e.offsetX, y = e.offsetY;
+                    const H = laneH(L.t), x = e.offsetX, y = e.offsetY;
                     if (!drag.moved && Math.hypot(x - drag.x, y - drag.y) < 3) return;
                     drag.moved = true;
                     const v = vY(y, H), stick = (v) => (Math.abs(Yv(v, H) - Yv(V0, H)) < 4 ? V0 : v);   // 0 dB holds the point
-                    if (drag.mode === "eseg" && !drag.ids.length) {   // no points yet: the first one, under the mouse
-                        L.t.env = [{ t: Math.min(Math.max(0, T(drag.x)), dur()), v: V0, c: 0 }];
-                        Object.assign(drag, { mode: "ept", i: 0, o: L.t.env.map((p) => ({ ...p })) });
-                    }
-                    const pts = L.t.env, name = L.t.name || "track";
+                    if (drag.bare) openRoof();
+                    const pts = L.t.env, name = L.t.name || "track", o = drag.o;
                     if (drag.mode === "ept") {
                         const i = drag.i, lo = i > 0 ? pts[i - 1].t + 0.01 : 0, hi = i < pts.length - 1 ? pts[i + 1].t - 0.01 : dur();
                         pts[i].t = Math.min(Math.max(lo, snapTo(drag.o[i].t + (x - drag.x) / pps(), null)), hi);
@@ -922,19 +1129,10 @@ app.registerExtension({
                         const m = Math.min(0.97, Math.max(0.03, (v - a.v) / (b.v - a.v)));
                         a.c = Math.round(Math.min(4, Math.max(-4, Math.log2(Math.log(m) / Math.log(0.5)))) * 100) / 100;
                         hint.textContent = `${name} · curve ${a.c > 0 ? "slow, then fast" : a.c < 0 ? "fast, then slow" : "straight"} (${a.c.toFixed(2)})`;
-                    } else if (drag.mode === "eseg") {   // the stretch between two points: both up / down
+                    } else if (drag.mode === "eseg" && drag.ids.length) {   // the stretch under the mouse: its points up / down
                         const dv = v - vY(drag.y, H);
                         for (const k of drag.ids) pts[k].v = Math.min(1, Math.max(0, o[k].v + dv));
-                        hint.textContent = `${name} · stretch at ${fmtDb(pts[drag.ids[0]].v)}`;
-                    } else if (drag.mode === "erect") {   // a dip: from where the drag starts to where it is, as low as the mouse
-                        const t0 = snapTo(Math.min(Math.max(0, T(drag.x)), dur()), null), t1 = snapTo(Math.min(Math.max(0, T(x)), dur()), null);
-                        const s = Math.min(t0, t1), en = Math.max(t0, t1);
-                        if (en - s < 0.1) { L.t.env = o.map((p) => ({ ...p })); redraw(); return; }
-                        const r = Math.min(0.5, (en - s) / 4), was = { env: o }, lv = stick(v);
-                        L.t.env = [...o.filter((p) => p.t < s - 1e-6 || p.t > en + 1e-6).map((p) => ({ ...p })),
-                                   { t: s, v: envV(was, s), c: 0 }, { t: s + r, v: lv, c: 0 }, { t: en - r, v: lv, c: 0 }, { t: en, v: envV(was, en), c: 0 }]
-                            .sort((p, q) => p.t - q.t);
-                        hint.textContent = `${name} · dip ${s.toFixed(2)} → ${en.toFixed(2)} s · ${fmtDb(lv)}`;
+                        hint.textContent = `${name} · this stretch at ${fmtDb(pts[drag.ids[0]].v)}`;
                     }
                     redraw();
                 };
@@ -950,17 +1148,9 @@ app.registerExtension({
                         cv.setPointerCapture(e.pointerId); return;
                     }
                     if (e.button !== 0) return;
-                    if (vEdit.has(L.t)) {
-                        L.t.env ??= [];
-                        const h = hitEnv(e.offsetX, e.offsetY), tc = T(e.offsetX);
-                        let k = -1; L.t.env.forEach((p, i) => { if (p.t <= tc) k = i; });   // the stretch under the click
-                        drag = { ...h, x: e.offsetX, y: e.offsetY, o: L.t.env.map((p) => ({ ...p })), moved: false,
-                                 ids: [k, k + 1].filter((i) => i >= 0 && i < L.t.env.length) };
-                        cv.setPointerCapture(e.pointerId); return;
-                    }
-                    const x = e.offsetX, h = hit(x, e.offsetY);
-                    if (h && e.altKey) { L.t.clips.splice(L.t.clips.indexOf(h.c), 1); save(); redraw(); if (playing) play(); return; }
-                    if (h && (e.ctrlKey || e.metaKey) && h.mode === "move") {
+                    const x = e.offsetX, h = take(x, e.offsetY);
+                    if (h?.c && e.altKey) { L.t.clips.splice(L.t.clips.indexOf(h.c), 1); L.hov = null; L.hovK = ""; save(); redraw(); if (playing) play(); return; }
+                    if (h?.c && (e.ctrlKey || e.metaKey) && (h.mode === "move" || h.mode === "eseg")) {
                         const t = snapTo(T(x), null), c = h.c;
                         if (t - c.s > MIN_CLIP && c.e - t > MIN_CLIP) {
                             const b = { s: t, e: c.e, fi: 0, fo: Math.min(c.fo, c.e - t), o: c.o || 0 };   // the second half keeps the same sound
@@ -970,6 +1160,14 @@ app.registerExtension({
                         return;
                     }
                     if (e.shiftKey) drag = { mode: "off", x, o: L.t.offset || 0 };
+                    else if (h?.mode[0] === "e") {
+                        L.t.env ??= [];
+                        const env = L.t.env, tc = T(x);
+                        let k = -1; env.forEach((p, i) => { if (p.t <= tc) k = i; });   // the stretch under the click
+                        const here = h.c ? env.some((p) => inFlat(p, h.c)) : true, [a, b] = h.c ? flatTop(h.c) : [0, 0];
+                        drag = { ...h, x, y: e.offsetY, o: env.map((p) => ({ ...p })), moved: false, bare: !here && b - a >= 0.02,
+                                 ids: [k, k + 1].filter((i) => i >= 0 && i < env.length && (!h.c || inFlat(env[i], h.c))) };
+                    }
                     else if (h) drag = { ...h, x, o: { ...h.c } };
                     else return;
                     cv.setPointerCapture(e.pointerId);
@@ -1005,7 +1203,7 @@ app.registerExtension({
                 });
                 const up = () => {
                     if (!drag) return;
-                    if (drag.mode === "eseg" && !drag.moved) {   // a click on the line: a point there, on it
+                    if (drag.mode === "eseg" && !drag.moved) {   // a click on the roof: a point there, on it
                         const t = Math.min(Math.max(0, T(drag.x)), dur()), pts = L.t.env;
                         const a = pts.filter((p) => p.t <= t).pop();
                         pts.push({ t, v: envV(L.t, t), c: a?.c || 0 }); pts.sort((p, q) => p.t - q.t);
@@ -1015,12 +1213,10 @@ app.registerExtension({
                 cv.addEventListener("pointerup", up);
                 cv.addEventListener("pointercancel", up);
                 cv.addEventListener("dblclick", (e) => {
-                    if (vEdit.has(L.t)) {   // a point: gone; a small circle: straight again; elsewhere: the track over the whole room
-                        const h = hitEnv(e.offsetX, e.offsetY);
-                        if (h.mode === "ept") L.t.env.splice(h.i, 1);
-                        else if (h.mode === "ecurve") L.t.env[h.i].c = 0;
-                        else return toggleBig(L.t);
-                        save(); redraw(); if (playing) play(); return;
+                    const he = vEdit.has(L.t) ? hitEnv(e.offsetX, e.offsetY) : null;   // a point: gone; a small circle: straight again
+                    if (he?.mode === "ept" || he?.mode === "ecurve") {
+                        if (he.mode === "ept") L.t.env.splice(he.i, 1); else L.t.env[he.i].c = 0;
+                        L.hov = null; L.hovK = ""; save(); redraw(); if (playing) play(); return;
                     }
                     const t = T(e.offsetX);
                     if (hit(e.offsetX, e.offsetY)) { toggleBig(L.t); return; }   // on a clip: the track over the whole room
@@ -1072,7 +1268,7 @@ app.registerExtension({
                         srcs.push(src, g);
                     }
                 }
-                t0 = start; p0 = pos; playing = true; bPlay.textContent = "⏸";
+                t0 = start; p0 = pos; playing = true; bPlay.innerHTML = PAUSE;
                 if (S.video && video.src) { vSeek(pos); video.play().catch(() => { }); }
                 cancelAnimationFrame(raf);
                 const tick = () => {
@@ -1089,7 +1285,7 @@ app.registerExtension({
             }
             function pause() {
                 if (playing) pos = Math.min(dur(), now());
-                playing = false; stopSrc(); cancelAnimationFrame(raf); bPlay.textContent = "▶";
+                playing = false; stopSrc(); cancelAnimationFrame(raf); bPlay.innerHTML = PLAY;
                 video.pause(); placeHead();
             }
             function seek(t) {
@@ -1131,8 +1327,51 @@ app.registerExtension({
             };
             ruler.addEventListener("pointerup", rUp);
             ruler.addEventListener("pointercancel", rUp);
-            ruler.addEventListener("wheel", (e) => { e.preventDefault(); zoomAt(e.offsetX, e.deltaY > 0 ? 1.25 : 0.8); }, { passive: false });
+            // the wheel on the ruler, the map or a track zooms the view: heard on the window, in capture, because under Nodes 2.0
+            // the frontend takes it first for the graph (Ctrl+wheel stays the graph's)
+            const onWheel = (e) => {
+                const c = e.target;
+                if (e.ctrlKey || c?.tagName !== "CANVAS" || !root.contains(c)) return;
+                e.preventDefault(); e.stopImmediatePropagation();
+                zoomAt(c === map ? X(v0() + span() / 2) : e.offsetX, e.deltaY > 0 ? 1.25 : 0.8);
+            };
+            window.addEventListener("wheel", onWheel, { capture: true, passive: false });
             ruler.addEventListener("dblclick", (e) => { if (handleAt(e.offsetX)) { range = null; redraw(); if (playing) play(); } });
+
+            // the map: inside the frame = slide the view, on its ends = zoom, outside it = the view goes there and follows the
+            // mouse; on the whole mix = draw a frame. Like the ruler, a matter of the view: nothing goes in the workflow.
+            let mDrag = null;
+            const setView = (t0, s) => {
+                const D = dur(); s = Math.min(D, Math.max(0.25, s));
+                view.span = s >= D - 1e-6 ? 0 : s; view.t0 = Math.min(Math.max(0, t0), Math.max(0, D - s));
+                redraw();
+            };
+            const mapMode = (x) => {
+                if (!zoomed()) return "draw";
+                const a = MX(v0()), b = MX(v0() + span());
+                return Math.abs(x - a) <= 4 ? "l" : Math.abs(x - b) <= 4 ? "r" : x > a && x < b ? "pan" : "jump";
+            };
+            const MAP_CURSOR = { draw: "crosshair", l: "ew-resize", r: "ew-resize", pan: "grab", jump: "pointer" };
+            map.addEventListener("pointerdown", (e) => {
+                if (e.button !== 0) return;
+                e.preventDefault(); map.setPointerCapture(e.pointerId);
+                let mode = mapMode(e.offsetX);
+                if (mode === "jump") { setView(MT(e.offsetX) - span() / 2, span()); mode = "pan"; }
+                mDrag = { mode, x: e.offsetX, t0: v0(), s: span() };
+            });
+            map.addEventListener("pointermove", (e) => {
+                if (!mDrag) { map.style.cursor = MAP_CURSOR[mapMode(e.offsetX)]; return; }
+                const o = mDrag, xx = Math.min(Math.max(0, e.offsetX), VW()), dt = MT(xx - o.x);
+                if (o.mode === "pan") setView(o.t0 + dt, o.s);
+                else if (o.mode === "l") { const d = Math.min(Math.max(-o.t0, dt), o.s - 0.25); setView(o.t0 + d, o.s - d); }
+                else if (o.mode === "r") setView(o.t0, Math.min(o.s + dt, dur() - o.t0));
+                else if (Math.abs(xx - o.x) > 3) setView(MT(Math.min(xx, o.x)), MT(Math.abs(xx - o.x)));
+                hint.textContent = `view ${v0().toFixed(2)} → ${(v0() + span()).toFixed(2)} s`;
+            });
+            const mUp = () => { if (mDrag) { mDrag = null; hint.textContent = HINT; } };
+            map.addEventListener("pointerup", mUp);
+            map.addEventListener("pointercancel", mUp);
+            map.addEventListener("dblclick", () => setView(0, dur()));
 
             // ---- life cycle -----------------------------------------------------------------------------------------
             new ResizeObserver(() => redraw()).observe(sc);
@@ -1162,7 +1401,7 @@ app.registerExtension({
             async function enterFS() {
                 if (fs) return;
                 const layer = el("div", "position:fixed;inset:0;z-index:100000;background:#141414;padding:10px;display:flex;outline:none");
-                layer.className = "wx"; layer.tabIndex = -1;
+                layer.className = "wx wx-mx-fs"; layer.tabIndex = -1;
                 layer.addEventListener("keydown", (e) => e.stopPropagation());
                 layer.addEventListener("pointerdown", (e) => { if (!typing(e)) layer.focus({ preventScroll: true }); });
                 fs = { layer, parent: root.parentNode, next: root.nextSibling, css: root.style.cssText, full: false };
@@ -1212,7 +1451,9 @@ app.registerExtension({
             const endShuttle = () => { if (!shuttle) return; cancelAnimationFrame(shuttle.raf); const was = shuttle.was; shuttle = null; if (was) play(false); };
             const KEYS = ["Space", "KeyF", "ArrowLeft", "ArrowRight", "ArrowUp"];
             const restore = (j) => {
+                const open = S.tracks.map((t) => vEdit.has(t));   // an undo brings new objects: the roofs stay as they were
                 S = normal(JSON.parse(j));
+                vEdit.clear(); S.tracks.forEach((t, i) => { if (open[i]) vEdit.add(t); });
                 S.dur_eff = Math.round(dur() * 1000) / 1000;
                 wState.value = JSON.stringify(S);
                 checkState();
@@ -1269,7 +1510,7 @@ app.registerExtension({
             };
             window.addEventListener("keydown", onKey, true);
             window.addEventListener("keyup", onKey, true);
-            node.onRemoved = function () { pause(); exitFS(); document.removeEventListener("fullscreenchange", onFsChange); window.removeEventListener("keydown", onKey, true); window.removeEventListener("keyup", onKey, true); return onRm?.apply(this, arguments); };
+            node.onRemoved = function () { pause(); exitFS(); document.removeEventListener("fullscreenchange", onFsChange); window.removeEventListener("keydown", onKey, true); window.removeEventListener("keyup", onKey, true); window.removeEventListener("wheel", onWheel, { capture: true }); return onRm?.apply(this, arguments); };
             let lastMarks = "";
             const t = setInterval(() => {   // the scene cuts follow the Foley timeline while you edit it
                 if (!node.graph) return clearInterval(t);

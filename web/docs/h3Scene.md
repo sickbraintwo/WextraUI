@@ -2,7 +2,12 @@
 
 **One scene as a single object**: the prompt, its duration, the seed, where the clip starts and lands, an optional mid-clip guide, the references. Chain the objects with *WScenes Collection H3* and the loop renders them one after the other.
 
+## The strip
+Between the sockets and the rows, the scene on its time: on the left what it inherits from the scene before (hatched, as long as `handoff` in seconds), or a square if it starts on `first_frame` (an empty red square: the socket has no image, the Run would stop), or an empty circle if it starts from the text; a notch `guide` at `guide at`, when a guide is connected; a diamond `lands` at the end, when `last_frame` is connected. Under it, in words, where the scene starts, and the duration. The duration is read from the node on the cable when that node holds it; when the Run makes it, the strip says `no duration` and keeps its proportions on five seconds. The references are not on the strip: they are not anchored in time.
+
 ## Widgets
+The rows read short names; the tooltip, the file and this page keep the names of the schema: `control` = `control_after_generate`, `start` = `first_frame_from`, `guide at` = `guide_frame_at`, `handoff` = `handoff_frames`, `previous` = `previous_from`, `resume clip` = `resume_from_video`.
+
 - **seed**: set `control_after_generate` to *fixed* for a reproducible film.
 - **first_frame_from**: `previous_scene`, the loop hands over the last frame of the previous clip (motion and audio hand-off apply) · `first_frame`, the image on the `first_frame` socket · `none`, free start from text (or land only on `last_frame`).
 - **guide_frame_at**: seconds where `guide_frame` / `guide_audio` is anchored (negative = from the end).

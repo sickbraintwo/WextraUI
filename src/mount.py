@@ -1,7 +1,7 @@
 """WMount (wxMount) — several videos joined into one mp4 (Sick, 19/10/2026). The clips come from a folder picked in the
 menu (the folders of ComfyUI's input and output that hold videos; its clips in the order of their names) and from the
 `video_n` sockets (one more appears each time one is connected; a video, or the frames of an IMAGE, which take
-the pace of the mount). Every clip has its own rule, one row each in the node
+the pace of the mount). Every clip has its own rule, set from the strip of the node
 (web/wxMount.js, kept in the hidden `specs` box): `in` frames dropped from its head; `out` drop = frames dropped from
 its tail, or blend = its last frames mixed with the first ones of the clip after (the hand-off of MM H3: the next clip
 starts by repeating the last 22 frames of the one before). A loop in the middle = `out drop 1` on that clip. Only the
@@ -191,7 +191,7 @@ def plan(counts, rules):
 class WMount:
     @classmethod
     def INPUT_TYPES(cls):
-        opt = {"specs": ("STRING", {"default": "{}", "tooltip": "The rule of each clip (the rows of the node): kept as text."})}
+        opt = {"specs": ("STRING", {"default": "{}", "tooltip": "The rule of each clip (set from the strip of the node): kept as text."})}
         opt.update({f"video_{i}": ("VIDEO,IMAGE", {"tooltip": "A clip from a node: a video (Load Video, for one) or frames "
                                                               "(IMAGE: they take the pace of the mount). They follow the clips "
                                                               "of the folder, in the order of the sockets; one more socket "
@@ -214,7 +214,7 @@ class WMount:
     FUNCTION = "mount"
     CATEGORY = "WextraUI/Video"
     DESCRIPTION = ("Joins videos into one mp4: the clips of a folder in the order of their names, then the connected ones. "
-                   "Each clip has its own row: frames dropped from its head (`in`), and from its tail or blended with the "
+                   "Each clip has its own rules: frames dropped from its head (`in`), and from its tail or blended with the "
                    "head of the clip after (`out`). The sound follows the pictures. Uses the PyAV of ComfyUI, one frame at "
                    "a time: no ffmpeg to install, no memory filled.")
 

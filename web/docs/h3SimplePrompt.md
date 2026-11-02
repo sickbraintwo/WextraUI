@@ -3,6 +3,8 @@
 A MiniMax H3 prompt **without time-codes**: the old way, where you describe what happens and the order of the sentences is the timeline. It keeps the things that must always be there in an H3 prompt, learned on a 3090 in August 2026.
 
 ## Fields (empty ones are skipped)
+Each field is a row with its name inside, one line tall, taller when the text wraps. The names on the rows are the ones the prompt uses, with the capital (`What stays fixed`); this page and the file use the names of the schema (`stays_fixed`). A cable on a row keeps it in view, read only, with the text from the far end when the graph can tell it. `scene` and `action` go out bare, without their name.
+
 - **scene**: what we see before anything happens. Place, subject, materials, light, look. Goes first, as written.
 - **action**: what happens, in chronological order, with connectives (*first… then… finally…*). No numbers.
 - **camera**: one idea for the whole clip. A still camera is said in full: `no camera movement whatsoever`. A single push-in on one beat made H3 drift on the whole clip.

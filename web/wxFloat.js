@@ -5,15 +5,16 @@
 // sends its beat. Driven (cable in) it moves on the beat of the node at the other end instead of at every run.
 // WInt🌱 on `increment-wrap` is the same wheel with no cable (Sick, 07/10): forward to `until`, then round to the start.
 // Otherwise `until` does nothing: the walk is free, as it was.
-// WInt🌱 also has `selection` under `value` (wxSelection.js, Sick 08/10): numbers of your own, in your order — seeds that
-// are not one after the other. With any in it the walk goes through them, as a wheel, instead of by step: `step` and
-// `until` do nothing then, and `value` is always one of them (a value outside goes to the first at once, Sick 09/10:
-// the first run queued is the first seed picked, not the stray one). A PNG dropped on the node adds the seed that
-// made it to the list (read from the prompt inside the file).
+// Both have `selection` under `value` (wxSelection.js; WInt🌱 Sick 08/10, WFloat Sick 25/10): numbers of your own, in your
+// order — seeds that are not one after the other, strengths of your own. With any in it the walk goes through them, as a
+// wheel, instead of by step: `step` and `until` do nothing then, and `value` is always one of them (a value outside goes
+// to the first at once, Sick 09/10: the first run queued is the first seed picked, not the stray one; on `fixed` it IS
+// the one you chose, the dot of the drop-down or a click on a side, Sick 27/10; none chosen, the first one, Sick 25/10). A PNG dropped on WInt🌱 adds the seed that made it to the list (read from the prompt
+// inside the file). Collapsed, the node reads its name and the value (`WInt🌱 · 1234`, wxCollapsedValue).
 import { app } from "../../scripts/app.js";
 import { getPngMetadata } from "../../scripts/pnginfo.js";
 import { wxCarry } from "./wxCarry.js";
-import { wxHideWidget } from "./wxStyle.js";
+import { wxHideWidget, wxCollapsedValue, wxSlotHidden, wxOnRedraw } from "./wxStyle.js";
 import { wxNumberList } from "./wxSelection.js";
 
 const KIND = { wxFloat: "float", wxSeed: "int" };
@@ -56,13 +57,21 @@ app.registerExtension({
             const clamp = (v) => Math.min(hi(), Math.max(lo(), v));
             const fmt = (v) => (isInt ? String(v) : String(rnd(v)));
             let carry = null;   // set below, once the control's afterQueued is in place
-            // ---- the numbers of your own (WInt🌱: `selection` under `value`): with any, the walk is a wheel over them ----
+            // ---- the numbers of your own (`selection` under `value`): with any, the walk is a wheel over them ----
             const parse = (t) => { const n = Number(t); return Number.isFinite(n) ? clamp(rnd(n)) : null; };
-            const picker = isInt && wSel ? wxNumberList(node, wSel, wVal, { after: wVal, parse, onChange: () => { snap(); relabel(); } }) : null;
+            const picker = wSel ? wxNumberList(node, wSel, wVal, { after: wVal, parse, onChange: () => { snap(); relabel(); }, placeholder: isInt ? "1, 3, 6, 90, 1234 ↵" : "0.5, 0.75, 1, 1.2 ↵", road: () => road(), pick: (it) => pickValue(it), now: () => rnd(wVal.value) }) : null;
             const picks = () => { const l = picker?.list(); return l && l.length ? l : null; };
             // with numbers picked, `value` is one of them: a value outside goes to the first at once (the run you queue
-            // next is the first seed picked, not the stray one)
-            const snap = () => { const p = picks(); if (p && !p.includes(rnd(wVal.value))) setVal(p[0]); };
+            // next is the first seed picked, not the stray one); on `fixed`, not driven by a carry, it is the one chosen by
+            // hand (the dot of the drop-down, a click on a side, the box: Sick 27/10), kept in the node's properties; none
+            // chosen, or gone from the list, the first one (Sick 25/10: fixed with a selection = the first custom)
+            const chosen = () => { const p = picks(), v = node.properties?.wx_fixed; return p && typeof v === "number" && p.includes(v) ? v : p?.[0]; };
+            const choose = (v) => { node.properties = node.properties || {}; node.properties.wx_fixed = v; };
+            const snap = () => {
+                const p = picks(); if (!p) return;
+                const cur = rnd(wVal.value), fix = chosen();
+                if (!p.includes(cur) || (ctl() === "fixed" && !carry?.driven() && cur !== fix)) setVal(ctl() === "fixed" ? fix : p[0]);
+            };
             // ---- the wheel: start → until by step, with a carry cable in or out or on increment-wrap; until = start means no arrival ----
             const startV = () => { const s = Number(wStart?.value); return wStart && wStart.value !== "" && Number.isFinite(s) ? rnd(s) : rnd(wVal.value); };
             const wheelOn = () => !!(carry?.linked() || wrapOn());
@@ -72,53 +81,86 @@ app.registerExtension({
                 if (!Number.isFinite(u) || u === s) return null;
                 return { s, u, st, d: u > s ? 1 : -1, n: Math.floor(Math.abs(u - s) / st + 1e-9) + 1 };
             };
-            const at = () => {
+            // the place of a value on the numbers picked or on the wheel (null = off them)
+            const atOf = (val) => {
                 const p = picks();
-                if (p) { const i = p.indexOf(rnd(wVal.value)); return i < 0 ? null : i; }
-                const w = wheel(); if (!w) return null; const i = Math.round((rnd(wVal.value) - w.s) * w.d / w.st); return i >= 0 && i < w.n ? i : null;
+                if (p) { const i = p.indexOf(rnd(val)); return i < 0 ? null : i; }
+                const w = wheel(); if (!w) return null; const i = Math.round((rnd(val) - w.s) * w.d / w.st); return i >= 0 && i < w.n ? i : null;
             };
+            const at = () => atOf(wVal.value);
             const size = () => picks()?.length ?? wheel()?.n ?? null;
             let walking = false;   // our own moves do not reset the start
             // the walk back to its first place (the chips ⟲ / ▶ of wxCarry.js): the first number picked, the start of the wheel, the value set by hand
             const first = () => { const p = picks(), w = wheel(); setVal(p ? p[0] : w ? w.s : startV()); relabel(); };
             const setVal = (v) => { walking = true; try { if (v !== rnd(wVal.value)) { wVal.value = v; wVal.callback?.(v); } } finally { walking = false; } };
             const random = () => clamp(Math.floor(Math.random() * Math.min(hi(), MAX_RANDOM)));
-            // one step: over the numbers picked, or on the wheel, "+" forward / "-" back / "rand" any place, coming round at
-            // the ends (true when it comes round); off both, free — no arrival, no floor
-            const move = (dir) => {
+            // one step from `val`, written nowhere: [the next value, true when it comes round]. Over the numbers picked, or on
+            // the wheel, "+" forward / "-" back / "rand" any place, coming round at the ends; off both, free — no arrival, no floor
+            const peek = (val, dir) => {
                 const p = picks();
                 if (p) {   // a value outside the numbers picked goes to the first of them
-                    const n = p.length, i = at();
+                    const n = p.length, i = atOf(val);
                     const next = i == null ? 0 : dir === "-" ? (i <= 0 ? n - 1 : i - 1) : dir === "rand" ? Math.floor(Math.random() * n) : (i + 1) % n;
-                    setVal(p[next]);
-                    relabel();
-                    return n > 1 && i != null && (dir === "+" ? next === 0 : dir === "-" ? next === n - 1 : false);
+                    return [p[next], n > 1 && i != null && (dir === "+" ? next === 0 : dir === "-" ? next === n - 1 : false)];
                 }
                 const w = wheel();
-                if (!w) {
-                    const cur = rnd(wVal.value), st = step();
-                    setVal(dir === "rand" ? random() : clamp(rnd(dir === "-" ? cur - st : cur + st)));
-                    relabel();
-                    return false;
-                }
-                const i = at() ?? 0;
+                if (!w) { const cur = rnd(val), st = step(); return [dir === "rand" ? random() : clamp(rnd(dir === "-" ? cur - st : cur + st)), false]; }
+                const i = atOf(val) ?? 0;
                 const next = dir === "-" ? (i <= 0 ? w.n - 1 : i - 1) : dir === "rand" ? Math.floor(Math.random() * w.n) : (i + 1) % w.n;
-                setVal(rnd(w.s + next * w.st * w.d));
-                relabel();
-                return w.n > 1 && (dir === "+" ? next === 0 : dir === "-" ? next === w.n - 1 : false);
+                return [rnd(w.s + next * w.st * w.d), w.n > 1 && (dir === "+" ? next === 0 : dir === "-" ? next === w.n - 1 : false)];
             };
+            const move = (dir) => { const [v, round] = peek(wVal.value, dir); setVal(v); relabel(); return round; };
+            const dirNow = () => (ctl() === "decrement" ? "-" : ctl() === "randomize" ? "rand" : "+");
+            // the row `selection` (Sick 27/10, variant D): the value of now in the middle, the ones a step back on the left and
+            // a step on on the right, over the numbers picked, on the wheel (up to the turn `↻`) or by step; the side the
+            // control goes to is lit (none on fixed); randomize without numbers picked has no sides and reads `random`. At the
+            // right how many numbers are picked, or how many places the wheel has; on the foot one notch per place. Driven by
+            // a carry cable the steps are the same, they come on the beat of the other node instead of at every run.
+            const road = () => {
+                const p = picks(), c = ctl(), cur = rnd(wVal.value);
+                const side = (dir) => {
+                    const out = [];
+                    if (c === "randomize" && !p) return out;
+                    let v = cur;
+                    for (let k = 0; k < 8; k++) { const [nx, round] = peek(v, dir); if (round || nx === v) { if (round) out.push({ wrap: true }); break; } out.push({ t: fmt(nx), v: nx }); v = nx; }
+                    return out;
+                };
+                const n = size(), i = at();
+                const dir = c === "decrement" ? -1 : c === "randomize" ? 0 : c === "fixed" && !carry?.driven() ? 0 : 1;
+                const next = dir && n && i != null ? (i + dir + n) % n : null;
+                const right = c === "randomize" && !p ? { t: "random" } : p ? { t: String(p.length), on: true } : n ? { t: String(n) } : null;
+                return { now: fmt(cur), before: side("-"), after: side("+"), dir, right, track: n && i != null ? { n, at: i, next } : null };
+            };
+            const pickValue = (it) => { if (it?.v === undefined) return; if (picks()?.includes(it.v)) choose(it.v); setVal(it.v); if (wStart && !picks() && !wheel()) wStart.value = String(it.v); relabel(); };
             // the arrows of value move by the step chosen here (step2 = the frontend's real step, step = LiteGraph's, ten times it)
             const syncArrows = () => { wVal.options = wVal.options || {}; wVal.options.step2 = step(); wVal.options.step = step() * 10; };
+            // ---- step and until only when they do something (Sick 27/10, variant C): the numbers picked are the walk, so
+            // step goes; until counts only on the wheel (a carry cable, in or out, or increment-wrap). A box with a cable
+            // on it always shows. The node takes the height of what shows (it may grow over a node under it).
+            // A hidden box keeps its socket where it was, where the canvas would still find it: it is parked away (the
+            // frontend gives a box its place back at every draw, so at every draw)
+            const PARK = -10000;
+            const linked = (w) => (node.inputs || []).some((s) => s.widget?.name === w.name && s.link != null);
+            const park = () => { for (const w of [wStep, wUntil]) if (w?.hidden && !linked(w)) w.y = PARK; };
+            const showRow = (w, on) => {
+                if (!w || !!w.hidden === !on) return false;
+                w.hidden = !on; w.options = w.options || {}; w.options.hidden = !on;
+                wxSlotHidden(node, w, !on);
+                return true;
+            };
+            let shown = false;   // the first layout of a node: its height is set by whoever made it (born, or read from a file)
             const relabel = () => {
                 syncArrows();
-                const c = ctl(), p = picks(), w = wheel(), d = !!carry?.driven();
-                // over the numbers picked: `next/run · 4 picked ↻`; on the wheel: `+1/run · 1 → 4 ↻`; free: `+1/run`
-                const by = p ? (c === "randomize" ? "random" : c === "decrement" ? "back" : "next") : c === "randomize" ? "random" : (c === "decrement" ? "−" : "+") + step();
-                const arc = p ? ` · ${p.length} picked` + (!d ? " ↻" : "") : w ? ` · ${fmt(w.s)} → ${fmt(w.u)}` + (c === "increment-wrap" && !d ? " ↻" : "") : "";
-                wCtl.label = d ? "on carry · " + by + arc : c === "fixed" ? "control" : by + "/run" + arc;
-                wStep.disabled = !!p;   // the numbers picked are the walk: step and until do nothing then
-                if (wUntil) wUntil.disabled = !!p || !wheelOn();   // greyed out with no cable and not on increment-wrap: the walk is free then
-                node.setDirtyCanvas(true, false);
+                snap();   // the numbers picked rule the value: outside them → the first; on fixed → the first
+                // the walk is read on the row `selection` (the road): control says only what drives it
+                wCtl.label = carry?.driven() ? "on carry" : "control";
+                const p = picks();
+                const a = showRow(wStep, !p || linked(wStep));
+                const b = showRow(wUntil, (!p && wheelOn()) || (wUntil && linked(wUntil)));
+                wStep.disabled = false; if (wUntil) wUntil.disabled = false;   // what shows does something
+                park();
+                if ((a || b) && shown) node.setSize([node.size[0], node.computeSize()[1]]);
+                node.setDirtyCanvas(true, a || b);
             };
             // the value you set by hand is where the wheel starts.
             // The frontend's own callback of a number box snaps what it gets: an INT to min + k × step2 (so with the arrows
@@ -137,10 +179,11 @@ app.registerExtension({
                 const p = picks();
                 if (p && !walking && !p.includes(rnd(wVal.value))) {
                     const i = p.indexOf(lastVal), cur = rnd(wVal.value), st = step();
-                    if (i >= 0 && cur === lastVal + st) setVal(p[(i + 1) % p.length]);
-                    else if (i >= 0 && cur === lastVal - st) setVal(p[(i - 1 + p.length) % p.length]);
+                    if (i >= 0 && cur === rnd(lastVal + st)) setVal(p[(i + 1) % p.length]);
+                    else if (i >= 0 && cur === rnd(lastVal - st)) setVal(p[(i - 1 + p.length) % p.length]);
                     else setVal(p[0]);
                 }
+                if (p && !walking) choose(rnd(wVal.value));   // the number set by hand is the one fixed keeps
                 lastVal = rnd(wVal.value);
                 relabel();
                 return rr;
@@ -159,7 +202,7 @@ app.registerExtension({
             // a PNG saved by ComfyUI dropped on the node (WInt🌱): the seed of the run that made it goes into the list (the
             // prompt inside the file: this node's value, else the first WInt🌱, else the first seed found). The drop is taken
             // either way, so the file does not open as a workflow over the one on the canvas.
-            if (picker) {
+            if (picker && isInt) {
                 node.onDragOver = (e) => !!e?.dataTransfer?.types?.includes?.("Files");
                 node.onDragDrop = async function (e) {
                     const f = e?.dataTransfer?.files?.[0];
@@ -175,9 +218,12 @@ app.registerExtension({
                 };
             }
             relabel();
+            wxCollapsedValue(node, () => fmt(rnd(wVal.value)), nodeData.display_name);   // collapsed: `WInt🌱 · 1234`, `WFloat · 0.75`
+            wxOnRedraw(node, park);
             // born at its minimum width (a saved node keeps the size of its file: configure comes after)
             const min = node.computeSize();
             node.setSize([min[0], min[1]]);
+            shown = true;
             const tick = setInterval(relabel, 500);
             const origRemoved = node.onRemoved;
             node.onRemoved = function () { clearInterval(tick); return origRemoved ? origRemoved.apply(this, arguments) : undefined; };
@@ -185,7 +231,8 @@ app.registerExtension({
             node.onConfigure = function () {
                 const rr = origConfigure ? origConfigure.apply(this, arguments) : undefined;
                 if (wStart && typeof wStart.value !== "string") wStart.value = "";   // a file from before the wheel: the start is the value as loaded
-                setTimeout(relabel, 0);
+                // a file saved with step and until both in view: the height follows what shows now
+                setTimeout(() => { relabel(); node.setSize([node.size[0], node.computeSize()[1]]); node.setDirtyCanvas(true, true); }, 0);
                 return rr;
             };
             return r;

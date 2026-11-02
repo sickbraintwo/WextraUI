@@ -5,7 +5,8 @@ pointer is left, that frame goes out of `images`; with `multiple` on, a second p
 to the second, both included. The two pointers live in `start` and `end` (frame numbers from 0, hidden widgets).
 
 The frames are counted from the file's own timestamps at its own rate (frame n = time n / fps), the way the player
-of the frontend shows them, so the frame picked is the frame that goes out. All with PyAV, the library ComfyUI ships."""
+of the frontend shows them, so the frame picked is the frame that goes out. All with PyAV, the library ComfyUI ships.
+The timeline is a film: small frames of the video side by side (`film`, made once per file in the temp folder)."""
 import fractions
 import os
 
@@ -120,6 +121,33 @@ def frames_between(path, a, b):
         return got, float(fps)
 
 
+FILM_TILES, FILM_H = 16, 64
+
+
+def film(path):
+    """The film of the timeline: FILM_TILES small frames of the video side by side in one JPEG of ComfyUI's temp folder,
+    tile j = the frame at (j + 0.5) / FILM_TILES of the video, FILM_H px high. Made once per version of the file.
+    -> (relative name, tiles, tile width, tile height)."""
+    import hashlib
+    from PIL import Image
+    st = os.stat(path)
+    h = hashlib.sha1(f"{path}|{st.st_mtime}|{st.st_size}".encode()).hexdigest()[:16]
+    rel = f"wextraui_extractor/{h}_film.jpg"
+    out = os.path.join(folder_paths.get_temp_directory(), rel)
+    r = info(path)
+    n, tw = max(1, r["frames"]), max(8, min(4 * FILM_H, round(FILM_H * r["width"] / max(1, r["height"]))))
+    if not os.path.isfile(out):
+        sheet = Image.new("RGB", (tw * FILM_TILES, FILM_H))
+        for j in range(FILM_TILES):
+            f = round((j + 0.5) / FILM_TILES * (n - 1))
+            got, _ = frames_between(path, f, f)
+            if got:
+                sheet.paste(Image.fromarray(got[0]).resize((tw, FILM_H), Image.BILINEAR), (j * tw, 0))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        sheet.save(out, quality=82)
+    return rel, FILM_TILES, tw, FILM_H
+
+
 class WExtractor:
     @classmethod
     def INPUT_TYPES(cls):
@@ -191,6 +219,15 @@ try:
         except Exception as e:
             return web.json_response({"error": str(e)}, status=400)
         return web.json_response(r)
+
+    @PromptServer.instance.routes.get("/wextraui/extractor_film")
+    async def _wx_extractor_film(request):
+        import asyncio
+        try:
+            rel, n, w, h = await asyncio.to_thread(lambda: film(resolve(request.query.get("video", ""))))
+        except Exception as e:
+            return web.json_response({"file": None, "error": str(e)}, status=400)
+        return web.json_response({"file": {"name": rel, "type": "temp"}, "tiles": n, "w": w, "h": h})
 
     @PromptServer.instance.routes.get("/wextraui/extractor_files")
     async def _wx_extractor_files(request):

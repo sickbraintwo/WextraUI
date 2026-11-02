@@ -25,7 +25,7 @@ class WSeed:
                                   "tooltip": "The arrival of the wheel, with a carry cable in or out or with control on increment-wrap: from the value you set to until, by step, then round to the start. The same as the start = no arrival. Otherwise it does nothing and the walk is free."}),
                 "start": ("STRING", {"default": "", "tooltip": "Where the wheel starts: the value as you set it by hand (filled by the node)."}),
                 # after the boxes of before (a workflow saved without it, read by position, still lines up); the frontend puts its row under `value`
-                "selection": ("STRING", {"default": "", "tooltip": "Numbers of your own, in your order (JSON list, filled by the drop-down under value): with any in it the walk goes through them instead of by step, and step / until do nothing. Empty = the walk by step. Lives in the node: the backend ignores it."}),
+                "selection": ("STRING", {"default": "", "tooltip": "Numbers of your own, in your order (JSON list, filled by the drop-down under value): with any in it the walk goes through them instead of by step, and step / until do nothing; on fixed the value is the first of them. Empty = the walk by step. Lives in the node: the backend ignores it."}),
                 "carry": CARRY_IN,
             },
         }

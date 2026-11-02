@@ -1,10 +1,11 @@
 // WextraUI — WCheckpoint: the core Load Checkpoint with the `folder` menu above the name, the `selection` drop-down
-// under it (both shared with WLoRA: wxFolder.js, wxSelection.js) and the seed-style control under the name, auto title
+// under it (both shared with WLoRA: wxFolder.js, wxSelection.js; here the row is drawn as on WSampler, the place of now
+// on the name's label) and the seed-style control under the name, auto title
 // = checkpoint name once collapsed, and `carry` in and out (wxCarry.js): the odometer cable — every checkpoint of the
 // folder for every sampler, in one queue.
 import { app } from "../../scripts/app.js";
 import { wxCompactWidgets } from "./wxStyle.js";
-import { wxFolderMenu, wxLoadingGuard, wxTitleFollows } from "./wxFolder.js";
+import { wxFolderMenu, wxLoadingGuard, wxTitleFollows, wxCleanName } from "./wxFolder.js";
 import { wxSelectionMenu } from "./wxSelection.js";
 import { wxCarryMenu } from "./wxCarry.js";
 
@@ -21,8 +22,10 @@ app.registerExtension({
             const W = (nm) => node.widgets.find((w) => w.name === nm);
             const wFolder = W("folder"), wName = W("ckpt_name"), wSel = W("selection");
             if (!wName) return r;
-            wxFolderMenu(node, wFolder, wName);
-            if (wSel) wxSelectionMenu(node, wSel, wName, { after: wFolder, watch: [wFolder] });   // under `folder`: ticks on the menu as `folder` leaves it
+            wxFolderMenu(node, wFolder, wName, { onName: true });   // the place of now on the name's label: `ckpt_name · 3/12` (Sick 30/10, variant B)
+            // under `folder`: ticks on the menu as `folder` leaves it; the row drawn as on WSampler (the checkpoints before and
+            // after the one of now, a notch per place on the foot), the number only when names are ticked
+            if (wSel) wxSelectionMenu(node, wSel, wName, { after: wFolder, watch: [wFolder], road: true, show: wxCleanName, count: false });
             // the control of the name: a value that is not one of its own (a file touched by hand) goes back to fixed
             const ctl = () => node.widgets.find((w) => w !== wFolder && w !== wName && Array.isArray(w.options?.values) && w.options.values.includes("randomize"));
             const onConf = node.onConfigure;

@@ -33,3 +33,8 @@ One line per scene: `time | prompt`, or `time | prompt | seed`. The time in seco
 ## Good to know
 - Load the video small (a custom width of 512 or so): the windows are scaled by WLoop Window Foley anyway, and a long video in high definition fills the memory.
 - The sound of every window is made from the picture and the prompt of its scene; the hand-off between windows is in the sound only (the cross-fade), the picture is never changed.
+
+## The row of the loop
+At the bottom of the node, `start`, `window` and `end` on a thread; the arc is the way back, one dash per window. The blue step is this node. During a Run the three nodes of the loop show the same moment: the step at work lights up, the thread towards `end` lights up while the body generates, the dash of the round fills with the sampler's steps and `3/9` counts the rounds. The result stays until the next Run; a Run where nothing changed runs nothing, and the row stays as it is. Interrupt leaves it where it stopped, in orange; an error shows in red. The node never changes size, so no cable moves. The three nodes know each other by the `plan` cable, also through Set/Get.
+
+The `v1` chip on `mix` marks a value of the For Loop: the same number on the three nodes and on the For Loop's `value1`.

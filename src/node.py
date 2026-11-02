@@ -6,9 +6,10 @@ from .h3CollectScenes import H3CollectScenes
 from .h3LoopRange import H3LoopRange
 from .h3SceneConditioning import H3SceneConditioning
 from .h3HandoffTail import H3HandoffTail
-from .route import Route, RouteIndex
+from .route import Route, RouteIndex, If, Index
 from .runDiff import RunDiff
 from .loraLoader import LoraLoaderTrigger
+from .loraStack import LoraStack
 from .checkpointLoader import CheckpointLoader
 from .sampler import Sampler, Scheduler
 from .frame import Frame
@@ -41,8 +42,11 @@ NODE_CLASS_MAPPINGS = {
     "h3HandoffTail": H3HandoffTail,
     "wxRoute": Route,
     "wxRouteIndex": RouteIndex,
+    "wxif": If,
+    "wxIndex": Index,
     "wxRunDiff": RunDiff,
     "wxLoraLoaderTrigger": LoraLoaderTrigger,
+    "wxLoraStack": LoraStack,
     "wxCheckpointLoader": CheckpointLoader,
     "wxSampler": Sampler,
     "wxScheduler": Scheduler,
@@ -75,8 +79,11 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "h3HandoffTail": "WLoop End H3",
     "wxRoute": "WRoute",
     "wxRouteIndex": "WRoute Index",
+    "wxif": "Wif",
+    "wxIndex": "WIndex",
     "wxRunDiff": "WDifference",
     "wxLoraLoaderTrigger": "WLoRA",
+    "wxLoraStack": "WLoRA Stack",
     "wxCheckpointLoader": "WCheckpoint",
     "wxSampler": "WSampler",
     "wxScheduler": "WScheduler",

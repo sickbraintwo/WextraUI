@@ -1,36 +1,15 @@
-// WextraUI — LoRA Loader + Trigger: chip picker for trigger words / training tags, and auto title = LoRA name.
-// Click a chip in the lists to pick it; picked chips sit on top, drag them to reorder, click ✕ to remove.
-// The picked words are stored in the (hidden) `picked` widget as a JSON list; the backend uses them when present.
+// WextraUI — LoRA Loader + Trigger: chip picker for trigger words / training tags, and collapsed title = name · LoRA.
+// The picker (wxLoraPicker.js, shared with WLoRA Stack): click a chip to pick it, drag the picked ones to reorder, ✕ to remove;
+// the picked words are stored in the (hidden) `picked` widget as a JSON list; the backend uses them when present.
 // `carry` in and out (wxCarry.js): the odometer cable — every LoRA of the folder for every checkpoint, in one queue.
 import { app } from "../../scripts/app.js";
-import { api } from "../../scripts/api.js";
-import { ensureWxStyle, wxCompactWidgets, wxOnRedraw, wxHideWidget } from "./wxStyle.js";
-import { wxFolderMenu, wxLoadingGuard, wxCleanName } from "./wxFolder.js";
+import { wxCompactWidgets, wxHideWidget } from "./wxStyle.js";
+import { wxFolderMenu, wxLoadingGuard, wxCleanName, wxTitleFollows } from "./wxFolder.js";
 import { wxSelectionMenu } from "./wxSelection.js";
 import { wxCarryMenu } from "./wxCarry.js";
+import { wxLoraPicker } from "./wxLoraPicker.js";
 
 const TYPE = "wxLoraLoaderTrigger";
-const MAX_TAGS = 80;
-
-const hideWidget = wxHideWidget;   // the shared one: the widget and its socket out of the view
-function ensureStyle() {
-    if (document.getElementById("wx-lora-style")) return;
-    const st = document.createElement("style"); st.id = "wx-lora-style";
-    ensureWxStyle();
-    st.textContent = `
-      .wx-lp { padding: 4px 6px; overflow: hidden; }
-      .wx-lp h5 { margin: 6px 0 3px; font-size: 11px; font-weight: 600; color: #1464b3; text-transform: uppercase; letter-spacing: .04em; }
-      .wx-lp .row { min-height: 22px; }
-      .wx-lp h5 .wx-muted { text-transform: none; font-weight: 400; letter-spacing: 0; }
-      .wx-lp .wx-chip .n { color: #888; font-size: 10px; margin-left: 4px; }
-      .wx-lp .wx-chip.p { cursor: grab; }
-      .wx-lp .wx-chip.p .x { margin-left: 6px; color: #aaa; cursor: pointer; } .wx-lp .wx-chip.p .x:hover { color: #fff; }
-      .wx-lp .wx-chip.drag { opacity: .4; }
-      .wx-lp .tools { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
-      .wx-lp input { flex: 1; min-width: 60px; }
-      .wx-lp .lists { max-height: 190px; overflow-y: auto; }`;
-    document.head.appendChild(st);
-}
 
 app.registerExtension({
     name: "WextraUI.loraLoader",
@@ -40,12 +19,14 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function () {
             const r = onCreated?.apply(this, arguments);
             const node = this;
-            ensureStyle();
             const wLora = node.widgets.find((w) => w.name === "lora_name");
             const W = (nm) => node.widgets.find((w) => w.name === nm);
             // `folder` (above the name) + the filter box of the control after generate: shared with WCheckpoint (wxFolder.js)
             const wFolder = W("folder"), wSel = W("selection");
             wxFolderMenu(node, wFolder, wLora);
+            // `where` hidden since 0.11.0 (Sick, 26/10: the words always go before the prompt): the box stays in the schema, at its
+            // place, so a saved file keeps its value (one saved with suffix keeps suffix) and the slots after it stay in line
+            if (W("where")) wxHideWidget(W("where"), node);
             // `selection` (under `folder`, shared with WCheckpoint / WSampler: wxSelection.js): the ticked LoRAs, in their order, are the menu
             if (wSel && wLora) wxSelectionMenu(node, wSel, wLora, { after: wFolder, watch: [wFolder] });
             // Loading a file: put the values where they belong and settle what an older layout left in a wrong box.
@@ -128,160 +109,15 @@ app.registerExtension({
             const wRg3 = node.widgets.find((w) => w.name === "rgthree_info");
             const wPicked = node.widgets.find((w) => w.name === "picked");
             if (!wLora || !wPicked) return r;
-            hideWidget(wPicked, node);
-
-            let picked = [];
-            try { picked = JSON.parse(wPicked.value || "[]"); if (!Array.isArray(picked)) picked = []; } catch (e) { picked = []; }
-            let data = { rgthree_info: [], has_rg3: false, base: "", tags: [] }, filter = "", loading = false;
-            const NONE = { rgthree_info: [], has_rg3: false, base: "", tags: [] };
-            const official = () => (wRg3 && !wRg3.value ? [] : data.rgthree_info);
-
-            const root = document.createElement("div"); root.className = "wx wx-lp";
-            root.innerHTML = `<h5>Picked <span class="wx-muted">— drag to reorder, ✕ to remove</span></h5>
-              <div class="row wx-row wx-box picked"></div>
-              <div class="tools"><input placeholder="filter tags…"><button data-a="all">all official</button><button data-a="top">top 5</button><button data-a="clear">clear</button></div>
-              <div class="lists"><h5>Official trigger words</h5><div class="row wx-row civ"></div><h5>Training tags</h5><div class="row wx-row tags"></div></div>
-              <div class="base wx-muted"></div>`;
-            const $ = (s) => root.querySelector(s);
-            root.addEventListener("pointerdown", (e) => e.stopPropagation());
-            root.addEventListener("wheel", (e) => e.stopPropagation());
-            root.addEventListener("keydown", (e) => e.stopPropagation());
-
-            const save = () => {
-                wPicked.value = picked.length ? JSON.stringify(picked) : "";
-                node.setDirtyCanvas(true, true);
-            };
-            const chip = (text, cls, extra) => {
-                const c = document.createElement("span"); c.className = "wx-chip " + cls;
-                const t = document.createElement("span"); t.className = "t"; t.textContent = text; c.appendChild(t);
-                if (extra) c.appendChild(extra); return c;
-            };
-            const renderPicked = () => {
-                const box = $(".picked"); box.innerHTML = "";
-                if (!picked.length) { box.innerHTML = `<span class="wx-muted">nothing picked — click the chips below</span>`; return; }
-                picked.forEach((w, i) => {
-                    const x = document.createElement("span"); x.className = "x"; x.textContent = "✕";
-                    x.onclick = (e) => { e.stopPropagation(); picked.splice(i, 1); save(); render(); };
-                    const c = chip(w, "p on", x); c.draggable = true; c.dataset.i = i;
-                    c.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", String(i)); c.classList.add("drag"); });
-                    c.addEventListener("dragend", () => c.classList.remove("drag"));
-                    c.addEventListener("dragover", (e) => e.preventDefault());
-                    c.addEventListener("drop", (e) => {
-                        e.preventDefault(); const from = parseInt(e.dataTransfer.getData("text/plain")); const to = i;
-                        if (isNaN(from) || from === to) return;
-                        const [m] = picked.splice(from, 1); picked.splice(to, 0, m); save(); render();
-                    });
-                    box.appendChild(c);
-                });
-            };
-            const toggle = (w) => { const i = picked.indexOf(w); if (i >= 0) picked.splice(i, 1); else picked.push(w); save(); render(); };
-            const renderLists = () => {
-                const civ = $(".civ"), tags = $(".tags"); civ.innerHTML = ""; tags.innerHTML = "";
-                if (loading) { civ.innerHTML = `<span class="wx-muted">loading…</span>`; return; }
-                $(".base").textContent = data.base ? "base: " + data.base : "";   // what the header says, then what the rgthree file says
-                if (wRg3) wRg3.disabled = !data.has_rg3;
-                if (!official().length) civ.innerHTML = `<span class="wx-muted">${!data.has_rg3 ? "no rgthree info file next to this LoRA" : wRg3 && !wRg3.value ? "rgthree info is off" : "none declared in the rgthree info file"}</span>`;
-                official().forEach((w) => { const c = chip(w, picked.includes(w) ? "on" : ""); c.onclick = () => toggle(w); civ.appendChild(c); });
-                const f = filter.trim().toLowerCase();
-                const list = data.tags.filter(([t]) => !f || t.toLowerCase().includes(f)).slice(0, MAX_TAGS);
-                if (!list.length) tags.innerHTML = `<span class="wx-muted">${data.tags.length ? "no match" : "no training tags in this file"}</span>`;
-                list.forEach(([t, n]) => {
-                    const s = document.createElement("span"); s.className = "n"; s.textContent = n;
-                    const c = chip(t, picked.includes(t) ? "on" : "", s); c.title = `${n} occurrences`; c.onclick = () => toggle(t); tags.appendChild(c);
-                });
-                if (data.tags.length > list.length && !f) { const m = document.createElement("span"); m.className = "wx-muted"; m.textContent = `… ${data.tags.length - list.length} more, use the filter`; tags.appendChild(m); }
-            };
-            const render = () => { renderPicked(); renderLists(); fitHeight(); };
-            $("input").addEventListener("input", (e) => { filter = e.target.value; renderLists(); });
-            root.querySelectorAll("button").forEach((b) => b.onclick = () => {
-                const a = b.dataset.a;
-                if (a === "clear") picked = [];
-                else if (a === "all") official().forEach((w) => { if (!picked.includes(w)) picked.push(w); });
-                else if (a === "top") data.tags.slice(0, 5).forEach(([t]) => { if (!picked.includes(t)) picked.push(t); });
-                save(); render();
-            });
-
-            let seq = 0;
-            const load = async () => {
-                const my = ++seq; loading = true; renderLists();
-                try {
-                    const res = await api.fetchApi(`/wextraui/lora_tags?name=${encodeURIComponent(wLora.value)}`);
-                    const j = await res.json();
-                    if (my !== seq) return;
-                    data = { rgthree_info: j.rgthree_info || [], has_rg3: !!j.has_rg3, base: j.base || "", tags: j.tags || [] };
-                } catch (e) { data = NONE; }
-                loading = false; render();
-            };
-
-            node.addDOMWidget("wx_picker", "custom", root, { serialize: false, hideOnZoom: false,
-                getValue: () => wPicked.value, setValue: (v) => { wPicked.value = v; } });
-            // Height follows the content (no tags = short node; long lists cap at 190px and scroll).
-            const widget = node.widgets[node.widgets.length - 1];
-            widget.serialize = false;    // the picker mirrors `picked`: no slot of its own in widgets_values
-            wxCompactWidgets(node);
-            wxLoadingGuard(node);   // outermost: the menu of lora_name stays whole for as long as the file is read
-            wxCarryMenu(node, wLora, [wFolder, wSel, W("where")]);   // the odometer cable: at / size / move on the menu narrowed by `folder` and `selection`
-            // The height is measured from the DOM, so only when the DOM is there to be read: the box of the widget is sized by the
-            // canvas at every draw, and a page in the background (a tab not in front) is never drawn — its box is 0 wide, the text
-            // wraps and the measure is garbage; before, the measure was taken in a requestAnimationFrame, which a page in the
-            // background never runs, and the first one it runs may come before the box is sized: a workflow loaded that way came
-            // up with the node at a wrong height, the picker cut or floating, until something on it changed. Now a measure that
-            // cannot be taken is owed, and taken again at every redraw and on the timer (wxOnRedraw) until it can; and a box whose
-            // width changed (the node resized) is measured again, so the chips that wrap do not push the base line out of sight.
-            let H = 120, lastW = 0, unfit = true, fitting = false;
-            widget.computeSize = (width) => [width, H];
-            const readyW = () => (root.isConnected && root.offsetHeight ? root.offsetWidth : 0);   // the width of the box, 0 = not in view or not sized yet
-            const measure = () => {
-                fitting = false;
-                const w = readyW();
-                if (w < 100) { unfit = true; return; }
-                unfit = false; lastW = w;
-                // where the content ends, not scrollHeight: that one never goes below the height the box already has, so the node grew and never shrank back
-                const last = root.lastElementChild, content = last.offsetTop - root.offsetTop + last.offsetHeight + 4;
-                const h = Math.max(90, Math.min(520, content + 10));   // the lists scroll at 190px; the room above them is for the picked chips, so the base line stays in sight
-                if (Math.abs(h - H) < 4) return;
-                H = h; node.setSize([node.size[0], node.computeSize()[1]]); node.setDirtyCanvas(true, true);
-            };
-            const fitHeight = () => { unfit = true; if (!fitting) { fitting = true; setTimeout(measure, 0); } };   // after the draw of now, never inside it
-            node._wxFit = () => { H = -1; fitHeight(); };   // back from Nodes 2.0 (wxStyle.js): measure the content again, as on a load
-
-            // Title: "Lora Loader Trigger" until the node is collapsed for the first time; from then on = LoRA name
-            // (a collapsed node shows only its title, so the LoRA name is what you want to read there).
-            // node.title !== display name after a reload means the switch already happened: it stays on the LoRA.
-            node.__wxTitleOf = wLora;   // who reads the title (WSave Image): the title is automatic when it equals the clean name
-            const named = () => !!node.title && node.title !== nodeData.display_name;
-            const setTitle = () => { node.title = wxCleanName(wLora.value); node.setDirtyCanvas(true, true); };
-            const onLoraChange = () => { if (named()) setTitle(); picked = []; save(); load(); };
-            const cbLora = wLora.callback;
-            wLora.callback = function (...a) { const r = cbLora?.apply(this, a); onLoraChange(); return r; };
-            if (wRg3) { const cbRg3 = wRg3.callback; wRg3.callback = function (...a) { const r = cbRg3?.apply(this, a); render(); return r; }; }
-            render(); load();
-
-            // The combo's callback does not always fire in the new frontend: watch the value (and the collapse) on every
-            // redraw, and on a timer under Nodes 2.0 (wxOnRedraw).
-            let lastLora = wLora.value;
-            const watch = () => {
-                if (wLora.value !== lastLora) { lastLora = wLora.value; onLoraChange(); }
-                if (node.flags?.collapsed && !named()) setTitle();
-                const w = readyW();
-                if (unfit ? w >= 100 : w >= 100 && w !== lastW) fitHeight();   // a measure owed (a load in a background tab, the node off screen) as soon as the box is there; a box of a new width (the node resized) again
-            };
-            wxOnRedraw(node, watch);
-            const onCollapse = node.collapse;
-            node.collapse = function () { const r = onCollapse?.apply(this, arguments); watch(); return r; };
-
-            const onConf = node.onConfigure;
-            node.onConfigure = function (info) {
-                const r = onConf?.apply(this, arguments);
-                // `picked` is hidden: the restore by name cannot tell its type, and a file of 0.4.x leaves the old switch
-                // (true / false) in its slot. The name the frontend saved wins; without names, anything but a string goes.
-                const byName = info?.widgets_values_named;
-                if (byName && typeof byName === "object" && typeof byName.picked === "string") wPicked.value = byName.picked;
-                else if (typeof wPicked.value !== "string") wPicked.value = "";
-                try { picked = JSON.parse(wPicked.value || "[]"); if (!Array.isArray(picked)) picked = []; } catch (e) { picked = []; }
-                lastLora = wLora.value;
-                render(); load(); return r;
-            };
+            // the chip picker (wxLoraPicker.js, shared with WLoRA Stack); right after it is added, the compaction, the
+            // loading guard and the carry, in the order they always had
+            wxLoraPicker(node, wLora, wPicked, wRg3, { mounted: () => {
+                wxCompactWidgets(node);
+                wxLoadingGuard(node);   // outermost: the menu of lora_name stays whole for as long as the file is read
+                wxCarryMenu(node, wLora, [wFolder, wSel, W("where")]);   // the odometer cable: at / size / move on the menu narrowed by `folder` and `selection`
+                // Collapsed, the node reads `WLoRA · <LoRA name>` (wxTitleFollows: the name stays, the LoRA follows the menu).
+                wxTitleFollows(node, wLora, nodeData.display_name);
+            } });
             return r;
         };
     },

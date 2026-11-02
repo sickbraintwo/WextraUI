@@ -137,7 +137,7 @@ def _place(img, masks, cw, ch, x, y, color, feather, fill="colour"):
     sx1, sy1 = min(W, cw - x), min(H, ch - y)
     vis = img[:, sy0:sy1, sx0:sx1] if (sx1 > sx0 and sy1 > sy0) else img[:, 0:0, 0:0]
     vh, vw = vis.shape[1], vis.shape[2]
-    dx, dy = max(0, x), max(0, y)
+    dx, dy = min(cw, max(0, x)), min(ch, max(0, y))   # a picture shifted off the canvas: borders never negative
     out = torch.empty((B, ch, cw, C), dtype=img.dtype, device=img.device)
     out[:] = torch.tensor((color + [1.0, 1.0])[:C], dtype=img.dtype, device=img.device)
     out[:, dy:dy + vh, dx:dx + vw] = vis
@@ -253,15 +253,14 @@ class Frame:
                                    "tooltip": "The stack of actions, as the panel under the node writes it (JSON): crop, pad, resize, in order."}),
                 "method": (METHODS, {"default": "lanczos", "tooltip": "Resampling of the resize actions."}),
             },
-            "optional": {
-                "mask": ("MASK", {"tooltip": "Optional mask that follows the same crops, pads and resizes."}),
-            },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK")
-    RETURN_NAMES = ("image", "pad_mask")
-    OUTPUT_TOOLTIPS = ("The picture after the stack.", "1 where the stack added pixels, feathered inward: ready for outpaint. All zeros when nothing was added.")
+    RETURN_TYPES = ("IMAGE", "MASK", "INT", "INT")
+    RETURN_NAMES = ("image", "pad_mask", "width", "height")
+    OUTPUT_TOOLTIPS = ("The picture after the stack.", "1 where the stack added pixels, feathered inward: ready for outpaint. All zeros when nothing was added.",
+                       "Width of the picture after the stack: the incoming one when no action changes it.",
+                       "Height of the picture after the stack: the incoming one when no action changes it.")
     FUNCTION = "run"
     CATEGORY = "WextraUI"
     DESCRIPTION = ("A stack of actions on the picture, in the order you put them: crop (the box that stays), pad (the picture on a "
@@ -270,7 +269,7 @@ class Frame:
                    "is a coloured rectangle in the preview under the node: drag it, pull its corners. Pad mask for outpaint. What it "
                    "did goes in a WSave Image name with {#id} (from Wnodes on graph): c800x800_p112x0.")
 
-    def run(self, image, ops, method, mask=None, unique_id=None):
+    def run(self, image, ops, method, unique_id=None, **_old):   # **_old: the `mask` input of before, from an API prompt
         img, steps = image, []
         B, H, W, C = img.shape
         ui = {"wx_frame": [{"w": W, "h": H, "thumb": _thumb(image)}]}   # what the preview under the node draws from
@@ -285,15 +284,13 @@ class Frame:
                     continue
                 img = img[:, y:y + ch, x:x + cw]
                 pad_mask = pad_mask[:, y:y + ch, x:x + cw]
-                if mask is not None:
-                    mask = mask[:, y:y + ch, x:x + cw]
                 steps.append(f"c{cw}x{ch}")
             elif t == "pad":
                 x, y, fw, fh = pad_box(W, H, op)
                 if (fw, fh) == (W, H) and x == 0 and y == 0:
                     continue
-                img, (mask, pad_mask), pm, (l, tt, r, b), (cutx, cuty) = _place(
-                    img, [mask, pad_mask], fw, fh, x, y, _hex(op.get("color")), max(0, _num(op.get("feather"))),
+                img, (pad_mask,), pm, (l, tt, r, b), (cutx, cuty) = _place(
+                    img, [pad_mask], fw, fh, x, y, _hex(op.get("color")), max(0, _num(op.get("feather"))),
                     "edge" if op.get("fill") == "edge" else "colour")
                 pad_mask = torch.maximum(pad_mask, pm)
                 if l or tt or r or b: steps.append(pad_text(l, tt, r, b))
@@ -303,10 +300,9 @@ class Frame:
                 if (rw, rh) == (W, H):
                     continue
                 img = _resize(img, rw, rh, method)
-                mask = _resize_mask(mask, rw, rh)
                 pad_mask = _resize_mask(pad_mask, rw, rh)
                 steps.append(f"r{rw}x{rh}")
 
         if unique_id is not None:   # what was done, for a WSave Image part bound with {#id}: c800x800_p112x0 (c = crop, p = pad, r = resize, - = cut)
             LAST_INFO[str(unique_id)] = (ops, "_".join(steps))
-        return {"ui": ui, "result": (img, pad_mask)}
+        return {"ui": ui, "result": (img, pad_mask, int(img.shape[2]), int(img.shape[1]))}

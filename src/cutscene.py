@@ -10,7 +10,8 @@ raises two close ones (into the flash and out of it) and so cancels itself, a fa
 closer than a quarter of a second count as one. What it cannot see: a cross-dissolve or a morph, which never jump.
 
 The `cuts` box: empty = found here, and the frontend (web/wxSceneBoxes.js) writes what was found into it; filled = the
-times written there are used as they are (add a line for a cut that was missed, delete one that is too many).
+times written there are used as they are (add a line for a cut that was missed, delete one that is too many). The length
+of the video goes back too (`wx_total`), for the strip of scenes on the node (web/wxCutScene.js).
 
 The `beats` box (Sick, 19/10/2026): times where the shot goes on but the sound changes (a drop falls, a match is
 struck). They are never found by the node, only written there by hand, one per line, and they are added to the cuts
@@ -140,14 +141,14 @@ class WCutScene:
                                           "tooltip": "Higher finds softer cuts (and risks false ones); lower keeps only the clear ones. "
                                                      "Used only while the cuts box is empty."}),
                 "cuts": ("STRING", {"default": "", "multiline": True,
-                                    "placeholder": "Found at the Run, one time per line. Add or delete lines; empty the box to find them again.",
+                                    "placeholder": "e.g. 2.5 · one time per line",
                                     "tooltip": "Empty = the cuts are found by the node and written here after the Run. Filled = these "
                                                "times are used as they are: one per line (6 · 6.5 · 1:02.5 · 144f), # = a comment. "
                                                "Add a line for a cut that was missed, delete one that is too many; empty it to find them again."}),
             },
             "optional": {
                 "beats": ("STRING", {"default": "", "multiline": True,
-                                     "placeholder": "One time per line where the sound changes but the shot goes on. By hand only.",
+                                     "placeholder": "e.g. 3.2 · one time per line",
                                      "tooltip": "Beats: times where the shot goes on but the sound changes (a drop falls, a match is "
                                                 "struck), one per line. Never found by the node: written here by hand, and added to "
                                                 "the cuts above. Each one starts a scene of its own prompt, which fades in slowly "
@@ -180,5 +181,5 @@ class WCutScene:
         sheet(images, frames, fps, marked).save(os.path.join(folder_paths.get_temp_directory(), name), quality=88)
         # into the cuts box only the cuts found: the beats stay in their own box
         box = "\n".join(l for l in text.splitlines() if not l.startswith("+"))
-        ui = {"images": [{"filename": name, "subfolder": "", "type": "temp"}], "wx_cuts": [box if found else ""]}
+        ui = {"images": [{"filename": name, "subfolder": "", "type": "temp"}], "wx_cuts": [box if found else ""], "wx_total": [total, float(fps)]}
         return {"ui": ui, "result": (text, len(frames))}

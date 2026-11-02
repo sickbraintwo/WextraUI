@@ -140,6 +140,19 @@ def compose(folder, subject, parts, kw):
     return folder, name
 
 
+def run_fields(folder, subject, parts, kw):
+    """What every field held in this run, as text: the node shows it in the name where a cable brings a value the graph
+    cannot read before the run (a text built by another node)."""
+    out = {"folder": folder, "subject": subject}
+    for i in range(1, min(int(parts), MAX_PARTS) + 1):
+        for k in (f"text{i}", f"value{i}"):
+            v = kw.get(k)
+            if isinstance(v, (list, tuple)) and len(v) == 1:
+                v = v[0]
+            out[k] = "" if v is None else (v if isinstance(v, (str, int, float, bool)) else str(v))
+    return out
+
+
 def batch_tokens(text, size, index):
     """{batch} -> immagini nel giro; {index} -> numero di questa immagine (da 1), largo quanto {batch}."""
     if "{" not in text:
@@ -209,11 +222,13 @@ class SaveWimage:
     def save(self, images=None, preview="", folder="", subject="", digits=2, parts=1, write_batch=False, image_preview=False, prompt=None, extra_pnginfo=None, unique_id=None, **kw):
         scope = scope_of(unique_id)
         kw = {k: (resolve(v, prompt, scope) if k.startswith(("text", "value")) else v) for k, v in kw.items()}
-        folder, name = compose(resolve(folder, prompt, scope), resolve(subject, prompt, scope), parts, kw)
+        rfolder, rsubject = resolve(folder, prompt, scope), resolve(subject, prompt, scope)
+        fields = run_fields(rfolder, rsubject, parts, kw)
+        folder, name = compose(rfolder, rsubject, parts, kw)
         base = name or "Wimage"
         prefix = (folder + "/" if folder else "") + base
         if images is None:  # solo composizione del nome: niente cartella, niente file
-            return {"ui": {"images": [], "preview": [prefix]}, "result": (None, prefix, base)}
+            return {"ui": {"images": [], "preview": [prefix], "fields": [fields]}, "result": (None, prefix, base)}
         out_root = folder_paths.get_output_directory()
         size = len(images)
         if write_batch:
@@ -254,4 +269,4 @@ class SaveWimage:
             results.append({"filename": fname, "subfolder": ifolder, "type": "output"})
         # images sempre dichiarate (come il SaveImage standard: /history le riporta per gli automatismi);
         # le miniature nel nodo le accende/spegne il frontend (saveWimage.js) secondo image_preview.
-        return {"ui": {"images": results, "preview": [prefix]}, "result": (images, prefix, base_out)}
+        return {"ui": {"images": results, "preview": [prefix], "fields": [fields]}, "result": (images, prefix, base_out)}

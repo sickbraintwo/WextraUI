@@ -1,9 +1,12 @@
-// WextraUI — WReso: the size of a picture, read or defined, two sections with a ▸ / ▾ head, one open at a time (opening one
-// closes the other); a new node and a WReso saved by 0.8.0 open with Read. A closed section shows its name
-// only, the open one has a blue head. The outputs are the numbers of the section open, or of the last one opened (the
-// hidden `section` widget, read by the backend); the line at the foot of the node, always there, shows those numbers.
-// - Read: no box of its own, the node's three first sockets (`image`, `width`, `height`), one row each
-//   under its head, shown and hidden with it (as a box's socket): the size of the picture on the cable, else of the two INT cables. Before the run the numbers come from the graph: a
+// WextraUI — WReso: the size of a picture, read, defined or multiplied: three sections, one chosen at a time on a switch of
+// three in one row (`Read · Define · Multiply`, Sick 28/10, variant B of the restyle; ▸ / ▾ heads before), the chosen one
+// in blue and under it its boxes; a new node and a WReso saved by 0.8.0 open on Read. The outputs are the numbers of the
+// section chosen (the hidden `section` widget, read by the backend); the line at the foot of the node, always there, shows
+// those numbers. A click on the section already chosen folds the node to the switch and the line, the size alone (Sick
+// 02/11: «un singolo click invece di un doppio click per compattare e scompattare»; a double click from 28/10); again to
+// unfold. Kept in the node's properties (wx_fold); a WReso saved with every section closed opens folded.
+// - Read: the picture on `image` (a row with its socket), else `width` and `height`, typed or by cable (Sick 28/10; INT
+//   cables only before): the size of the picture on the cable, else of the two numbers. Before the run the numbers come from the graph: a
 //   picture shown up the cable (a Load Image, a node with a preview), the widget of the node at the far end of an INT
 //   cable (through Reroute and Set / Get; a combo that reads `1024 x 1024` is split in two), or another WReso.
 // - Define: width or height typed (`define_width` / `define_height`, shown as width / height; the box of the
@@ -18,12 +21,12 @@
 // out); a WReso saved on it opens with Read. Every number of the node takes a cable (Sick, 22/10).
 // A cable on a box counts as typed, read up the cable as the reading reads its own; what the graph cannot tell (a Video
 // Info, a sum) reads `?` with a word under it, and after the run what the backend used (`wx_reso`) fills it, while the
-// cables are the same ones: the node runs with nothing on its outputs, like a Preview. Which section is open is kept in
-// the node's properties (wxOpen). One DOM widget per head and one for the line, so the classic canvas and Nodes 2.0 show
-// the same node. (Sick, 09/10/2026 the reading; 16/10 the defining and the ratio, then WResoDefine; 19/10 one node;
+// cables are the same ones: the node runs with nothing on its outputs, like a Preview. A cable on `aspect_ratio` from a
+// WRatio brings the name it sends out (`9:16` for an upright picture: read upright, no `invert`). One DOM widget for the
+// switch and one for the line, so the classic canvas and Nodes 2.0 show the same node. (Sick, 09/10/2026 the reading; 16/10 the defining and the ratio, then WResoDefine; 19/10 one node;
 // 22/10 the ratio to WRatio.) The line at the foot (resoLine, resoPaint) and upstreamInt serve WRatio too.
 import { app } from "../../scripts/app.js";
-import { WX, ensureWxStyle, wxOnRedraw, wxHideWidget, wxSlotHidden, wxCompactWidgets } from "./wxStyle.js";
+import { WX, ensureWxStyle, wxOnRedraw, wxHideWidget, wxSlotHidden, wxCompactWidgets, wxCollapsedValue } from "./wxStyle.js";
 import { upstreamPicture } from "./wxFrame.js";
 
 export const BAND = 48;
@@ -31,7 +34,11 @@ const FONT = 22, HEAD = 20, MAX_HOPS = 8;
 // a DOM widget sits 10 px under the top of its slot (measured 16/10 on the classic canvas, as wxSelection.js): the head is
 // lifted by 6 in a slot of 24, so it keeps 4 px from the box above and from the one under it
 const HEAD_SLOT = 24, HEAD_LIFT = 6;
-const SECTIONS = { reading: "Read", defining: "Define", multiply: "Multiply" };   // the heads (Sick 22/10: «Read e Define nelle tendine»)
+const SW_SLOT = 28, SW_LIFT = 7;   // the switch of the sections: 22 px in a slot of 28
+// the values a WReso saved before 28/10 keeps, in their order (Read had no boxes)
+const OLD_VALUES = ["section", "define_width", "define_height", "aspect_ratio", "custom_width", "custom_height", "multiple", "invert",
+    "multiply_width", "multiply_height", "multiply_by"];
+const SECTIONS = { reading: "Read", defining: "Define", multiply: "Multiply" };   // the switch (Sick 22/10: «Read e Define nelle tendine»; one row 28/10)
 export const MULTIPLES = [1, 2, 4, 8, 16, 32, 64];
 /** The one of MULTIPLES nearest to m, on a doubling scale (12 -> 16, 6 -> 8, 100 -> 64), as src/wreso.py multiple_of. */
 export function multipleOf(m) {
@@ -44,7 +51,7 @@ export function multipleOf(m) {
 export const AT_RUN = "the cable's number comes with the Run";
 
 /** The node at the far end of input `name`, through Reroute and Set / Get (KJNodes): { node, slot } or null. */
-function originOf(node, name) {
+export function originOf(node, name) {
     const g = node.graph; if (!g) return null;
     const linkOf = (id) => (id == null ? null : g.links instanceof Map ? g.links.get(id) : g.getLink ? g.getLink(id) : g.links?.[id]);
     const nodes = () => g._nodes || g.nodes || [];
@@ -90,6 +97,18 @@ export function upstreamInt(node, name, raw = false) {   // raw: a FLOAT box, th
     }
     return undefined;
 }
+/** The value behind input `name` as the graph tells it now, of any kind (a boolean for WRoute): the box of the source
+ *  node the output stands for, through Reroute and Set / Get. Undefined when the graph cannot tell (the value is made
+ *  in the run). */
+export function upstreamValue(node, name) {
+    const o = originOf(node, name); if (!o) return undefined;
+    const out = (o.node.outputs || [])[o.slot], ws = o.node.widgets || [];
+    const said = o.node.__wxValueOut?.(out?.name);   // a node of ours that works its output out (WRatio's aspect_ratio)
+    if (said !== undefined) return said;
+    const w = ws.find((x) => out?.widget?.name && x.name === out.widget.name) || ws.find((x) => out?.name && x.name === out.name)
+        || ws.find((x) => x.name === name) || (ws.length === 1 ? ws[0] : undefined);
+    return w?.value;
+}
 /** Python's round(): half to even, so the sum above gives the backend's numbers to the pixel. */
 export function pyRound(x) {
     const f = Math.floor(x), d = x - f;
@@ -128,7 +147,7 @@ export function resoLine(node, name, h) {
     const left = document.createElement("div");
     left.style.cssText = "flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden";
     const big = document.createElement("div"); big.style.cssText = `font:bold ${FONT}px sans-serif;letter-spacing:.02em`;
-    const small = document.createElement("div"); small.style.cssText = "font:11px sans-serif;color:#999";
+    const small = document.createElement("div"); small.style.cssText = "font:11px sans-serif;color:rgba(221,221,221,.62);font-variant-numeric:tabular-nums";
     left.append(big, small);
     const right = document.createElement("div");
     right.style.cssText = "flex:none;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:0 6px 0 8px;" +
@@ -161,7 +180,7 @@ app.registerExtension({
             const r = onCreated?.apply(this, arguments);
             const node = this;
             ensureWxStyle();
-            wxCompactWidgets(node);   // the heads and the line take no slot in widgets_values
+            wxCompactWidgets(node);   // the switch, the row of the picture and the line take no slot in widgets_values
             const W = (n) => node.widgets?.find((w) => w.name === n);
             const wSec = W("section"), wW = W("define_width"), wH = W("define_height"), wR = W("aspect_ratio"), wCW = W("custom_width"),
                   wCH = W("custom_height"), wM = W("multiple"), wInv = W("invert"),
@@ -175,23 +194,31 @@ app.registerExtension({
             node.properties = node.properties || {};
 
             const stop = resoStop, dom = (name, el, h) => resoDom(node, name, el, h);
-            // the head of a section: ▸ / ▾ and its name; blue when open
-            const head = (key) => {
+            const wRW = W("width"), wRH = W("height");   // Read's two boxes (typed or by cable, 28/10)
+            // the switch of the three sections (variant B): the chosen one in blue; a click on it folds the node
+            const sw = (() => {
                 const el = document.createElement("div");
-                el.className = "wx wx-sec";
-                el.style.cssText = `display:flex;align-items:center;gap:6px;width:100%;height:${HEAD}px;padding:0 8px;font:600 12px sans-serif;` +
-                    `position:relative;top:-${HEAD_LIFT}px;cursor:pointer;user-select:none;border-radius:4px;background:#2b2b2b;border:1px solid #444`;
-                el.title = "Open / close. One section open at a time; the outputs (and the line at the foot) are the numbers of the section open, or of the last one opened.";
+                el.className = "wx wx-sections";
+                el.setAttribute("role", "radiogroup");
+                el.title = "The section that gives the outputs. Click the chosen one: the node folds to the size alone; again to unfold.";
                 stop(el);
-                el.addEventListener("click", (e) => { e.stopPropagation(); toggle(key); });
-                return { el, w: dom("wx_head_" + key, el, HEAD_SLOT) };
-            };
-            // a row of Read: one of the three sockets, inside the section (Sick 19/10), looking like an ordinary
-            // input: the frontend draws the dot (input.widget = the row puts it at the row's height and hides it with the row;
+                el.addEventListener("dblclick", (e) => { e.stopPropagation(); e.preventDefault(); });
+                const btns = {};
+                for (const key of Object.keys(SECTIONS)) {
+                    const b = document.createElement("button");
+                    b.textContent = SECTIONS[key];
+                    b.setAttribute("role", "radio");
+                    b.style.cssText = "flex:1;min-width:0;border:0;padding:0;margin:0;background:none;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+                    b.addEventListener("click", (e) => { e.stopPropagation(); if (key === active()) fold(); else pick(key); });
+                    el.appendChild(b); btns[key] = b;
+                }
+                return { el, btns, w: dom("wx_sections", el, SW_SLOT) };
+            })();
+            // the row of Read's picture: its socket, inside the section (Sick 19/10), looking like an ordinary input: the
+            // frontend draws the dot (input.widget = the row puts it at the row's height and hides it with the row;
             // alwaysVisible keeps it drawn, as a plain socket, not only under the mouse), the row writes the name where the
-            // frontend writes a plain socket's (it writes none for a socket tied to a widget), and lets the mouse through to the
-            // dot. The name stays when a cable is plugged (computedDisabled always false: a box hides when its socket is fed).
-            const READ_IN = ["image", "width", "height"];
+            // frontend writes a plain socket's (it writes none for a socket tied to a widget), and lets the mouse through to
+            // the dot. The name stays when a cable is plugged (computedDisabled always false: a box hides when its socket is fed).
             const row = (name) => {
                 const el = document.createElement("div");
                 el.className = "wx wx-in";
@@ -202,21 +229,19 @@ app.registerExtension({
                 for (const k of ["computedDisabled", "connectionSuppressed"]) Object.defineProperty(w, k, { get: () => false, set: () => {}, configurable: true });
                 return { el, w };
             };
-            const hRead = head("reading"), rows = READ_IN.map(row), hDef = head("defining"), hMul = head("multiply"), lOut = resoLine(node, "wx_reso", BAND);
-            const heads = [["reading", hRead], ["defining", hDef], ["multiply", hMul]];
-            // a load rebuilds the inputs from the file (a WReso of 0.8.0 has three plain sockets): tie them again every time
+            const rImg = row("image"), lOut = resoLine(node, "wx_reso", BAND);
+            // a load rebuilds the inputs from the file: tie them again every time. `image` to its row; `width` and `height`
+            // to their own boxes (a WReso saved before 28/10 tied them to rows, as `image`)
             const tieSockets = () => {
-                for (const n of READ_IN) {
-                    const s = (node.inputs || []).find((i) => i.name === n);
-                    if (!s) continue;
-                    if (s.widget?.name !== "wx_in_" + n) s.widget = { name: "wx_in_" + n };
-                    s.alwaysVisible = true;
+                for (const s of node.inputs || []) {
+                    if (s.name === "image") { if (s.widget?.name !== "wx_in_image") s.widget = { name: "wx_in_image" }; s.alwaysVisible = true; }
+                    else if ((s.name === "width" || s.name === "height") && s.widget?.name !== s.name) { s.widget = { name: s.name }; delete s.alwaysVisible; }
                 }
             };
             tieSockets();
 
-            // the order on the node: each head and its rows or boxes, the line at the foot; the hidden `section` stays first
-            const order = [wSec, hRead.w, ...rows.map((x) => x.w), hDef.w, wW, wH, wR, wCW, wCH, wM, wInv, hMul.w, wXW, wXH, wXF, lOut.w].filter(Boolean);
+            // the order on the node: the switch, the boxes of each section, the line at the foot; the hidden `section` stays first
+            const order = [wSec, sw.w, rImg.w, wRW, wRH, wW, wH, wR, wCW, wCH, wM, wInv, wXW, wXH, wXF, lOut.w].filter(Boolean);
             const rest = node.widgets.filter((w) => !order.includes(w));
             node.widgets.splice(0, node.widgets.length, ...order, ...rest);
 
@@ -225,21 +250,23 @@ app.registerExtension({
             const side = (n, w) => (linked(n) ? upstreamInt(node, n) : Math.max(0, Math.round(Number(w?.value) || 0)));
             const active = () => (wSec?.value === "defining" || wSec?.value === "multiply" ? wSec.value : "reading");
             const runOf = (sec) => (node._wxRun && node._wxRun.sig === sig() && node._wxRun.sec === sec ? node._wxRun : null);
-            // Read: the graph first (the picture, else the cables), the last run for what the graph cannot tell
+            // Read: the graph first (the picture, else the two boxes or their cables), the last run for what the graph cannot tell
             const readNow = () => {
                 const run = runOf("reading");
                 let w, h;
                 if (linked("image")) { const p = upstreamPicture(node); if (p) { w = p.w; h = p.h; } }
-                else { w = upstreamInt(node, "width"); h = upstreamInt(node, "height"); }
+                else { w = side("width", wRW); h = side("height", wRH); }
                 return { w: w ?? run?.w, h: h ?? run?.h };
             };
+            // the ratio: the menu, or what its cable brings (a WRatio's aspect_ratio: `9:16` for an upright picture)
+            const aspect = () => (linked("aspect_ratio") ? upstreamValue(node, "aspect_ratio") : wR?.value);
             // Define now, with the backend's rule: the width wins when both are set, 0 × 0 when neither is; a
             // number the graph cannot tell (a cable on a side, on the multiple, on a custom ratio) waits for the run's
             const defNow = () => {
                 const run = runOf("defining");
-                const cw = side("custom_width", wCW), ch = side("custom_height", wCH), [rw, rh] = ratioOf(wR?.value, cw, ch);
+                const cw = side("custom_width", wCW), ch = side("custom_height", wCH), ar = aspect(), [rw, rh] = ratioOf(ar, cw, ch);
                 const w = side("define_width", wW), h = side("define_height", wH), inv = !!wInv?.value, mc = side("multiple", wM), m = mc === undefined ? undefined : multipleOf(mc);
-                const blind = m === undefined || (wR?.value === "custom" && (cw === undefined || ch === undefined));
+                const blind = m === undefined || ar === undefined || (ar === "custom" && (cw === undefined || ch === undefined));
                 let o;
                 if (w === undefined || (w === 0 && h === undefined) || (blind && (w > 0 || h > 0))) o = { w: run?.w, h: run?.h, wSet: w !== 0, hSet: h !== 0, turned: true };
                 else if (w > 0) o = { w, h: snap(w * rh / rw, m), wSet: true, hSet: false };
@@ -267,61 +294,71 @@ app.registerExtension({
             // a hidden box keeps the y it had when shown), and the canvas finds a socket under the mouse by its place, hidden
             // or not: the hidden `height` of Read sat on the dot of Multiply's width, a click there took the empty socket and
             // the cable could not be unhooked (Sick 22/10). So a hidden box is moved: with no cable far off the node (PARK),
-            // with a cable onto the head of its closed section, where no socket is shown (its cable is still drawn). Done
-            // at every layout and every redraw (the heads move when the node does); a shown box gets its y back from the
-            // frontend.
+            // with a cable onto the switch, where no socket is shown (its cable is still drawn). Done at every layout and
+            // every redraw (the switch moves when the node does); a shown box gets its y back from the frontend.
             const PARK = -10000;
-            const park = (w, on, headW) => {
+            const park = (w, on) => {
                 if (!w || on) return;
                 const s = (node.inputs || []).find((i) => i.widget?.name === w.name);
-                const hy = headW?.y ?? headW?.last_y;
+                const hy = sw.w?.y ?? sw.w?.last_y;
                 w.y = s?.link != null && hy != null ? hy : PARK;
             };
-            let groups = [];   // [widget, shown, head] of the last layout
-            const parkAll = () => { for (const [w, on, h] of groups) park(w, on, h); };
-            const show = (w, on, headW) => {
+            let groups = [];   // [widget, shown] of the last layout
+            const parkAll = () => { for (const [w, on] of groups) park(w, on); };
+            const show = (w, on) => {
                 if (!w) return;
                 w.hidden = !on; w.options = w.options || {}; w.options.hidden = !on;
                 if (w.element) w.element.style.display = on ? "" : "none";
                 wxSlotHidden(node, w, !on);
-                groups.push([w, on, headW]);
-                park(w, on, headW);
+                groups.push([w, on]);
+                park(w, on);
             };
-            // a WReso without wxOpen (a new node, one saved by 0.8.0) has Read open; "" = all closed; one
-            // saved on Ratio Finding (before 22/10, now WRatio) opens with Read too
-            const opened = () => { const o = node.properties.wxOpen; return o === undefined || o === "ratio" ? "reading" : o; };
+            const folded = () => !!node.properties.wx_fold;
+            let laidCustom = null;   // `custom` at the last layout: a cable on aspect_ratio can change it between two layouts
             const layout = () => {
-                const open = opened();
-                const custom = wR?.value === "custom";
+                const sec = active(), open = folded() ? "" : sec;
+                const custom = aspect() === "custom";
+                laidCustom = custom;
                 tieSockets();
                 groups = [];
-                for (const x of rows) show(x.w, open === "reading", hRead.w);
-                for (const w of [wW, wH, wR, wM, wInv]) show(w, open === "defining", hDef.w);
-                for (const w of [wCW, wCH]) show(w, open === "defining" && custom, hDef.w);
-                for (const w of [wXW, wXH, wXF]) show(w, open === "multiply", hMul.w);
-                groups.push([wSec, false, null]); park(wSec, false, null);   // the hidden `section` never shows: its socket stays off the node
-                for (const [key, h] of heads) {
-                    const on = open === key;
-                    h.el.textContent = (on ? "▾ " : "▸ ") + SECTIONS[key];
-                    h.el.style.color = on ? WX.light : "#999";
-                    h.el.style.background = on ? WX.deep : "#2b2b2b";
-                    h.el.style.borderColor = on ? WX.accent : "#444";
+                for (const w of [rImg.w, wRW, wRH]) show(w, open === "reading");
+                for (const w of [wW, wH, wR, wM, wInv]) show(w, open === "defining");
+                for (const w of [wCW, wCH]) show(w, open === "defining" && custom);
+                for (const w of [wXW, wXH, wXF]) show(w, open === "multiply");
+                groups.push([wSec, false]); park(wSec, false);   // the hidden `section` never shows: its socket stays off the node
+                // the switch: the chosen one blue; on the classic canvas lifted as the heads were (a DOM widget sits 10 px
+                // under its slot), in Nodes 2.0 the shape of Vue's boxes
+                const vue = !!LiteGraph.vueNodesMode;
+                sw.el.style.cssText = `display:flex;box-sizing:border-box;width:100%;position:relative;user-select:none;` + (vue
+                    ? "height:28px;padding:3px;gap:3px;border-radius:6px;background:rgba(255,255,255,.06);top:0"
+                    : `height:22px;padding:2px;gap:2px;border-radius:11px;background:rgba(0,0,0,.26);box-shadow:inset 0 0 0 1px rgba(221,221,221,.18);top:-${SW_LIFT}px`);
+                for (const [key, b] of Object.entries(sw.btns)) {
+                    const on = key === sec;
+                    b.setAttribute("aria-checked", String(on));
+                    b.style.borderRadius = vue ? "5px" : "9px";
+                    b.style.font = `600 ${vue ? 12 : 11.5}px sans-serif`;
+                    b.style.background = on ? WX.deep : "none";
+                    b.style.color = on ? "#eaf3fd" : "rgba(221,221,221,.62)";
                 }
+                // the row of the picture: the old canvas lifts a DOM widget, Nodes 2.0 lays it under the switch, in line with the boxes
+                rImg.el.style.top = vue ? "0" : "-10px";
+                rImg.el.style.paddingLeft = vue ? "0" : "10px";
                 const sz = node.computeSize();
                 node.setSize([Math.max(node.size[0], sz[0]), sz[1]]);
                 last = ""; refresh();
                 node.setDirtyCanvas(true, true);
             };
-            const toggle = (key) => {
-                const open = opened() === key ? "" : key;   // opening one closes the other
-                node.properties.wxOpen = open;
-                if (open && wSec) wSec.value = open;        // the section opened gives the outputs from now on
+            const pick = (key) => {   // the section chosen gives the outputs from now on
+                if (wSec) wSec.value = key;
+                node.properties.wxOpen = key;
                 layout();
             };
+            const fold = () => { node.properties.wx_fold = !folded(); layout(); };
 
-            let last = "";
+            let last = "", bigNow = "";   // bigNow: the line as last painted, for the collapsed title
             const refresh = () => {
                 parkAll();
+                if (laidCustom !== null && (aspect() === "custom") !== laidCustom) { layout(); return; }   // a cable on aspect_ratio turned custom on or off
                 const sec = active();
                 const v = nowOf(sec);
                 // the box of the side worked out greys out while the other one is set; a box with a cable is the frontend's
@@ -332,8 +369,9 @@ app.registerExtension({
                 const unknown = v.w == null || v.h == null;
                 const ok = !unknown && (v.w > 0 || v.h > 0);
                 const big = ok ? v.w + " × " + v.h : (v.w ?? "?") + " × " + (v.h ?? "?");
+                bigNow = big;
                 // the reading with no cable at all reads `? × ?` and nothing else: there is nothing to wait for
-                const wired = sec !== "reading" || ["image", "width", "height"].some(linked);
+                const wired = sec !== "reading" || linked("image");
                 let small = unknown && wired ? AT_RUN : "";
                 // Multiply: small under the result, what was multiplied
                 if (sec === "multiply" && !unknown && v.src) small = `${v.src[0]} × ${v.src[1]} × ${Number(v.src[2].toFixed(1))}`;
@@ -360,7 +398,7 @@ app.registerExtension({
                     return cb?.apply(this, [m, ...rest]);
                 };
             }
-            for (const w of [wW, wH, wCW, wCH, wM, wInv, wXW, wXH, wXF]) {
+            for (const w of [wRW, wRH, wW, wH, wCW, wCH, wM, wInv, wXW, wXH, wXF]) {
                 if (!w) continue;
                 const cb = w.callback;
                 w.callback = function () { const rr = cb?.apply(this, arguments); refresh(); return rr; };
@@ -374,8 +412,17 @@ app.registerExtension({
                 return rr;
             };
             const onConf = node.onConfigure;
-            node.onConfigure = function () {
+            node.onConfigure = function (info) {
                 const rr = onConf?.apply(this, arguments);
+                // saved before 28/10, with no boxes on Read: eleven values, from `section` on; Read's boxes start at 0
+                const wv = info?.widgets_values;
+                if (Array.isArray(wv) && wv.length === OLD_VALUES.length) {
+                    OLD_VALUES.forEach((n, i) => { const w = W(n); if (w && wv[i] !== null && wv[i] !== undefined) w.value = wv[i]; });
+                    if (wRW) wRW.value = 0;
+                    if (wRH) wRH.value = 0;
+                }
+                // saved with every section closed (before 28/10): the switch has always one chosen, the node opens folded
+                if (node.properties.wxOpen === "" && node.properties.wx_fold === undefined) node.properties.wx_fold = true;
                 // saved before 22/10: on Ratio Finding (now WRatio) -> Read; `multiple` was a menu ("8")
                 if (wSec && !(wSec.value in SECTIONS)) wSec.value = "reading";
                 if (wM) { wM.value = multipleOf(wM.value); mPrev = wM.value; }   // a saved "8", or a number off the seven
@@ -383,6 +430,7 @@ app.registerExtension({
                 return rr;
             };
             wxOnRedraw(node, refresh, 400);
+            wxCollapsedValue(node, () => bigNow, nodeData.display_name);   // collapsed: `WReso · 1920 × 1080`
             layout();
             return r;
         };

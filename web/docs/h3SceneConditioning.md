@@ -18,3 +18,8 @@ The **whole conditioning for `scenes[scene_index]` in one node**: text, canvas, 
 ## Notes
 - The hand-off re-renders the tail: those frames are repeated at the start of the new clip. Trim them when you concatenate.
 - Higher `megapixels` on a 24 GB card: 0.6 MP is the working point for 10–12 s clips with the int8 model; the text encoder alone needs ~25 GB of **system RAM**.
+
+## The row of the loop
+At the bottom of the node, `start`, `scene` and `end` on a thread; the arc is the way back, one dash per scene. The blue step is this node. During a Run the three nodes of the loop show the same moment: the step at work lights up, the thread towards `end` lights up while the body generates, the dash of the round fills with the sampler's steps and `3/9` counts the rounds. The result stays until the next Run; a Run where nothing changed runs nothing, and the row stays as it is. Interrupt leaves it where it stopped, in orange; an error shows in red. The node never changes size, so no cable moves. The three nodes know each other by the `scenes` cable, also through Set/Get; two H3 loops on the same list share the row.
+
+The `v1` `v2` `v3` chips on `previous_frame`, `previous_clip` and `previous_audio` mark a value of the For Loop: the same number on the three nodes and on the For Loop's `value1/2/3`.

@@ -4,10 +4,13 @@ Turns a storyboard into a **MiniMax H3 prompt with a time-code per beat**, so so
 
 ## Inputs
 - **intro**: the part every beat shares. World, subject, camera, style. Goes first, untouched.
-- **beats** (table / `beats_json`): one row per beat: `name`, `base_duration` (seconds on a 10 s reference), `locked`, `text`. Write each text as `SOUND: … IMAGE: …`. H3 generates audio and video in the same pass, so the sound is described *with* the image, not after it.
+- **beats** (table / `beats_json`): one row per beat: `name`, `base_duration` (seconds on a 10 s reference), the lock, `text`; `✕` takes a beat out, `+ beat` adds one, the arrow in the corner of the head folds every text to one line. Write each text as `SOUND: … IMAGE: …`. H3 generates audio and video in the same pass, so the sound is described *with* the image, not after it.
 - **total_duration**: seconds. Trained range ~5–15 s; 20 s verified on a 3090; longer untested.
 - **sound**: global sound design, appended as `Sound: …`.
 - **avoid**: appended as `Avoid: …`. It is *not* a negative prompt: naming a thing can evoke it. Keep it short.
+
+## The bar of the clip
+Over the table, a segment per beat as long as its real seconds, the seconds at each join under it: the lock on the locked beats, the flex beat in blue, hatched at the end the frames H3 adds rounding up. Drag an edge to change a length, by 0.1 s: it sets the beat before the flex beat, or the locked beat after it, and the flex beat absorbs the difference. A beat that scales takes the new length as its `base_duration`, so it can read `4.35`.
 
 ## How the timing works
 - **Locked** beats keep their seconds whatever the total.
