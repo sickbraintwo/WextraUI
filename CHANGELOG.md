@@ -1,7 +1,8 @@
 # Changelog
 
-## Next
-- The three workflows of the Open Source Higgsfield demo, under `workflows/challenge/` (README § The three workflows of the demo). No code changes.
+## 1.0.1 — 2026-11-03
+- **The carry is red.** The `carry` cable and its sockets take one colour, on the classic canvas and in Nodes 2.0, so the chain reads as one thread from the first node to the last. A theme change keeps it; a custom palette that names `WX_CARRY` wins over it. Needs a reload of the page.
+- **The demo, in two minutes**, at the top of the README, and the three workflows it shows under `workflows/challenge/` (§ The three workflows of the demo): the carry on reference images, the H3 scene loop that made RESONANCE, the sound and the cut.
 
 ## 1.0.0 — 2026-11-02
 - **WextraUI 1.0.** Every node of the pack has been gone through, one by one, for both renderers: the classic canvas and Nodes 2.0. Most of them have a new look, a collapsed node reads its name and its value, the menus of a control open on `fixed`. Nothing breaks: the workflows you saved open as they were, and no node changes its type.

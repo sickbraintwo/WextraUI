@@ -38,6 +38,31 @@ app.registerExtension({
         };
     },
 });
+
+// The cable of the carry is red (Sick, 03/11/2026, after the demo video), the sockets with it, on both renderers: a cable
+// takes the colour of its type, `WX_CARRY`. Each time a theme loads, the palette blanks every type it does not name
+// (classic canvas: `link_type_colors` and the slot colours of the canvas; Nodes 2.0: the CSS variable of the type), so
+// the colour lives in a property the blanking cannot empty, and in a style rule the palette only overrides when a custom
+// palette names `WX_CARRY` itself: then the user's colour wins.
+const CARRY_RED = "#f0302a";
+function keepColor(obj, key) {
+    if (!obj || Object.getOwnPropertyDescriptor(obj, key)?.get) return;
+    let cur = CARRY_RED;
+    Object.defineProperty(obj, key, { configurable: true, enumerable: true, get: () => cur, set: (v) => { if (v) cur = v; } });
+}
+app.registerExtension({
+    name: "WextraUI.carryColor",
+    setup() {
+        keepColor((globalThis.LiteGraph?.LGraphCanvas || globalThis.LGraphCanvas)?.link_type_colors, "WX_CARRY");
+        keepColor(app.canvas?.default_connection_color_byType, "WX_CARRY");
+        if (!document.getElementById("wx-carry-color")) {
+            const st = document.createElement("style");
+            st.id = "wx-carry-color";
+            st.textContent = `:root{--color-datatype-WX_CARRY:${CARRY_RED}}`;
+            document.head.appendChild(st);
+        }
+    },
+});
 const CHIP = { h: 16, pad: 6, gap: 4 };
 const ruler = document.createElement("canvas").getContext("2d");
 const isCtl = (w) => Array.isArray(w?.options?.values) && w.options.values.includes("randomize");

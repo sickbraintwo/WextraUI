@@ -4,6 +4,8 @@
 </picture></h1>
 <p align="center">Extra nodes for ComfyUI, from the Winteraction workbench.</p>
 
+<p align="center"><a href="https://youtu.be/ZSeAw8H0Zg8"><img src="images/WextraUI_demo.png" width="640" alt="WextraUI in two minutes: the demo on YouTube"></a><br><sub>The pack in two minutes: <a href="https://youtu.be/ZSeAw8H0Zg8">watch the demo</a>, the three workflows it shows are in <a href="workflows/challenge/">workflows/challenge/</a>.</sub></p>
+
 <p align="center"><img src="images/Carry.png" width="860" alt="The carry chain: checkpoint, sampler, scheduler and seed walking together, and the file name that says what made each image"></p>
 
 **Time works for you.**
