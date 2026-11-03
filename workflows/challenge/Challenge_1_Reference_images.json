@@ -1,0 +1,2786 @@
+{
+  "id": "b5b91736-3ba7-4e51-ae99-2b493ebbbe06",
+  "revision": 0,
+  "last_node_id": 17,
+  "last_link_id": 26,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "wxCheckpointLoader",
+      "pos": [
+        100,
+        -380
+      ],
+      "size": [
+        370,
+        210
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "carry",
+          "localized_name": "carry",
+          "name": "carry",
+          "shape": 7,
+          "type": "WX_CARRY",
+          "link": null
+        },
+        {
+          "localized_name": "folder",
+          "name": "folder",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "folder"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ckpt_name",
+          "name": "ckpt_name",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "ckpt_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "selection",
+          "name": "selection",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "selection"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        },
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        },
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            23
+          ]
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "carry",
+          "name": "carry",
+          "type": "WX_CARRY",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxCheckpointLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "folder": true,
+            "ckpt_name": true,
+            "selection": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "(all)",
+        "Krea2\\krea2_realism_v2.safetensors",
+        "fixed",
+        "[\"Krea2/krea2_realism_v2.safetensors\",\"Krea2/krea2_portrait_v1.safetensors\"]"
+      ],
+      "widgets_values_named": {
+        "folder": "(all)",
+        "ckpt_name": "Krea2\\krea2_realism_v2.safetensors",
+        "control_after_generate": "fixed",
+        "selection": "[\"Krea2/krea2_realism_v2.safetensors\",\"Krea2/krea2_portrait_v1.safetensors\"]"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 2,
+      "type": "wxPromptRows",
+      "pos": [
+        70,
+        -110
+      ],
+      "size": [
+        400,
+        194
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "prompt_to_divide",
+          "name": "prompt_to_divide",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "join",
+          "name": "join",
+          "type": "COMBO",
+          "widget": {
+            "name": "join"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text1",
+          "name": "text1",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text1"
+          },
+          "link": null
+        },
+        {
+          "name": "text2",
+          "type": "STRING",
+          "widget": {
+            "name": "text2"
+          },
+          "link": null
+        },
+        {
+          "name": "text3",
+          "type": "STRING",
+          "widget": {
+            "name": "text3"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxPromptRows",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "join": true,
+            "text1": true,
+            "text2": true,
+            "text3": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "comma",
+        3,
+        true,
+        "a character sheet of a red fox in a travel coat",
+        true,
+        "front view and side view on a plain paper background",
+        true,
+        "soft morning light, 35 mm",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        "",
+        true,
+        ""
+      ],
+      "widgets_values_named": {
+        "join": "comma",
+        "rows": 3,
+        "on1": true,
+        "text1": "a character sheet of a red fox in a travel coat",
+        "on2": true,
+        "text2": "front view and side view on a plain paper background",
+        "on3": true,
+        "text3": "soft morning light, 35 mm",
+        "on4": true,
+        "text4": "",
+        "on5": true,
+        "text5": "",
+        "on6": true,
+        "text6": "",
+        "on7": true,
+        "text7": "",
+        "on8": true,
+        "text8": "",
+        "on9": true,
+        "text9": "",
+        "on10": true,
+        "text10": "",
+        "on11": true,
+        "text11": "",
+        "on12": true,
+        "text12": "",
+        "on13": true,
+        "text13": "",
+        "on14": true,
+        "text14": "",
+        "on15": true,
+        "text15": "",
+        "on16": true,
+        "text16": "",
+        "on17": true,
+        "text17": "",
+        "on18": true,
+        "text18": "",
+        "on19": true,
+        "text19": "",
+        "on20": true,
+        "text20": "",
+        "on21": true,
+        "text21": "",
+        "on22": true,
+        "text22": "",
+        "on23": true,
+        "text23": "",
+        "on24": true,
+        "text24": "",
+        "on25": true,
+        "text25": "",
+        "on26": true,
+        "text26": "",
+        "on27": true,
+        "text27": "",
+        "on28": true,
+        "text28": "",
+        "on29": true,
+        "text29": "",
+        "on30": true,
+        "text30": "",
+        "on31": true,
+        "text31": "",
+        "on32": true,
+        "text32": "",
+        "on33": true,
+        "text33": "",
+        "on34": true,
+        "text34": "",
+        "on35": true,
+        "text35": "",
+        "on36": true,
+        "text36": "",
+        "on37": true,
+        "text37": "",
+        "on38": true,
+        "text38": "",
+        "on39": true,
+        "text39": "",
+        "on40": true,
+        "text40": "",
+        "on41": true,
+        "text41": "",
+        "on42": true,
+        "text42": "",
+        "on43": true,
+        "text43": "",
+        "on44": true,
+        "text44": "",
+        "on45": true,
+        "text45": "",
+        "on46": true,
+        "text46": "",
+        "on47": true,
+        "text47": "",
+        "on48": true,
+        "text48": "",
+        "on49": true,
+        "text49": "",
+        "on50": true,
+        "text50": "",
+        "on51": true,
+        "text51": "",
+        "on52": true,
+        "text52": "",
+        "on53": true,
+        "text53": "",
+        "on54": true,
+        "text54": "",
+        "on55": true,
+        "text55": "",
+        "on56": true,
+        "text56": "",
+        "on57": true,
+        "text57": "",
+        "on58": true,
+        "text58": "",
+        "on59": true,
+        "text59": "",
+        "on60": true,
+        "text60": ""
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 3,
+      "type": "wxLoraLoaderTrigger",
+      "pos": [
+        620,
+        -280
+      ],
+      "size": [
+        370,
+        636
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "shape": 7,
+          "type": "STRING",
+          "link": 3
+        },
+        {
+          "label": "carry · 32 × 2 = 64 runs",
+          "localized_name": "carry",
+          "name": "carry",
+          "shape": 7,
+          "type": "WX_CARRY",
+          "link": 17
+        },
+        {
+          "localized_name": "folder",
+          "name": "folder",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "folder"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_clip",
+          "name": "strength_clip",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_clip"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "rgthree_info",
+          "name": "rgthree_info",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "rgthree_info"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "where",
+          "name": "where",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "where"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "separator",
+          "name": "separator",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "separator"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "picked",
+          "name": "picked",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "picked"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "selection",
+          "name": "selection",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "selection"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4
+          ]
+        },
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            5,
+            6
+          ]
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "carry",
+          "name": "carry",
+          "type": "WX_CARRY",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxLoraLoaderTrigger",
+        "strength_sweep": {
+          "control": "fixed",
+          "step": 0.1,
+          "until": 1
+        },
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "folder": true,
+            "lora_name": true,
+            "strength_model": true,
+            "strength_clip": true,
+            "rgthree_info": true,
+            "where": true,
+            "separator": true,
+            "picked": true,
+            "selection": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2",
+        "Krea2\\storyboard_sketch_v1.safetensors",
+        "fixed",
+        1,
+        1,
+        true,
+        "prefix",
+        ", ",
+        "",
+        "[\"Krea2\\\\storyboard_sketch_v1.safetensors\",\"Krea2\\\\neon_glow_v1.safetensors\"]"
+      ],
+      "widgets_values_named": {
+        "folder": "Krea2",
+        "lora_name": "Krea2\\storyboard_sketch_v1.safetensors",
+        "control_after_generate": "fixed",
+        "strength_model": 1,
+        "strength_clip": 1,
+        "rgthree_info": true,
+        "where": "prefix",
+        "separator": ", ",
+        "picked": "",
+        "selection": "[\"Krea2\\\\storyboard_sketch_v1.safetensors\",\"Krea2\\\\neon_glow_v1.safetensors\"]"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 4,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1130,
+        420
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "Positive Prompt",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.2",
+        "Node name for S&R": "CLIPTextEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "text": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1160,
+        470
+      ],
+      "size": [
+        300,
+        130
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 6
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "title": "Negative Prompt",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.2",
+        "Node name for S&R": "CLIPTextEncode",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "text": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "blurry, low quality, text, watermark"
+      ],
+      "widgets_values_named": {
+        "text": "blurry, low quality, text, watermark"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 6,
+      "type": "wxReso",
+      "pos": [
+        800,
+        770
+      ],
+      "size": [
+        230,
+        258
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "widget": {
+            "name": "wx_in_image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "section",
+          "name": "section",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "section"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "define_width",
+          "name": "define_width",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "define_width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "define_height",
+          "name": "define_height",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "define_height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "aspect_ratio",
+          "name": "aspect_ratio",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "aspect_ratio"
+          },
+          "link": 26
+        },
+        {
+          "localized_name": "custom_width",
+          "name": "custom_width",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "custom_width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "custom_height",
+          "name": "custom_height",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "custom_height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "multiple",
+          "name": "multiple",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "multiple"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "invert",
+          "name": "invert",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "invert"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "multiply_width",
+          "name": "multiply_width",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "multiply_width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "multiply_height",
+          "name": "multiply_height",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "multiply_height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "multiply_by",
+          "name": "multiply_by",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "multiply_by"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "links": [
+            10
+          ]
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxReso",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "height": true,
+            "section": true,
+            "define_width": true,
+            "define_height": true,
+            "aspect_ratio": true,
+            "custom_width": true,
+            "custom_height": true,
+            "multiple": true,
+            "invert": true,
+            "multiply_width": true,
+            "multiply_height": true,
+            "multiply_by": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        },
+        "wx_fold": false,
+        "wxOpen": "defining"
+      },
+      "widgets_values": [
+        "defining",
+        0,
+        0,
+        1536,
+        0,
+        "16:9",
+        16,
+        9,
+        8,
+        false,
+        0,
+        0,
+        1
+      ],
+      "widgets_values_named": {
+        "section": "defining",
+        "width": 0,
+        "height": 0,
+        "define_width": 1536,
+        "define_height": 0,
+        "aspect_ratio": "16:9",
+        "custom_width": 16,
+        "custom_height": 9,
+        "multiple": 8,
+        "invert": false,
+        "multiply_width": 0,
+        "multiply_height": 0,
+        "multiply_by": 1
+      }
+    },
+    {
+      "id": 7,
+      "type": "wxRatio",
+      "pos": [
+        540,
+        850
+      ],
+      "size": [
+        230,
+        241
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "ratio_width",
+          "name": "ratio_width",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "ratio_height",
+          "name": "ratio_height",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "aspect_ratio",
+          "name": "aspect_ratio",
+          "type": "COMBO",
+          "links": [
+            26
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxRatio",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "height": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        1920,
+        1080
+      ],
+      "widgets_values_named": {
+        "width": 1920,
+        "height": 1080
+      }
+    },
+    {
+      "id": 8,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1170,
+        520
+      ],
+      "size": [
+        230,
+        130
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 10
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 11
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "Latent (size from WReso)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.2",
+        "Node name for S&R": "EmptyLatentImage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "height": true,
+            "batch_size": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        1536,
+        864,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1536,
+        "height": 864,
+        "batch_size": 1
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 9,
+      "type": "wxScheduler",
+      "pos": [
+        -510,
+        680
+      ],
+      "size": [
+        280,
+        150
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "carry",
+          "localized_name": "carry",
+          "name": "carry",
+          "shape": 7,
+          "type": "WX_CARRY",
+          "link": null
+        },
+        {
+          "localized_name": "selection",
+          "name": "selection",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "selection"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "links": [
+            19
+          ]
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "carry",
+          "name": "carry",
+          "type": "WX_CARRY",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxScheduler",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "selection": true,
+            "scheduler": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "[\"kl_optimal\",\"karras\",\"beta\",\"normal\"]",
+        "kl_optimal",
+        "increment-wrap"
+      ],
+      "widgets_values_named": {
+        "selection": "[\"kl_optimal\",\"karras\",\"beta\",\"normal\"]",
+        "scheduler": "kl_optimal",
+        "control_after_generate": "increment-wrap"
+      }
+    },
+    {
+      "id": 10,
+      "type": "wxSampler",
+      "pos": [
+        -180,
+        520
+      ],
+      "size": [
+        280,
+        150
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "carry · 4 × 2 = 8 runs",
+          "localized_name": "carry",
+          "name": "carry",
+          "shape": 7,
+          "type": "WX_CARRY",
+          "link": 15
+        },
+        {
+          "localized_name": "selection",
+          "name": "selection",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "selection"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "links": [
+            18
+          ]
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "carry",
+          "name": "carry",
+          "type": "WX_CARRY",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "selection": true,
+            "sampler_name": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "[\"euler_ancestral\",\"dpmpp_2m\"]",
+        "euler_ancestral",
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "selection": "[\"euler_ancestral\",\"dpmpp_2m\"]",
+        "sampler_name": "euler_ancestral",
+        "control_after_generate": "fixed"
+      }
+    },
+    {
+      "id": 11,
+      "type": "wxSeed",
+      "pos": [
+        150,
+        340
+      ],
+      "size": [
+        230,
+        126
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "carry · 8 × 4 = 32 runs",
+          "localized_name": "carry",
+          "name": "carry",
+          "shape": 7,
+          "type": "WX_CARRY",
+          "link": 16
+        },
+        {
+          "localized_name": "value",
+          "name": "value",
+          "type": "INT",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "control",
+          "name": "control",
+          "type": "COMBO",
+          "widget": {
+            "name": "control"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "step",
+          "name": "step",
+          "type": "INT",
+          "widget": {
+            "name": "step"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "until",
+          "name": "until",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "until"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "start",
+          "name": "start",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "start"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "selection",
+          "name": "selection",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "selection"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "INT",
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            20
+          ]
+        },
+        {
+          "localized_name": "carry",
+          "name": "carry",
+          "type": "WX_CARRY",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxSeed",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "value": true,
+            "control": true,
+            "step": true,
+            "until": true,
+            "start": true,
+            "selection": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        },
+        "wx_fixed": 260
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        1,
+        4,
+        "2",
+        "[0,2,6,26]"
+      ],
+      "widgets_values_named": {
+        "value": 0,
+        "control": "fixed",
+        "step": 1,
+        "until": 4,
+        "start": "2",
+        "selection": "[0,2,6,26]"
+      },
+      "color": "rgb(0,80,159)",
+      "bgcolor": "rgb(0,80,159)"
+    },
+    {
+      "id": 12,
+      "type": "wxFloat",
+      "pos": [
+        1100,
+        870
+      ],
+      "size": [
+        210,
+        150
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "carry",
+          "localized_name": "carry",
+          "name": "carry",
+          "shape": 7,
+          "type": "WX_CARRY",
+          "link": null
+        },
+        {
+          "localized_name": "value",
+          "name": "value",
+          "type": "FLOAT",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "control",
+          "name": "control",
+          "type": "COMBO",
+          "widget": {
+            "name": "control"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "step",
+          "name": "step",
+          "type": "FLOAT",
+          "widget": {
+            "name": "step"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "until",
+          "name": "until",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "until"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "start",
+          "name": "start",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "start"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "selection",
+          "name": "selection",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "selection"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "float",
+          "name": "float",
+          "type": "FLOAT",
+          "links": [
+            21
+          ]
+        },
+        {
+          "localized_name": "carry",
+          "name": "carry",
+          "type": "WX_CARRY",
+          "links": []
+        }
+      ],
+      "title": "WFloat (cfg)",
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxFloat",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "value": true,
+            "control": true,
+            "step": true,
+            "until": true,
+            "start": true,
+            "selection": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        4,
+        "fixed",
+        0.5,
+        4,
+        "",
+        ""
+      ],
+      "widgets_values_named": {
+        "value": 4,
+        "control": "fixed",
+        "step": 0.5,
+        "until": 4,
+        "start": "",
+        "selection": ""
+      },
+      "color": "#1a2a1a",
+      "bgcolor": "#243324"
+    },
+    {
+      "id": 13,
+      "type": "KSampler",
+      "pos": [
+        1440,
+        480
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 9
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 14
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 20
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": 21
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": 18
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": 19
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.2",
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "seed": true,
+            "steps": true,
+            "cfg": true,
+            "sampler_name": true,
+            "scheduler": true,
+            "denoise": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        20,
+        4,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 20,
+        "cfg": 4,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 14,
+      "type": "VAEDecode",
+      "pos": [
+        1850,
+        -360
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 22
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.2",
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 15,
+      "type": "wxRunDiff",
+      "pos": [
+        1840,
+        -10
+      ],
+      "size": [
+        230,
+        388
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "passthrough",
+          "name": "passthrough",
+          "shape": 7,
+          "type": "*",
+          "link": 24
+        },
+        {
+          "localized_name": "key",
+          "name": "key",
+          "type": "STRING",
+          "widget": {
+            "name": "key"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "log",
+          "name": "log",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "log"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tag_max",
+          "name": "tag_max",
+          "type": "INT",
+          "widget": {
+            "name": "tag_max"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "changes_max",
+          "name": "changes_max",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "changes_max"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "track",
+          "name": "track",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "track"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ignore",
+          "name": "ignore",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "ignore"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "passthrough",
+          "name": "passthrough",
+          "type": "*",
+          "links": [
+            25
+          ]
+        },
+        {
+          "localized_name": "tag",
+          "name": "tag",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "changes",
+          "name": "changes",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "count",
+          "name": "count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "key",
+          "name": "key",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "wxRunDiff",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "key": true,
+            "log": true,
+            "tag_max": true,
+            "changes_max": true,
+            "track": true,
+            "ignore": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "auto",
+        true,
+        60,
+        240,
+        "10, 9, 11, 3",
+        ""
+      ],
+      "widgets_values_named": {
+        "key": "auto",
+        "log": true,
+        "tag_max": 60,
+        "changes_max": 240,
+        "track": "10, 9, 11, 3",
+        "ignore": ""
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 16,
+      "type": "saveWimage",
+      "pos": [
+        2160,
+        460
+      ],
+      "size": [
+        340,
+        357
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 25
+        },
+        {
+          "localized_name": "preview",
+          "name": "preview",
+          "type": "STRING",
+          "widget": {
+            "name": "preview"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "folder",
+          "name": "folder",
+          "type": "STRING",
+          "widget": {
+            "name": "folder"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "subject",
+          "name": "subject",
+          "type": "STRING",
+          "widget": {
+            "name": "subject"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "digits",
+          "name": "digits",
+          "type": "INT",
+          "widget": {
+            "name": "digits"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "parts",
+          "name": "parts",
+          "type": "INT",
+          "widget": {
+            "name": "parts"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text1",
+          "name": "text1",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type1",
+          "name": "type1",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value1",
+          "name": "value1",
+          "shape": 7,
+          "type": "*",
+          "widget": {
+            "name": "value1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text2",
+          "name": "text2",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type2",
+          "name": "type2",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value2",
+          "name": "value2",
+          "shape": 7,
+          "type": "*",
+          "widget": {
+            "name": "value2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text3",
+          "name": "text3",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type3",
+          "name": "type3",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value3",
+          "name": "value3",
+          "shape": 7,
+          "type": "*",
+          "widget": {
+            "name": "value3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text4",
+          "name": "text4",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type4",
+          "name": "type4",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value4",
+          "name": "value4",
+          "shape": 7,
+          "type": "*",
+          "widget": {
+            "name": "value4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text5",
+          "name": "text5",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type5",
+          "name": "type5",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value5",
+          "name": "value5",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text6",
+          "name": "text6",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type6",
+          "name": "type6",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value6",
+          "name": "value6",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text7",
+          "name": "text7",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type7",
+          "name": "type7",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value7",
+          "name": "value7",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text8",
+          "name": "text8",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type8",
+          "name": "type8",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value8",
+          "name": "value8",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text9",
+          "name": "text9",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type9",
+          "name": "type9",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value9",
+          "name": "value9",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text10",
+          "name": "text10",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type10",
+          "name": "type10",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "type10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "value10",
+          "name": "value10",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "write_batch",
+          "name": "write_batch",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "write_batch"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "image_preview",
+          "name": "image_preview",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "image_preview"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "localized_name": "prefix",
+          "name": "prefix",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "wextraui",
+        "ver": "1.0.0",
+        "Node name for S&R": "saveWimage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "preview": true,
+            "folder": true,
+            "subject": true,
+            "digits": true,
+            "parts": true,
+            "text1": true,
+            "type1": true,
+            "value1": true,
+            "text2": true,
+            "type2": true,
+            "value2": true,
+            "text3": true,
+            "type3": true,
+            "value3": true,
+            "text4": true,
+            "type4": true,
+            "value4": true,
+            "text5": true,
+            "type5": true,
+            "value5": true,
+            "text6": true,
+            "type6": true,
+            "value6": true,
+            "text7": true,
+            "type7": true,
+            "value7": true,
+            "text8": true,
+            "type8": true,
+            "value8": true,
+            "text9": true,
+            "type9": true,
+            "value9": true,
+            "text10": true,
+            "type10": true,
+            "value10": true,
+            "write_batch": true,
+            "image_preview": true
+          },
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Reference/fox_sheet_L_storyboard_sketch_v1_sa_euler_ancestral_sc_kl_optimal_S_0",
+        "Reference",
+        "fox_sheet",
+        2,
+        4,
+        "_L_",
+        "string",
+        "{#3}",
+        "_sa_",
+        "string",
+        "{#10}",
+        "_sc_",
+        "string",
+        "{#9}",
+        "_S_",
+        "int",
+        "{#11}",
+        "_",
+        "int",
+        "",
+        "_",
+        "int",
+        "",
+        "_",
+        "int",
+        "",
+        "_",
+        "int",
+        "",
+        "_",
+        "int",
+        "",
+        "_",
+        "int",
+        "",
+        false,
+        false
+      ],
+      "widgets_values_named": {
+        "preview": "Reference/fox_sheet_L_storyboard_sketch_v1_sa_euler_ancestral_sc_kl_optimal_S_0",
+        "folder": "Reference",
+        "subject": "fox_sheet",
+        "digits": 2,
+        "parts": 4,
+        "text1": "_L_",
+        "type1": "string",
+        "value1": "{#3}",
+        "text2": "_sa_",
+        "type2": "string",
+        "value2": "{#10}",
+        "text3": "_sc_",
+        "type3": "string",
+        "value3": "{#9}",
+        "text4": "_S_",
+        "type4": "int",
+        "value4": "{#11}",
+        "text5": "_",
+        "type5": "int",
+        "value5": "",
+        "text6": "_",
+        "type6": "int",
+        "value6": "",
+        "text7": "_",
+        "type7": "int",
+        "value7": "",
+        "text8": "_",
+        "type8": "int",
+        "value8": "",
+        "text9": "_",
+        "type9": "int",
+        "value9": "",
+        "text10": "_",
+        "type10": "int",
+        "value10": "",
+        "write_batch": false,
+        "image_preview": false
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 17,
+      "type": "Note",
+      "pos": [
+        1400,
+        870
+      ],
+      "size": [
+        560,
+        140
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "How to read it",
+      "properties": {
+        "Node name for S&R": "Note",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "8.0.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Reference images: one Run, every combination.\n\nThe carry links WScheduler, WSampler, WInt and WLoRA like the digits of a counter: when one finishes its list, the next moves by one. Here 4 schedulers x 2 samplers x 2 seeds x 4 LoRAs = 64 runs: set the Run count to 64.\nWSave Image writes into every file name the values that made that image; WDifference lists what changed from the run before.\n\nModel and LoRA names are examples: pick your own in WCheckpoint and WLoRA."
+      ],
+      "widgets_values_named": {
+        "text": "Reference images: one Run, every combination.\n\nThe carry links WScheduler, WSampler, WInt and WLoRA like the digits of a counter: when one finishes its list, the next moves by one. Here 4 schedulers x 2 samplers x 2 seeds x 4 LoRAs = 64 runs: set the Run count to 64.\nWSave Image writes into every file name the values that made that image; WDifference lists what changed from the run before.\n\nModel and LoRA names are examples: pick your own in WCheckpoint and WLoRA."
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      1,
+      1,
+      3,
+      1,
+      "CLIP"
+    ],
+    [
+      3,
+      2,
+      0,
+      3,
+      2,
+      "STRING"
+    ],
+    [
+      4,
+      3,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      8,
+      4,
+      0,
+      13,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      5,
+      0,
+      13,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      6,
+      0,
+      8,
+      0,
+      "INT"
+    ],
+    [
+      11,
+      6,
+      1,
+      8,
+      1,
+      "INT"
+    ],
+    [
+      14,
+      8,
+      0,
+      13,
+      3,
+      "LATENT"
+    ],
+    [
+      15,
+      9,
+      2,
+      10,
+      0,
+      "WX_CARRY"
+    ],
+    [
+      16,
+      10,
+      2,
+      11,
+      0,
+      "WX_CARRY"
+    ],
+    [
+      17,
+      11,
+      1,
+      3,
+      3,
+      "WX_CARRY"
+    ],
+    [
+      18,
+      10,
+      0,
+      13,
+      7,
+      "COMBO"
+    ],
+    [
+      19,
+      9,
+      0,
+      13,
+      8,
+      "COMBO"
+    ],
+    [
+      20,
+      11,
+      0,
+      13,
+      4,
+      "INT"
+    ],
+    [
+      21,
+      12,
+      0,
+      13,
+      6,
+      "FLOAT"
+    ],
+    [
+      22,
+      13,
+      0,
+      14,
+      0,
+      "LATENT"
+    ],
+    [
+      23,
+      1,
+      2,
+      14,
+      1,
+      "VAE"
+    ],
+    [
+      24,
+      14,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      15,
+      0,
+      16,
+      0,
+      "*"
+    ],
+    [
+      7,
+      3,
+      2,
+      4,
+      1,
+      "STRING"
+    ],
+    [
+      5,
+      3,
+      1,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      6,
+      3,
+      1,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      26,
+      7,
+      2,
+      6,
+      6,
+      "COMBO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.062936600000004,
+      "offset": [
+        5.0425894902698545,
+        402.54735061249625
+      ]
+    },
+    "ue_links": []
+  },
+  "version": 0.4
+}

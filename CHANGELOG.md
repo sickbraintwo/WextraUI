@@ -1,5 +1,8 @@
 # Changelog
 
+## Next
+- The three workflows of the Open Source Higgsfield demo, under `workflows/challenge/` (README § The three workflows of the demo). No code changes.
+
 ## 1.0.0 — 2026-11-02
 - **WextraUI 1.0.** Every node of the pack has been gone through, one by one, for both renderers: the classic canvas and Nodes 2.0. Most of them have a new look, a collapsed node reads its name and its value, the menus of a control open on `fixed`. Nothing breaks: the workflows you saved open as they were, and no node changes its type.
 - **Ctrl+Z in Nodes 2.0 no longer leaves dead rows.** Undo lays a graph over the same node ids: Nodes 2.0 kept the rows of the old node on screen, and what you typed or clicked there went nowhere (the rows of WLoRA, WLoRA Stack, WReso, WRatio, WFrame, WScene H3, WScene Composer H3, WExtractor, WAonV, WMixer, WSave Image, WDifference). One check for the whole pack now: every row goes back to the node that is alive, and the chips, the lines and the bars the old node left go away with it.

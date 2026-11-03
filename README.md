@@ -319,6 +319,14 @@ A ~77 s music video, video and audio generated together shot by shot with MiniMa
 - The workflow: [`workflows/MM_H3_Loop_RESONANCE.json`](workflows/MM_H3_Loop_RESONANCE.json)
 - Keyframes and references it loads (drop them in `ComfyUI/input`): [`workflows/references/`](workflows/references/)
 
+## The three workflows of the demo
+
+Entry for Comfy's Open Source Higgsfield competition, November 2026: [the demo on YouTube](https://youtu.be/ZSeAw8H0Zg8). The three workflows it shows are in [`workflows/challenge/`](workflows/challenge/), each with a note on the graph that says how to read it. The model, LoRA and file names in them are examples: pick your own from the menus.
+
+- [`Challenge_1_Reference_images.json`](workflows/challenge/Challenge_1_Reference_images.json): the carry on WCheckpoint, WLoRA, WSampler, WScheduler and WInt, one Run for every combination, WSave Image naming every file by what made it, WDifference on what changed.
+- [`Challenge_2_Scenes_H3.json`](workflows/challenge/Challenge_2_Scenes_H3.json): the H3 scene loop that made RESONANCE, with its six stops written on the graph.
+- [`Challenge_3_Sound_and_cut.json`](workflows/challenge/Challenge_3_Sound_and_cut.json): WExtractor, WCutScene, WAudio Prompts, the Foley loop with LTX-2.3, then WMixer, WMount and WAonV.
+
 ## Security
 
 What the pack touches, for whoever reviews it:
